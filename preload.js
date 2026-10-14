@@ -1,0 +1,19 @@
+// Sastra PDF — safe bridge between the page and the main process
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+
+contextBridge.exposeInMainWorld('sastra', {
+  isDesktop: true,
+  openDialog: () => ipcRenderer.invoke('open-dialog'),
+  readFile: p => ipcRenderer.invoke('read-file', p),
+  writeFile: (filePath, data) => ipcRenderer.invoke('write-file', { filePath, data }),
+  saveDialog: (defaultName, data, kind) => ipcRenderer.invoke('save-dialog', { defaultName, data, kind }),
+  confirmClose: names => ipcRenderer.invoke('confirm-close', names),
+  closeNow: () => ipcRenderer.send('close-now'),
+  setTitle: t => ipcRenderer.send('set-title', t),
+  showInFolder: p => ipcRenderer.send('show-folder', p),
+  initialPaths: () => ipcRenderer.invoke('initial-paths'),
+  pathForFile: f => { try { return webUtils.getPathForFile(f) || null; } catch { return null; } },
+  onMenu: fn => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
+  onOpenPaths: fn => ipcRenderer.on('open-paths', (_e, paths) => fn(paths)),
+  onCloseRequest: fn => ipcRenderer.on('close-request', () => fn())
+});

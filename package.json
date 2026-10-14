@@ -1,0 +1,47 @@
+{
+  "name": "sastra-pdf",
+  "productName": "Sastra PDF",
+  "version": "1.0.0",
+  "description": "Sastra PDF (សាស្ត្រា PDF) — combine, split, organize and export PDF pages",
+  "main": "main.js",
+  "author": "Sastra PDF",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "postinstall": "node scripts/ensure-electron.js && node scripts/copy-vendor.js",
+    "start": "electron .",
+    "dist": "electron-builder --win nsis",
+    "dist:portable": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8",
+    "jszip": "3.10.1",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "3.11.174"
+  },
+  "build": {
+    "appId": "kh.sastra.pdf",
+    "productName": "Sastra PDF",
+    "copyright": "Sastra PDF",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "app/**/*", "build/icon.png", "package.json"],
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sastra PDF",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "fileAssociations": [
+      { "ext": "pdf", "name": "PDF document", "description": "PDF document", "role": "Editor", "icon": "build/icon.ico" }
+    ]
+  }
+}
