@@ -70,6 +70,8 @@ function buildMenu() {
       k('Save &As…', 'Ctrl+Shift+S', 'saveAs'),
       { type: 'separator' },
       k('&Close Tab', 'Ctrl+W', 'closeTab'),
+      k('Next Ta&b', 'Ctrl+Tab', 'nextTab'),
+      k('Pre&vious Tab', 'Ctrl+Shift+Tab', 'prevTab'),
       { label: 'E&xit', accelerator: 'Alt+F4', click: () => win && win.close() }
     ]},
     { label: '&Edit', submenu: [
