@@ -34,7 +34,8 @@ Double-click **run.bat**, or run `npm start`.
     preload.js         Safe bridge between the page and Windows (open/save files)
     app/index.html     The app itself (UI and all PDF tools)
     app/vendor/        pdf.js, pdf-lib, JSZip (copied automatically by npm install)
-    build/icon.ico     App and installer icon
+    build/icon.ico     App and installer icon (made from build/logo.png)
+    build/logo.png     The Sastra logo, 1024 px master
     scripts/           Helper that copies the libraries into app/vendor
     web/index.html     Browser-only version (no install needed)
 

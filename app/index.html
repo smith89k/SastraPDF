@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>/* saved theme before first paint, so there is no flash */try{const t=localStorage.getItem('sastra-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
 <style>[hidden]{display:none!important}body{margin:0}</style>
 </head>
 <body>
 <title>Sastra PDF</title>
+<link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Khmer:wght@500;600&display=swap">
 <style>
@@ -16,7 +18,7 @@
   --chrome:#efece8; --panel:#f8f6f3; --canvas:#cfcbc5; --line:#dcd7d0; --line-strong:#c7c1b8;
   --fg:#23201c; --muted:#6c665e; --accent:#b8432a; --accent-fg:#ffffff; --accent-soft:rgba(184,67,42,.12);
   --hover:rgba(35,32,28,.07); --page-shadow:0 1px 2px rgba(0,0,0,.18),0 6px 18px rgba(0,0,0,.12);
-  --ok:#2f7a4b; --err:#b3261e; --tab-active:#f8f6f3;
+  --ok:#2f7a4b; --err:#b3261e; --tab-active:#f8f6f3; --linkedin:#0a66c2;
   --ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
@@ -24,26 +26,31 @@
   --chrome:#1f1d1b; --panel:#272523; --canvas:#141312; --line:#34312e; --line-strong:#47433e;
   --fg:#ece8e2; --muted:#a29b91; --accent:#e46a4f; --accent-fg:#1a0d09; --accent-soft:rgba(228,106,79,.16);
   --hover:rgba(255,255,255,.07); --page-shadow:0 1px 2px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.45);
-  --ok:#6cc08b; --err:#ff8a80; --tab-active:#272523; color-scheme:dark}}
+  --ok:#6cc08b; --err:#ff8a80; --tab-active:#272523; --linkedin:#5aa2ea; color-scheme:dark}}
 :root[data-theme="dark"]{
   --chrome:#1f1d1b; --panel:#272523; --canvas:#141312; --line:#34312e; --line-strong:#47433e;
   --fg:#ece8e2; --muted:#a29b91; --accent:#e46a4f; --accent-fg:#1a0d09; --accent-soft:rgba(228,106,79,.16);
   --hover:rgba(255,255,255,.07); --page-shadow:0 1px 2px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.45);
-  --ok:#6cc08b; --err:#ff8a80; --tab-active:#272523; color-scheme:dark}
+  --ok:#6cc08b; --err:#ff8a80; --tab-active:#272523; --linkedin:#5aa2ea; color-scheme:dark}
 
 html,body{height:100%}
 body{background:var(--chrome);color:var(--fg);font-family:var(--ui);font-size:13px;overflow:hidden}
+/* native feel: no text selection, I-beam cursor or image dragging in the UI; text fields still work */
+body{-webkit-user-select:none;user-select:none;cursor:default}
+input:not([type=checkbox],[type=radio],[type=file]),textarea{-webkit-user-select:text;user-select:text;cursor:text}
+img{-webkit-user-drag:none}
 button,select,input{font:inherit;color:inherit}
 svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
-#app{height:100%;display:grid;grid-template-rows:auto auto auto 1fr auto;grid-template-columns:minmax(0,1fr);background:var(--chrome)}
+#app{height:100%;display:grid;grid-template-rows:auto auto 1fr auto;grid-template-columns:minmax(0,1fr);grid-template-areas:"menu" "tabs" "work" "status";background:var(--chrome)}
+/* named areas: a hidden bar leaves its own row empty instead of pushing the workspace into an auto row */
+#app>.menubar{grid-area:menu}#app>.tabbar{grid-area:tabs}#app>.workspace{grid-area:work}#app>.status{grid-area:status}
 
 /* menu bar */
 .menubar{display:flex;align-items:center;gap:4px;padding:6px max(10px,env(safe-area-inset-left,0px)) 6px max(10px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);min-width:0}
-.brand{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.01em;margin-right:10px;font-size:14px;white-space:nowrap}
-.brand-mark{width:22px;height:26px;position:relative;flex:none}
-.brand-mark::before{content:"";position:absolute;inset:0;border-radius:2px 7px 2px 2px;background:var(--accent)}
-.brand-mark::after{content:"";position:absolute;right:0;top:0;width:8px;height:8px;background:var(--chrome);border-bottom-left-radius:3px;box-shadow:-1px 1px 0 rgba(0,0,0,.15)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.01em;margin:0 4px 0 -6px;padding:3px 6px;border:0;border-radius:6px;background:transparent;font-size:14px;white-space:nowrap;cursor:pointer}
+.brand:hover{background:var(--hover)}
+.brand-mark{width:26px;height:26px;display:block;flex:none}
 .brand-km{font-family:"Noto Sans Khmer","Khmer OS Battambang","Khmer UI",sans-serif;font-weight:500;color:var(--muted);font-size:13px;padding-left:8px;border-left:1px solid var(--line-strong)}
 .spacer{flex:1}
 .btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:0;background:transparent;border-radius:6px;cursor:pointer;white-space:nowrap}
@@ -57,6 +64,13 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .btn:focus-visible,.tab:focus-visible,.thumb:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .sep{width:1px;height:20px;background:var(--line-strong);margin:0 4px;flex:none}
 .menubar .btn .lbl{display:inline}
+/* the logo row holds everything, so it sheds the least-needed bits as the window narrows;
+   all stay reachable (tooltips, zoom dropdown, right-click menu, shortcuts) */
+@media (max-width:1535px){#app:not(.focus) .menubar .btn .lbl{display:none}}
+@media (max-width:1299px){#bFitW,#bFitP{display:none}}
+@media (max-width:1239px){.menubar .brand-km{display:none}}
+@media (max-width:1179px){#bZoomOut,#bZoomIn{display:none}}
+@media (max-width:1119px){#bPrev,#bNext{display:none}}
 
 /* tabs */
 .tabbar{display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;min-width:0}
@@ -73,7 +87,8 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .newtab{height:30px;width:30px;flex:none;align-self:center}
 
 /* toolbar */
-.toolbar{display:flex;align-items:center;gap:2px;padding:5px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;min-width:0}
+/* view tools sit in the logo row between Undo/Redo and Theme; they scroll sideways if the window is too narrow */
+.toolbar{display:flex;align-items:center;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
 .toolbar::-webkit-scrollbar{display:none}
 .toolbar .grp{display:flex;align-items:center;gap:2px;flex:none}
 .zoomsel{height:30px;border:1px solid var(--line-strong);background:var(--chrome);border-radius:6px;padding:0 6px;font-family:var(--mono);font-size:12px;min-width:96px}
@@ -82,7 +97,7 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 
 /* workspace */
 .workspace{display:flex;min-height:0;position:relative}
-.thumbs{width:186px;flex:none;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:12px 0 24px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.thumbs{width:186px;flex:none;background:var(--chrome);border-right:1px solid var(--line);overflow-y:auto;padding:12px 0 24px;display:flex;flex-direction:column;align-items:center;gap:14px}
 .thumbs-head{width:100%;box-sizing:border-box;padding:0 14px 2px;display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .thumb{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;border-radius:8px;cursor:pointer;position:relative;outline:none}
 .thumb:hover{background:var(--hover)}
@@ -95,6 +110,10 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .thumb.drop-before::before,.thumb.drop-after::after{content:"";position:absolute;left:8px;right:8px;height:3px;background:var(--accent);border-radius:2px}
 .thumb.drop-before::before{top:-9px}.thumb.drop-after::after{bottom:-9px}
 .thumb.dragging{opacity:.4}
+/* no PDF open: a hint and faint page outlines show what the panel is for */
+.thumbs-hint{margin:0;padding:0 18px;font-size:12px;line-height:1.45;color:var(--muted);text-align:center}
+.thumb.ghost{cursor:default;pointer-events:none}
+.thumb.ghost .tbox{background:var(--panel);box-shadow:0 0 0 1px var(--line);border-radius:7px}   /* blank cards, like the Tools panel's buttons */
 
 .viewer{flex:1;min-width:0;overflow:auto;background:var(--canvas);position:relative;outline:none}
 .viewer.hand{cursor:grab}
@@ -113,7 +132,8 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .dropping .viewer::after{content:"Drop PDFs to open them in new tabs";position:absolute;inset:12px;border:3px dashed var(--accent);border-radius:12px;display:grid;place-items:center;font-size:16px;font-weight:600;color:var(--accent);background:var(--accent-soft);pointer-events:none}
 
 /* tools panel */
-.tools{width:286px;flex:none;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding-bottom:28px}
+.tools{width:286px;flex:none;background:var(--chrome);border-left:1px solid var(--line);overflow-y:auto;padding-bottom:28px}
+.tools>*{--chrome:var(--panel)}   /* side panels are grey like the top/status bars; controls in them are lighter cards */
 .tsec{border-bottom:1px solid var(--line);padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px}
 .tsec h3{margin:0;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
 .tsec h3 svg{width:15px;height:15px;color:var(--accent)}
@@ -133,6 +153,7 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .seg button{flex:1;height:30px;border:0;background:var(--chrome);cursor:pointer;font-size:12px}
 .seg button+button{border-left:1px solid var(--line-strong)}
 .seg button.on{background:var(--accent);color:var(--accent-fg);font-weight:500}
+:is(.toolbar,.tools) :is(select,input,.seg button):disabled{opacity:.45;cursor:default}
 .clist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--chrome)}
 .citem{display:flex;align-items:center;gap:6px;padding:4px 4px 4px 8px;min-height:34px}
 .citem+.citem{border-top:1px solid var(--line)}
@@ -157,12 +178,76 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:14px;box-shadow:0 16px 48px rgba(0,0,0,.3)}
 .modal p{margin:0;line-height:1.5}
 .modal .acts{display:flex;justify-content:flex-end;gap:8px}
+/* About (Help > About, or click the brand): the app, its author, credits */
+.modal.about{box-sizing:border-box;max-width:480px;max-height:calc(100vh - 32px);overflow-y:auto;gap:16px;padding:22px}
+.about .acts{justify-content:space-between;align-items:center}
+.about-head{display:flex;align-items:center;gap:14px}
+.about-head img{width:56px;height:56px;flex:none}
+.about-name{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:600}
+.about-name .brand-km{font-size:15px}
+.about-ver{margin-top:3px;color:var(--muted);font-family:var(--mono);font-size:12px}
+.about .note{color:var(--muted);font-size:12px}
+.about section{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:1px solid var(--line)}
+.about h3{margin:0;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.author{display:flex;align-items:center;gap:14px}
+.author img{width:64px;height:64px;border-radius:50%;object-fit:cover;flex:none;box-shadow:0 0 0 1px var(--line-strong)}
+.author b{display:block;font-size:15px;font-weight:600}
+.author span{color:var(--muted)}
+.author .handle{margin-left:8px;color:var(--accent);font-family:var(--mono);font-size:12px;font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.chips li{padding:3px 9px;border-radius:999px;background:var(--hover);font-family:var(--mono);font-size:11.5px}
+.about .links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.about .links a{display:flex;align-items:center;gap:10px;min-width:0;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;color:inherit;text-decoration:none;transition:border-color .15s,background-color .15s}
+.about .links a:hover,.about .links a:focus-visible{border-color:var(--accent);background:var(--accent-soft);outline:none}
+.about .links svg.i{width:20px;height:20px;color:var(--ic)}
+.about .links span{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.about .links b{font-size:12.5px;font-weight:500}
+.about .links small{overflow:hidden;color:var(--muted);font-family:var(--mono);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.about .link-web{--ic:var(--accent)} .about .link-linkedin{--ic:var(--linkedin)} .about .link-github{--ic:var(--fg)}
+@media (max-width:480px){.about .links{grid-template-columns:minmax(0,1fr)}}
+.credits{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:5px 12px;margin:0;padding:0;list-style:none;font-size:12px}
+.credits li{display:contents}
+.credits a{color:var(--accent);text-decoration:none;font-weight:500}
+.credits a:hover{text-decoration:underline}
+.credits span{color:var(--muted);overflow-wrap:anywhere}
+.credits span:last-child{font-family:var(--mono);font-size:11px;text-align:right;white-space:nowrap}
+/* right-click menu on the page area (openMenu): the view toolbar as a list */
+.cmenu{position:fixed;left:0;top:0;z-index:55;min-width:250px;max-height:calc(100vh - 16px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px;box-shadow:0 12px 36px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:1px;outline:none}
+.cmenu .ci{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:10px;height:30px;padding:0 10px;border:0;border-radius:6px;background:transparent;text-align:left;cursor:pointer;white-space:nowrap;flex:none}
+.cmenu .ci:hover:not(:disabled),.cmenu .ci:focus-visible{background:var(--hover);outline:none}
+.cmenu .ci[aria-checked="true"]{background:var(--accent-soft);color:var(--accent)}
+.cmenu .ci:disabled{opacity:.4;cursor:default}
+.cmenu .kb{font-family:var(--mono);font-size:11px;color:var(--muted);padding-left:18px}
+.cmenu hr{border:0;border-top:1px solid var(--line);margin:4px 8px;flex:none}
+.cmenu .cf{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:10px;height:36px;padding:0 6px 0 10px;flex:none}
+.cmenu .cf .zoomsel{min-width:150px}
+/* presentation (startShow): one page on black, filling the screen */
+.show{position:fixed;inset:0;z-index:80;background:#000;display:grid;place-items:center;outline:none;overflow:hidden}
+.show canvas{display:block}
+.show.idle{cursor:none}
+.show-bar{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:2px;padding:4px;border-radius:10px;background:rgba(28,28,28,.82);color:#f2f2f2;box-shadow:0 6px 24px rgba(0,0,0,.4);transition:opacity .25s}
+.show.idle .show-bar{opacity:0;pointer-events:none}
+.show-bar button{width:34px;height:34px;border:0;border-radius:7px;background:transparent;color:inherit;display:grid;place-items:center;cursor:pointer}
+.show-bar button:hover{background:rgba(255,255,255,.14)}
+.show-bar .sep{background:rgba(255,255,255,.25)}
+.show-n{font-family:var(--mono);font-size:12px;min-width:70px;text-align:center;font-variant-numeric:tabular-nums}
 
 /* view states */
 #app.no-thumbs .thumbs{display:none}
+#app>.tabbar:empty{display:none}   /* no PDF open: no tab row, only the "Open a PDF" box */
 #app.no-tools .tools{display:none}
-#app.focus .menubar,#app.focus .status{display:none}
+#app.focus .status{display:none}
 #app.focus .thumbs,#app.focus .tools{display:none}
+/* maximized: toggleFocus() moves the tab row up beside the logo; only brand, tabs and Restore/Full screen stay
+   (the view tools are then in the right-click menu) */
+#app.focus .menubar{padding-bottom:0;align-items:stretch}
+#app.focus .menubar>:not(.brand,.tabbar,#bFocus,#bFull){display:none}
+#app.focus .menubar>.brand,#app.focus .menubar>.btn{align-self:center}
+#app.focus .menubar>.tabbar{flex:1;padding:0 0 0 4px;border-bottom:0}
+/* ...and it is a slideshow in the window: only the current page, fitted whole and centred */
+#app.focus #pages{box-sizing:border-box;min-height:100%;justify-content:center;padding:12px}
+#app.focus .page:not(.current){display:none}
+#app.focus .page .pg-lbl{display:none}
 
 @media (max-width:820px){
   .menubar .btn .lbl{display:none}
@@ -170,48 +255,50 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
   .thumbs{left:0}.tools{right:0;width:min(300px,86vw)}
   .page .pg-lbl{display:none}
 }
-@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}.toast{transition:none}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}.toast,.about .links a{transition:none}}
 </style>
 
 <div id="app">
   <header class="menubar">
-    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Sastra PDF</span><span class="brand-km" lang="km">សាស្ត្រា</span></div>
+    <button class="brand" id="bAbout" title="About Sastra PDF"><img class="brand-mark" src="logo.png" alt="" width="26" height="26"><span>Sastra PDF</span><span class="brand-km" lang="km">សាស្ត្រា</span></button>
     <button class="btn" id="bOpen" title="Open PDF files (Ctrl+O)"><svg class="i" data-i="open"></svg><span class="lbl">Open</span></button>
     <button class="btn" id="bSave" title="Save PDF (Ctrl+S)"><svg class="i" data-i="save"></svg><span class="lbl">Save</span></button>
     <span class="sep"></span>
     <button class="btn icon" id="bUndo" title="Undo (Ctrl+Z)"><svg class="i" data-i="undo"></svg></button>
     <button class="btn icon" id="bRedo" title="Redo (Ctrl+Y)"><svg class="i" data-i="redo"></svg></button>
-    <div class="spacer"></div>
+    <span class="sep"></span>
+    <div class="toolbar" role="toolbar" aria-label="View tools">
+      <div class="grp">
+        <button class="btn icon" id="bThumbs" title="Page thumbnails"><svg class="i" data-i="side"></svg></button>
+        <span class="sep"></span>
+        <button class="btn icon on" id="tSelect" title="Select tool (V)"><svg class="i" data-i="cursor"></svg></button>
+        <button class="btn icon" id="tHand" title="Hand tool (H) — or hold Space"><svg class="i" data-i="hand"></svg></button>
+        <span class="sep"></span>
+        <button class="btn icon" id="bZoomOut" title="Zoom out (Ctrl+−)"><svg class="i" data-i="zout"></svg></button>
+        <select class="zoomsel" id="zoomSel" aria-label="Zoom"></select>
+        <button class="btn icon" id="bZoomIn" title="Zoom in (Ctrl+=)"><svg class="i" data-i="zin"></svg></button>
+        <button class="btn icon" id="bFitW" title="Fit width"><svg class="i" data-i="fitw"></svg></button>
+        <button class="btn icon" id="bFitP" title="Fit page (Ctrl+0)"><svg class="i" data-i="fitp"></svg></button>
+        <span class="sep"></span>
+        <button class="btn icon" id="bPrev" title="Previous page"><svg class="i" data-i="up"></svg></button>
+        <div class="pagebox"><input id="pageIn" inputmode="numeric" aria-label="Page number" value="1"><span id="pageOf">/ 1</span></div>
+        <button class="btn icon" id="bNext" title="Next page"><svg class="i" data-i="down"></svg></button>
+        <span class="sep"></span>
+        <button class="btn icon" id="bRotL" title="Rotate selected pages left"><svg class="i" data-i="rotl"></svg></button>
+        <button class="btn icon" id="bRotR" title="Rotate selected pages right"><svg class="i" data-i="rotr"></svg></button>
+        <button class="btn icon" id="bDel" title="Delete selected pages (Delete)"><svg class="i" data-i="trash"></svg></button>
+      </div>
+      <div class="spacer"></div>
+      <div class="grp"><button class="btn" id="bTools" title="Organize tools"><svg class="i" data-i="panel"></svg><span class="lbl">Tools</span></button></div>
+    </div>
+    <span class="sep"></span>
+    <button class="btn" id="bPresent" title="Present from this page (Shift+F5) · from the start: F5"><svg class="i" data-i="play"></svg><span class="lbl">Present</span></button>
     <button class="btn" id="bFocus" title="Maximize the page area (F)"><svg class="i" data-i="max"></svg><span class="lbl">Maximize</span></button>
     <button class="btn icon" id="bFull" title="Full screen"><svg class="i" data-i="full"></svg></button>
+    <button class="btn icon" id="bTheme" title="Theme"><svg class="i" data-i="sys"></svg></button>
   </header>
 
   <nav class="tabbar" id="tabs" aria-label="Open documents"></nav>
-
-  <div class="toolbar" role="toolbar" aria-label="View tools">
-    <div class="grp">
-      <button class="btn icon" id="bThumbs" title="Page thumbnails"><svg class="i" data-i="side"></svg></button>
-      <span class="sep"></span>
-      <button class="btn icon on" id="tSelect" title="Select tool (V)"><svg class="i" data-i="cursor"></svg></button>
-      <button class="btn icon" id="tHand" title="Hand tool (H) — or hold Space"><svg class="i" data-i="hand"></svg></button>
-      <span class="sep"></span>
-      <button class="btn icon" id="bZoomOut" title="Zoom out (Ctrl+−)"><svg class="i" data-i="zout"></svg></button>
-      <select class="zoomsel" id="zoomSel" aria-label="Zoom"></select>
-      <button class="btn icon" id="bZoomIn" title="Zoom in (Ctrl+=)"><svg class="i" data-i="zin"></svg></button>
-      <button class="btn icon" id="bFitW" title="Fit width"><svg class="i" data-i="fitw"></svg></button>
-      <button class="btn icon" id="bFitP" title="Fit page (Ctrl+0)"><svg class="i" data-i="fitp"></svg></button>
-      <span class="sep"></span>
-      <button class="btn icon" id="bPrev" title="Previous page"><svg class="i" data-i="up"></svg></button>
-      <div class="pagebox"><input id="pageIn" inputmode="numeric" aria-label="Page number" value="1"><span id="pageOf">/ 1</span></div>
-      <button class="btn icon" id="bNext" title="Next page"><svg class="i" data-i="down"></svg></button>
-      <span class="sep"></span>
-      <button class="btn icon" id="bRotL" title="Rotate selected pages left"><svg class="i" data-i="rotl"></svg></button>
-      <button class="btn icon" id="bRotR" title="Rotate selected pages right"><svg class="i" data-i="rotr"></svg></button>
-      <button class="btn icon" id="bDel" title="Delete selected pages (Delete)"><svg class="i" data-i="trash"></svg></button>
-    </div>
-    <div class="spacer"></div>
-    <div class="grp"><button class="btn" id="bTools" title="Organize tools"><svg class="i" data-i="panel"></svg><span>Tools</span></button></div>
-  </div>
 
   <div class="workspace" id="ws">
     <aside class="thumbs" id="thumbs" aria-label="Pages"></aside>
@@ -318,7 +405,13 @@ const ICONS = {
   side:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   panel:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
   pages:'<rect x="4" y="5" width="11" height="15" rx="1.5"/><path d="M8 3h10.5A1.5 1.5 0 0 1 20 4.5V17"/>',
-  close:'<path d="M6 6l12 12M18 6L6 18"/>', plus:'<path d="M12 5v14M5 12h14"/>'
+  close:'<path d="M6 6l12 12M18 6L6 18"/>', web:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/>',
+  linkedin:'<path fill="currentColor" stroke="none" fill-rule="evenodd" d="M5.5 2.5h13a3 3 0 0 1 3 3v13a3 3 0 0 1-3 3h-13a3 3 0 0 1-3-3v-13a3 3 0 0 1 3-3zM8 6.1a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8zM6.8 10.1h2.4v7.6H6.8zM11 10.1h2.3v1.1c.4-.7 1.3-1.3 2.6-1.3 2.2 0 2.9 1.4 2.9 3.5v4.3h-2.4v-3.9c0-1-.3-1.8-1.3-1.8s-1.7.8-1.7 1.9v3.8H11z"/>',
+  github:'<path fill="currentColor" stroke="none" transform="scale(1.5)" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>', plus:'<path d="M12 5v14M5 12h14"/>',
+  sys:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+  moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  play:'<path d="M8 5.5v13l10.5-6.5z"/>', left:'<path d="M15 6l-6 6 6 6"/>', right:'<path d="M9 6l6 6-6 6"/>'
 };
 const svg = n => `<svg class="i" viewBox="0 0 24 24">${ICONS[n]}</svg>`;
 document.querySelectorAll('svg[data-i]').forEach(s => { s.setAttribute('viewBox','0 0 24 24'); s.innerHTML = ICONS[s.dataset.i] || ''; });
@@ -371,6 +464,54 @@ function askConfirm(msg, ok='Close without saving'){
     document.body.appendChild(bg); bg.querySelector('[data-r="1"]').focus();
   });
 }
+
+/* ---------- About: the app and its author (Help > About, or click the brand) ---------- */
+const AUTHOR = {
+  name:'Sunnguon Taing', handle:'smith89k', role:'Full-stack & DevOps developer · Cambodia', photo:'author.jpg',
+  bio:'I build web apps, run my own servers and make everyday tools.',
+  stack:['Laravel','PHP','JavaScript','TypeScript','Tailwind CSS','Docker','Electron'],
+  links:[['Website','smith89k.com','https://smith89k.com','web'],['LinkedIn','in/sunnguon','https://www.linkedin.com/in/sunnguon/','linkedin'],['GitHub','smith89k','https://github.com/smith89k','github']]
+};
+// open-source code that ships in the app: name, copyright holder, licence, project page
+const CREDITS = [
+  ['pdf.js','Mozilla Foundation','Apache-2.0','https://github.com/mozilla/pdf.js'],
+  ['pdf-lib','Andrew Dillon','MIT','https://github.com/Hopding/pdf-lib'],
+  ['JSZip','Stuart Knightley and contributors','MIT','https://github.com/Stuk/jszip'],
+  ['pako','Vitaly Puzrin, Andrei Tuputcyn','MIT, Zlib','https://github.com/nodeca/pako'],
+  ['Electron','Electron contributors, GitHub Inc.','MIT','https://www.electronjs.org/'],
+  ['IBM Plex Sans & Mono','IBM','SIL OFL 1.1','https://github.com/IBM/plex'],
+  ['Noto Sans Khmer','Google','SIL OFL 1.1','https://github.com/notofonts/khmer']
+];
+const CREDITS_NOTE = 'pdf-lib and JSZip also include UPNG (Photopea), tslib (Microsoft), lie, readable-stream and setimmediate, under MIT or 0BSD. Electron includes Chromium and Node.js under their own open-source licences.';
+function openAbout(){
+  if ($('.modal-bg')) return;
+  const back = document.activeElement, A = AUTHOR, out = 'target="_blank" rel="noopener"';   // links open in the normal browser
+  const bg = document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML = `<div class="modal about" role="dialog" aria-modal="true" aria-labelledby="aboutName">
+    <div class="about-head"><img src="${$('.brand-mark').src}" alt="" width="56" height="56">
+      <div><div class="about-name" id="aboutName">Sastra PDF<span class="brand-km" lang="km">សាស្ត្រា</span></div><div class="about-ver"></div></div></div>
+    <p>Combine, split, organize and export PDF pages. Your files stay on this computer.</p>
+    <p class="note"><span lang="km">សាស្ត្រា</span> (sastra) are the traditional Khmer palm-leaf manuscripts: each leaf is a page.</p>
+    <section aria-label="Made by"><h3>Made by</h3>
+      <div class="author"><img src="${A.photo}" alt="" width="64" height="64"><div><b>${A.name}<span class="handle">${A.handle}</span></b><span>${A.role}</span></div></div>
+      <p>${A.bio}</p>
+      <ul class="chips" aria-label="Skills">${A.stack.map(t => `<li>${t}</li>`).join('')}</ul>
+      <div class="links">${A.links.map(([n, v, u, ic]) => `<a class="link-${ic}" href="${u}" ${out} title="${u}">${svg(ic)}<span><b>${n}</b><small>${v}</small></span></a>`).join('')}</div>
+    </section>
+    <section aria-label="Open-source credits"><h3>Built with open source</h3>
+      <ul class="credits">${CREDITS.map(([n, by, lic, u]) => `<li><a href="${u}" ${out}>${n}</a><span>${by}</span><span>${lic}</span></li>`).join('')}</ul>
+      <p class="note">${CREDITS_NOTE}</p></section>
+    <div class="acts"><span class="note">© 2026 smith89k</span><button class="btn primary" data-close>Close</button></div>
+  </div>`;
+  const ver = bg.querySelector('.about-ver');
+  if (desk) desk.appVersion().then(v => { ver.textContent = 'Version ' + v; }, () => {}); else ver.textContent = 'Web version';
+  const done = () => { bg.remove(); document.removeEventListener('keydown', k, true); back?.focus?.(); };
+  const k = e => { if (e.key==='Escape'){ e.stopPropagation(); done(); } };
+  bg.addEventListener('click', e => { if (e.target===bg || e.target.closest('[data-close]')) done(); });
+  document.addEventListener('keydown', k, true);
+  document.body.appendChild(bg); bg.querySelector('[data-close]').focus({ preventScroll:true });   // Close sits at the bottom: keep the top in view
+}
+$('#bAbout').onclick = openAbout;
 async function busy(label, fn){
   if (state.busy) { toast('Please wait for the current task to finish'); return; }
   state.busy = true; $('#stBusy').innerHTML = `<span class="busy"><span class="spin"></span>${label}</span>`;
@@ -453,7 +594,7 @@ function renderTabs(){
     tabsEl.appendChild(t);
   }
   const plus = document.createElement('button'); plus.className='btn icon newtab'; plus.title='Open PDF in a new tab'; plus.innerHTML = svg('plus');
-  plus.onclick = openCmd; tabsEl.appendChild(plus);
+  plus.onclick = openCmd; if (state.docs.length) tabsEl.appendChild(plus);
   updateTitle();
   const a = tabsEl.querySelector('.tab.active'); if (a) a.scrollIntoView({block:'nearest',inline:'nearest'});
 }
@@ -461,19 +602,22 @@ function renderTabs(){
 /* ---------- viewer ---------- */
 let io = null;
 function fitZoom(d, mode){
-  const vw = viewer.clientWidth - 48 - (window.innerWidth>820?60:0), vh = viewer.clientHeight - 48;
+  const f = app.classList.contains('focus'), pad = f ? 24 : 48;   // maximized: slim margins, no page numbers
+  const vw = viewer.clientWidth - pad - (!f && window.innerWidth>820 ? 60 : 0), vh = viewer.clientHeight - pad;
   const maxW = Math.max(...d.sizes.map(s=>s.w)); const s = d.sizes[d.current] || d.sizes[0];
   let z = vw / maxW; if (mode === 'page') z = Math.min(z, vh / s.h);
   return Math.max(0.1, Math.min(z, 8));
 }
 function renderViewer(restore){
   if (io) io.disconnect(); pagesEl.innerHTML = '';
-  const d = active(); $('#empty').hidden = !!d; if (!d) return;
+  const d = active(); $('#empty').hidden = !!d;
+  if (!d) { if (app.classList.contains('focus')) toggleFocus(false); return; }
+  focusFit(d);
   if (d.fit) d.zoom = fitZoom(d, d.fit);
   d.viewGen++;
   io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) drawPage(d, +e.target.dataset.i, e.target); }, { root:viewer, rootMargin:'800px 400px' });
   d.sizes.forEach((s,i) => {
-    const el = document.createElement('div'); el.className='page'; el.dataset.i = i;
+    const el = document.createElement('div'); el.className = 'page' + (i === d.current ? ' current' : ''); el.dataset.i = i;
     el.style.width = s.w*d.zoom+'px'; el.style.height = s.h*d.zoom+'px';
     el.innerHTML = `<span class="pg-lbl">${i+1}</span>`;
     pagesEl.appendChild(el); io.observe(el);
@@ -481,6 +625,10 @@ function renderViewer(restore){
   markViewerSel();
   if (restore && d.scroll) { viewer.scrollTop = d.scroll.t; viewer.scrollLeft = d.scroll.l; }
   else { viewer.scrollTop = 0; centerH(); }
+}
+function focusFit(d){   // maximized shows one page fitted whole; restoring brings the old zoom back
+  if (app.classList.contains('focus')) { if (!d.preFocus) { d.preFocus = { fit:d.fit, zoom:d.zoom }; d.fit = 'page'; } }
+  else if (d.preFocus) { d.fit = d.preFocus.fit; d.zoom = d.preFocus.zoom; delete d.preFocus; }
 }
 function centerH(){ viewer.scrollLeft = Math.max(0,(viewer.scrollWidth - viewer.clientWidth)/2); }
 async function drawPage(d, i, el){
@@ -499,15 +647,16 @@ async function drawPage(d, i, el){
     const old = el.querySelector('canvas'); if (old) old.replaceWith(c); else el.prepend(c);
   } catch(e){ /* page render cancelled or failed; leave it blank */ }
 }
-function setZoom(z, fit=null){
+function setZoom(z, fit=null, keepTop=false){
   const d = active(); if (!d) return;
   d.fit = fit; const nz = fit ? fitZoom(d, fit) : Math.max(0.1, Math.min(z, 8));
-  const cy = (viewer.scrollTop + viewer.clientHeight/2) / Math.max(1, viewer.scrollHeight);
+  const ay = keepTop ? 0 : viewer.clientHeight/2;   // zoom around the view's centre, or keep its top edge (refit)
+  const cy = (viewer.scrollTop + ay) / Math.max(1, viewer.scrollHeight);
   const cx = (viewer.scrollLeft + viewer.clientWidth/2) / Math.max(1, viewer.scrollWidth);
   d.zoom = nz; d.viewGen++;
   [...pagesEl.children].forEach((el,i) => { const s=d.sizes[i]; el.style.width=s.w*nz+'px'; el.style.height=s.h*nz+'px'; io.unobserve(el); io.observe(el); });
   if (fit === 'page') goTo(d.current, true);
-  else { viewer.scrollTop = cy*viewer.scrollHeight - viewer.clientHeight/2; viewer.scrollLeft = cx*viewer.scrollWidth - viewer.clientWidth/2; }
+  else { viewer.scrollTop = cy*viewer.scrollHeight - ay; viewer.scrollLeft = cx*viewer.scrollWidth - viewer.clientWidth/2; }
   updateZoomUI();
 }
 const PRESETS = [0.25,0.5,0.75,1,1.25,1.5,2,3,4];
@@ -519,12 +668,20 @@ function stepZoom(dir){
 function goTo(i, instant){
   const d = active(); if (!d) return; i = Math.max(0, Math.min(i, d.n-1));
   const el = pagesEl.children[i]; if (!el) return;
+  if (app.classList.contains('focus')) {   // maximized: one page at a time, fitted whole
+    setCurrent(i);
+    if (d.fit === 'page' && Math.abs(fitZoom(d, 'page') - d.zoom) > 0.001) setZoom(0, 'page');   // a page of another size
+    viewer.scrollTop = 0; centerH();
+    for (const j of [i+1, i-1]) if (pagesEl.children[j]) drawPage(d, j, pagesEl.children[j]);   // flips without a blank flash
+    return;
+  }
   viewer.scrollTo({ top: el.offsetTop - 14, behavior: instant ? 'auto' : 'auto' });
   setCurrent(i);
 }
 function setCurrent(i){
   const d = active(); if (!d || d.current === i) { updatePageUI(); return; }
   d.current = i; updatePageUI();
+  pagesEl.querySelector('.page.current')?.classList.remove('current'); pagesEl.children[i]?.classList.add('current');
   thumbsEl.querySelectorAll('.thumb.current').forEach(t => t.classList.remove('current'));
   const t = thumbsEl.querySelector(`.thumb[data-i="${i}"]`); if (t) { t.classList.add('current'); t.scrollIntoView({block:'nearest'}); }
 }
@@ -532,7 +689,7 @@ let scrollRaf = 0;
 viewer.addEventListener('scroll', () => {
   if (scrollRaf) return;
   scrollRaf = requestAnimationFrame(() => {
-    scrollRaf = 0; const d = active(); if (!d) return;
+    scrollRaf = 0; const d = active(); if (!d || app.classList.contains('focus')) return;   // maximized: page keys set it
     const mid = viewer.scrollTop + viewer.clientHeight * 0.35; let best = 0;
     for (const el of pagesEl.children) { if (el.offsetTop <= mid) best = +el.dataset.i; else break; }
     setCurrent(best);
@@ -565,6 +722,20 @@ viewer.addEventListener('wheel', e => {
   if (!(e.ctrlKey || e.metaKey) || !active()) return;
   e.preventDefault(); const d = active(); setZoom(d.zoom * (e.deltaY < 0 ? 1.12 : 1/1.12));
 }, { passive:false });
+function wheelFlipper(){   // one flick of the wheel or trackpad (momentum included) = one page
+  let acc = 0, t = 0;
+  return (e, flip) => {
+    e.preventDefault(); const now = performance.now();
+    if (now - t < 350) { t = now; return; }
+    acc += e.deltaY; if (Math.abs(acc) < 30) return;
+    flip(Math.sign(acc)); acc = 0; t = now;
+  };
+}
+const focusFlip = wheelFlipper();
+viewer.addEventListener('wheel', e => {   // maximized with the page fitted: the wheel flips pages
+  if (!app.classList.contains('focus') || e.ctrlKey || e.metaKey || !active() || viewer.scrollHeight > viewer.clientHeight + 2) return;
+  focusFlip(e, dir => goTo(active().current + dir));
+}, { passive:false });
 
 function setTool(t){
   state.tool = t;
@@ -577,7 +748,13 @@ function setTool(t){
 let tio = null, dragFrom = null;
 function renderThumbs(){
   if (tio) tio.disconnect(); thumbsEl.innerHTML = '';
-  const d = active(); if (!d) return;
+  const d = active();
+  if (!d) {   // no PDF: say what the panel is for instead of leaving an empty strip
+    thumbsEl.innerHTML = '<div class="thumbs-head"><span>Pages</span><span>0</span></div>'
+      + '<p class="thumbs-hint">Page thumbnails appear here when you open a PDF.</p>'
+      + [1,2,3].map(n => `<div class="thumb ghost" aria-hidden="true"><div class="tbox" style="width:119px;height:168px"></div><span class="num">${n}</span></div>`).join('');
+    return;
+  }
   const head = document.createElement('div'); head.className='thumbs-head';
   head.innerHTML = `<span>Pages</span><span>${d.n}</span>`; thumbsEl.appendChild(head);
   tio = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) drawThumb(d, +e.target.dataset.i, e.target.querySelector('.tbox')); }, { root:thumbsEl, rootMargin:'400px 0px' });
@@ -841,10 +1018,17 @@ function updateZoomUI(){
 }
 function updateUI(){
   const d = active(), has = !!d, b = state.busy;
+  // No PDF: every control in the toolbar and Tools panel (and Maximize) is disabled. Only the ones
+  // switched off here are marked, so exactly those come back; the lines below set the rest.
+  for (const el of document.querySelectorAll('.toolbar :is(button,select,input), .tools :is(button,select,input), #bFocus, #bPresent')) {
+    if (!has && !el.disabled) { el.disabled = true; el.dataset.nodoc = ''; }
+    else if (has && 'nodoc' in el.dataset) { el.disabled = false; delete el.dataset.nodoc; }
+  }
   ['#bSave','#bZoomOut','#bZoomIn','#bFitW','#bFitP','#bRotL','#bRotR','#bDel','#oRotL','#oRotR','#oDel','#oExtract','#oInsert','#oAll','#sGo','#eGo'].forEach(s => $(s).disabled = !has || b);
   $('#bUndo').disabled = !d?.history.length || b; $('#bRedo').disabled = !d?.future.length || b;
   updatePageUI(); updateZoomUI(); renderCombine();
-  if (!d) { $('#stDoc').textContent = 'No document open'; $('#stSel').textContent=''; $('#eHint').textContent=''; return; }
+  if (!d) { $('#stDoc').textContent = 'No document open'; $('#stSel').textContent=''; $('#eHint').textContent='';
+    $('#selHint').textContent = 'Click thumbnails to select. Ctrl-click adds, Shift-click selects a range. Drag thumbnails to reorder.'; return; }
   const s = d.sizes[d.current] || d.sizes[0];
   $('#stDoc').textContent = `${d.n} page${d.n>1?'s':''} · ${(s.w*25.4/72).toFixed(0)} × ${(s.h*25.4/72).toFixed(0)} mm · ${fmtBytes(d.bytes.length)}`;
   const tg = targets(d);
@@ -890,18 +1074,42 @@ function syncPanelBtns(){ $('#bThumbs').classList.toggle('on', !app.classList.co
 $('#bThumbs').onclick = () => togglePanel('no-thumbs');
 $('#bTools').onclick = () => togglePanel('no-tools');
 function toggleFocus(force){
-  const on = force ?? !app.classList.contains('focus'); app.classList.toggle('focus', on);
-  $('#bFocus').classList.toggle('on', on); refit();
-  if (on) toast('Maximized. Press F or Esc to restore the panels.');
+  const on = force ?? !app.classList.contains('focus'); if (on && !active()) return;   // nothing to maximize
+  app.classList.toggle('focus', on);
+  // Maximized, the tabs sit beside the logo so the tab row's height goes to the page.
+  if (on) $('.brand').after(tabsEl); else $('.menubar').after(tabsEl);
+  renderViewer(); const d = active(); if (d) goTo(d.current, true);   // one fitted page / the old zoom again
+  updateZoomUI();
+  const b = $('#bFocus'); b.classList.toggle('on', on);
+  b.title = on ? 'Restore the panels (F or Esc)' : 'Maximize the page area (F)';
+  b.querySelector('.lbl').textContent = on ? 'Restore' : 'Maximize';
+  if (on) toast('Maximized: ← → change page · right-click for tools · F or Esc to restore.');
 }
 $('#bFocus').onclick = () => toggleFocus();
+$('#bPresent').onclick = () => presentCmd(false);
 $('#bFull').onclick = async () => {
   try { if (document.fullscreenElement) await document.exitFullscreen(); else await app.requestFullscreen(); }
   catch { toggleFocus(true); }
 };
 document.addEventListener('fullscreenchange', () => { $('#bFull').classList.toggle('on', !!document.fullscreenElement); refit(); });
-let refitT; function refit(){ clearTimeout(refitT); refitT = setTimeout(() => { const d=active(); if (d?.fit) setZoom(0, d.fit); }, 60); }
+let refitT; function refit(){ clearTimeout(refitT); refitT = setTimeout(() => { const d=active(); if (d?.fit) setZoom(0, d.fit, true); }, 60); }
 window.addEventListener('resize', refit);
+
+/* ---------- theme: System / Light / Dark, remembered on this computer ---------- */
+const THEMES = ['system','light','dark'], THEME_NAMES = { system:'System', light:'Light', dark:'Dark' };
+let theme = 'system'; try { const t = localStorage.getItem('sastra-theme'); if (THEMES.includes(t)) theme = t; } catch {}
+function setTheme(t, announce){
+  theme = t;
+  if (t === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('sastra-theme', t); } catch {}
+  const next = THEMES[(THEMES.indexOf(t)+1) % THEMES.length], b = $('#bTheme');
+  b.innerHTML = svg(t === 'system' ? 'sys' : t === 'light' ? 'sun' : 'moon');
+  b.title = `Theme: ${THEME_NAMES[t]} (click for ${THEME_NAMES[next]})`;
+  desk?.setTheme(t);   // Windows title bar + View > Theme menu follow along
+  if (announce) toast('Theme: ' + THEME_NAMES[t] + (t === 'system' ? ' (follows your system)' : ''));
+}
+$('#bTheme').onclick = () => setTheme(THEMES[(THEMES.indexOf(theme)+1) % THEMES.length], true);
+setTheme(theme);
 
 /* drop files anywhere */
 let dragDepth = 0;
@@ -911,10 +1119,171 @@ window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; dragDepth 
 window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
 window.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth = 0; app.classList.remove('dropping'); openFiles(e.dataTransfer.files); });
 
+/* ---------- right-click menu on the page area ----------
+   The view toolbar as a menu (the only way to reach it while maximized). Each entry clicks the
+   toolbar button it stands for, so on/off state, disabled state and behaviour live in one place. */
+const CMENU = [
+  ['tSelect','Select tool','V'], ['tHand','Hand tool','H'], '-',
+  ['zoom'], ['bZoomIn','Zoom in','Ctrl+='], ['bZoomOut','Zoom out','Ctrl+−'], ['actual','Actual size','Ctrl+1'],
+  ['bFitW','Fit width','Ctrl+2'], ['bFitP','Fit page','Ctrl+0'], '-',
+  ['page'], ['bPrev','Previous page','PgUp'], ['bNext','Next page','PgDn'], '-',
+  ['bRotL','Rotate left','Ctrl+Shift+L'], ['bRotR','Rotate right','Ctrl+Shift+R'], ['bDel','Delete page','Del'], '-',
+  ['bThumbs','Page thumbnails',''], ['bTools','Tools panel',''], ['bFocus','Maximize page area','F'],
+  ['bPresent','Present from this page','Shift+F5']
+];
+const CHECKABLE = ['tSelect','tHand','bFitW','bFitP','bThumbs','bTools'];
+let cmenu = null;
+function closeMenu(refocus){ if (!cmenu) return; cmenu.remove(); cmenu = null; if (refocus) viewer.focus({ preventScroll:true }); }
+function openMenu(x, y, byKey){
+  closeMenu();
+  const d = active(), maxed = app.classList.contains('focus'), n = d ? targets(d).length : 1;
+  const m = document.createElement('div'); m.className = 'cmenu'; m.setAttribute('role','menu'); m.tabIndex = -1;
+  for (const it of CMENU) {
+    if (it === '-') { m.appendChild(document.createElement('hr')); continue; }
+    const [id, label, keys] = it;
+    if (id === 'zoom') {
+      const row = document.createElement('label'); row.className = 'cf'; row.innerHTML = '<span></span><span>Zoom</span>';
+      const s = $('#zoomSel').cloneNode(true); s.removeAttribute('id'); s.value = $('#zoomSel').value; s.disabled = !d;
+      s.onchange = () => { $('#zoomSel').value = s.value; $('#zoomSel').dispatchEvent(new Event('change')); closeMenu(true); };
+      row.appendChild(s); m.appendChild(row); continue;
+    }
+    if (id === 'page') {
+      const row = document.createElement('label'); row.className = 'cf';
+      row.innerHTML = `<span></span><span>Page</span><span class="pagebox"><input inputmode="numeric" aria-label="Page number"><span>of ${d ? d.n : 0}</span></span>`;
+      const inp = row.querySelector('input'); inp.value = d ? d.current+1 : ''; inp.disabled = !d;
+      inp.onkeydown = e => { if (e.key === 'Enter') { const v = parseInt(inp.value,10); if (v) goTo(v-1); closeMenu(true); } };
+      m.appendChild(row); continue;
+    }
+    if (maxed && (id === 'bThumbs' || id === 'bTools')) continue;   // panels stay hidden while maximized
+    const src = id === 'actual' ? null : $('#' + id);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'ci';
+    b.setAttribute('role', CHECKABLE.includes(id) ? 'menuitemcheckbox' : 'menuitem');
+    if (CHECKABLE.includes(id)) b.setAttribute('aria-checked', src.classList.contains('on'));
+    b.disabled = src ? src.disabled : !d;
+    b.innerHTML = `${src ? src.querySelector('svg').outerHTML : '<span></span>'}<span></span><span class="kb">${keys}</span>`;
+    b.children[1].textContent = id === 'bDel' && n > 1 ? `Delete ${n} pages` : id === 'bFocus' && maxed ? 'Restore panels' : label;
+    b.onclick = () => { closeMenu(true); if (src) src.click(); else setZoom(1); };
+    m.appendChild(b);
+  }
+  m.addEventListener('keydown', e => {
+    e.stopPropagation();   // page shortcuts (Esc = restore, Delete, F…) stay out of the open menu
+    const items = [...m.querySelectorAll('.ci:not(:disabled), select:not(:disabled), input:not(:disabled)')];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === 'Escape') { e.preventDefault(); closeMenu(true); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Tab') {
+      e.preventDefault(); const back = e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey);
+      items[i < 0 ? (back ? items.length-1 : 0) : (i + (back ? -1 : 1) + items.length) % items.length]?.focus();
+    }
+  });
+  document.body.appendChild(m); cmenu = m;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
+  m.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
+  (byKey && m.querySelector('.ci:not(:disabled)') || m).focus({ preventScroll:true });
+}
+viewer.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const pg = e.target.closest('.page'), d = active(); if (!d) return;
+  // right-clicking a page the actions would not touch makes it the one they act on
+  if (pg && d) { const i = +pg.dataset.i; if (!targets(d).includes(i)) selectPage(i); setCurrent(i); }
+  const byKey = !e.clientX && !e.clientY, r = viewer.getBoundingClientRect();   // menu key / Shift+F10
+  openMenu(byKey ? r.left + 24 : e.clientX, byKey ? r.top + 24 : e.clientY, byKey);
+});
+document.addEventListener('pointerdown', e => { if (cmenu && !cmenu.contains(e.target)) closeMenu(); }, true);
+viewer.addEventListener('wheel', () => closeMenu(), { passive:true });
+window.addEventListener('resize', () => closeMenu());
+
+/* ---------- presentation: one page at a time, filling the screen ----------
+   Like Acrobat's Full Screen Mode or a PowerPoint slideshow. Keys, click or wheel flip pages;
+   Esc (or leaving full screen) ends it, back in the viewer on the last page shown. */
+const show = { el:null, d:null, i:0, cache:new Map(), gen:0, full:false, idleT:0, typed:'', typedT:0, rT:0 };
+function presentCmd(fromStart){ const d = active(); if (d) startShow(fromStart ? 0 : d.current); }
+function startShow(i){
+  const d = active(); if (!d || show.el) return;
+  closeMenu();
+  const el = document.createElement('div'); el.className = 'show'; el.tabIndex = -1;
+  el.innerHTML = `<canvas></canvas><div class="show-bar"><button data-a="prev" title="Previous page (←)">${svg('left')}</button><span class="show-n"></span><button data-a="next" title="Next page (→)">${svg('right')}</button><span class="sep"></span><button data-a="end" title="End presentation (Esc)">${svg('close')}</button></div>`;
+  document.body.appendChild(el);
+  Object.assign(show, { el, d, i:-1, cache:new Map(), full:false, typed:'' });
+  el.addEventListener('click', e => {
+    const a = e.target.closest('[data-a]')?.dataset.a;
+    if (a === 'end') endShow(); else if (a === 'prev') showPage(show.i - 1);
+    else if (a === 'next' || !e.target.closest('.show-bar')) showPage(show.i + 1);
+  });
+  el.addEventListener('contextmenu', e => { e.preventDefault(); showPage(show.i - 1); });   // right-click goes back
+  const flip = wheelFlipper(); el.addEventListener('wheel', e => flip(e, dir => showPage(show.i + dir)), { passive:false });
+  el.addEventListener('mousemove', poke);
+  el.requestFullscreen?.().catch(() => {});   // if refused, the black page still covers the window
+  el.focus(); poke(); showPage(i);
+}
+function poke(){   // pointer + page bar show while the mouse moves, hide after 2 s
+  if (!show.el) return; show.el.classList.remove('idle');
+  clearTimeout(show.idleT); show.idleT = setTimeout(() => show.el?.classList.add('idle'), 2000);
+}
+async function showPage(i, force){
+  const { el, d } = show; if (!el) return;
+  i = Math.max(0, Math.min(i, d.n - 1)); if (i === show.i && !force) return;
+  show.i = i; el.querySelector('.show-n').textContent = `${i+1} / ${d.n}`;
+  const gen = ++show.gen, c = await showCanvas(i);
+  if (gen !== show.gen || show.el !== el || !c) return;
+  const old = el.querySelector('canvas'); if (old !== c) old.replaceWith(c);
+  for (const k of show.cache.keys()) if (Math.abs(k - i) > 1) show.cache.delete(k);   // keep 3 pages in memory
+  showCanvas(i + 1); showCanvas(i - 1);   // the neighbours are ready before they are asked for
+}
+function showCanvas(i){
+  const { d, cache, el } = show; if (!el || i < 0 || i >= d.n) return Promise.resolve(null);
+  if (!cache.has(i)) cache.set(i, (async () => {
+    try {
+      const page = await d.pdf.getPage(i + 1), s = d.sizes[i];
+      const fit = Math.min(el.clientWidth / s.w, el.clientHeight / s.h), dpr = Math.min(devicePixelRatio || 1, 2);
+      const vp = page.getViewport({ scale: Math.min(fit * dpr, 4800 / s.w, 4800 / s.h) });
+      const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+      c.style.width = Math.floor(s.w * fit) + 'px'; c.style.height = Math.floor(s.h * fit) + 'px';
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext:ctx, viewport:vp }).promise;
+      return c;
+    } catch { return null; }
+  })());
+  return cache.get(i);
+}
+function endShow(){
+  const { el, d, i } = show; if (!el) return;
+  show.el = null; show.full = false; show.gen++; show.cache.clear(); clearTimeout(show.idleT);
+  if (document.fullscreenElement === el) document.exitFullscreen().catch(() => {});
+  el.remove();
+  if (active() === d) goTo(i);   // back in the viewer on the last page shown
+  viewer.focus({ preventScroll:true });
+}
+document.addEventListener('keydown', e => {
+  if (!show.el) return;
+  e.stopPropagation();   // nothing reaches the app underneath (Delete, Ctrl+W…)
+  const k = e.key;
+  if (/^[0-9]$/.test(k)) { show.typed += k; clearTimeout(show.typedT); show.typedT = setTimeout(() => show.typed = '', 1500); }
+  else if (k === 'Enter') { showPage(show.typed ? +show.typed - 1 : show.i + 1); show.typed = ''; }   // "12 Enter" = page 12
+  else if (['ArrowRight','ArrowDown','PageDown',' ','n','N'].includes(k)) showPage(show.i + 1);
+  else if (['ArrowLeft','ArrowUp','PageUp','Backspace','p','P'].includes(k)) showPage(show.i - 1);
+  else if (k === 'Home') showPage(0);
+  else if (k === 'End') showPage(show.d.n - 1);
+  else if (k === 'Escape') endShow();
+  else if (k !== 'F5') return;
+  e.preventDefault();
+}, true);
+document.addEventListener('fullscreenchange', () => {
+  if (!show.el) return;
+  if (document.fullscreenElement === show.el) show.full = true;
+  else if (show.full) endShow();   // Esc / F11 left full screen: the presentation ends with it
+});
+window.addEventListener('resize', () => {
+  if (!show.el) return;
+  clearTimeout(show.rT); show.rT = setTimeout(() => { show.cache.clear(); showPage(show.i, true); }, 120);
+});
+
 /* keyboard */
 document.addEventListener('keydown', e => {
   if (isInput(e.target) || $('.modal-bg')) return;
   const mod = e.ctrlKey || e.metaKey, k = e.key;
+  if (k==='F5') { e.preventDefault(); presentCmd(!e.shiftKey); return; }   // as in PowerPoint
+  if (mod && !e.shiftKey && (k==='l'||k==='L')) { e.preventDefault(); presentCmd(false); return; }   // as in Acrobat
   if (mod && (k==='o'||k==='O')) { e.preventDefault(); openCmd(); return; }
   if (mod && e.shiftKey && (k==='s'||k==='S')) { e.preventDefault(); saveAsActive(); return; }
   if (mod && (k==='w'||k==='W')) { e.preventDefault(); if (active()) closeDoc(active().id); return; }
@@ -930,6 +1299,9 @@ document.addEventListener('keydown', e => {
   if (mod && k==='1') { e.preventDefault(); setZoom(1); return; }
   if (mod && (k==='a'||k==='A') && active()) { e.preventDefault(); $('#oAll').click(); return; }
   if (mod) return;
+  if (app.classList.contains('focus') && active() && ['ArrowRight','ArrowDown','PageDown','ArrowLeft','ArrowUp','PageUp'].includes(k)) {
+    e.preventDefault(); goTo(active().current + (['ArrowRight','ArrowDown','PageDown'].includes(k) ? 1 : -1)); return;   // maximized: arrows only flip pages
+  }
   if (k===' ' && !state.space) { e.preventDefault(); state.space = true; viewer.classList.add('hand'); return; }
   if (k==='h'||k==='H') setTool('hand');
   else if (k==='v'||k==='V') setTool('select');
@@ -977,7 +1349,10 @@ if (desk) {
       open:openCmd, save:saveActive, saveAs:saveAsActive, closeTab:() => d && closeDoc(d.id), undo, redo,
       selectAll:() => $('#oAll').click(), delete:() => d && deletePages(), rotL:() => d && rotate(-90), rotR:() => d && rotate(90),
       zoomIn:() => stepZoom(1), zoomOut:() => stepZoom(-1), actual:() => setZoom(1), fitPage:() => setZoom(0,'page'), fitWidth:() => setZoom(0,'width'),
-      hand:() => setTool('hand'), select:() => setTool('select'), focus:() => toggleFocus()
+      hand:() => setTool('hand'), select:() => setTool('select'), focus:() => toggleFocus(),
+      themeSystem:() => setTheme('system', true), themeLight:() => setTheme('light', true), themeDark:() => setTheme('dark', true),
+      present:() => presentCmd(false), presentStart:() => presentCmd(true),
+      about:openAbout
     };
     map[cmd]?.();
   });
@@ -1047,7 +1422,7 @@ async function makeAppendix(){
 /* ---------- boot ---------- */
 (async () => {
   if (isNarrow()) app.classList.add('no-thumbs','no-tools');
-  syncPanelBtns(); setTool('select'); renderTabs(); renderViewer(); updateUI();
+  syncPanelBtns(); setTool('select'); renderTabs(); renderThumbs(); renderViewer(); updateUI();
   if (desk) { await openPaths(await desk.initialPaths()); return; }
   try {
     await openBytes(await makeAppendix(), 'Sample-Cost-Schedule.pdf', { sample:true });

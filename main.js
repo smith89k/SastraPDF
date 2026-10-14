@@ -1,5 +1,5 @@
 // Sastra PDF — Electron main process
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 
@@ -93,16 +93,19 @@ function buildMenu() {
       k('&Select Tool', 'V', 'select'),
       { type: 'separator' },
       k('&Maximize Page Area', 'F', 'focus'),
+      k('P&resent from This Page', 'Shift+F5', 'present'),
+      k('Present from the &Beginning', 'F5', 'presentStart'),
+      { label: '&Theme', submenu: [
+        { id: 'theme-system', label: '&System', type: 'radio', click: () => send('themeSystem') },
+        { id: 'theme-light', label: '&Light', type: 'radio', click: () => send('themeLight') },
+        { id: 'theme-dark', label: '&Dark', type: 'radio', click: () => send('themeDark') }
+      ]},
       { label: '&Full Screen', accelerator: 'F11', click: () => win && win.setFullScreen(!win.isFullScreen()) },
       { type: 'separator' },
       { label: 'Developer Tools', accelerator: 'Ctrl+Shift+I', click: () => win && win.webContents.toggleDevTools() }
     ]},
     { label: '&Help', submenu: [
-      { label: 'About Sastra PDF', click: () => dialog.showMessageBox(win, {
-        type: 'info', title: 'About Sastra PDF',
-        message: 'Sastra PDF  (សាស្ត្រា PDF)',
-        detail: `Version ${app.getVersion()}\nCombine, split, organize and export PDF pages.\nYour files stay on this computer.`
-      }) }
+      { label: '&About Sastra PDF', click: () => send('about') }   // the page shows its own About screen
     ]}
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -160,7 +163,15 @@ ipcMain.handle('confirm-close', async (_e, names) => {
 
 ipcMain.on('close-now', () => { allowClose = true; if (win) win.close(); });
 ipcMain.on('set-title', (_e, t) => { if (win) win.setTitle(t); });
+// The page owns the theme choice; the title bar and the View > Theme radio follow it.
+ipcMain.on('set-theme', (_e, t) => {
+  if (!['system', 'light', 'dark'].includes(t)) return;
+  nativeTheme.themeSource = t;
+  const item = Menu.getApplicationMenu()?.getMenuItemById('theme-' + t);
+  if (item) item.checked = true;
+});
 ipcMain.on('show-folder', (_e, p) => { if (p) shell.showItemInFolder(p); });
+ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('initial-paths', () => { const p = pendingPaths; pendingPaths = []; return p; });
 
 app.whenReady().then(() => {
