@@ -72,7 +72,12 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 @media (max-width:1119px){#bPrev,#bNext{display:none}}
 
 /* tabs */
-.tabbar{display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;min-width:0}
+.tabbar{display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);min-width:0}
+/* the tabs scroll sideways without a scrollbar: ‹ › (shown only when they don't fit) and the wheel move them */
+.tabstrip{display:flex;align-items:flex-end;gap:2px;flex:0 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.tabstrip::-webkit-scrollbar{display:none}
+.tabbar .tabscroll{display:none;width:26px;height:28px;flex:none;align-self:center}
+.tabbar.overflow .tabscroll{display:inline-flex}
 .tab{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px 0 12px;max-width:230px;min-width:120px;border:1px solid transparent;border-bottom:0;border-radius:7px 7px 0 0;background:transparent;cursor:pointer;color:var(--muted);flex:none;position:relative;top:1px}
 .tab:hover{background:var(--hover);color:var(--fg)}
 .tab.active{background:var(--tab-active);border-color:var(--line);color:var(--fg)}
@@ -233,16 +238,21 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 
 /* view states */
 #app.no-thumbs .thumbs{display:none}
-#app>.tabbar:empty{display:none}   /* no PDF open: no tab row, only the "Open a PDF" box */
+#app>.tabbar:not(:has(.tab)){display:none}   /* no PDF open: no tab row, only the "Open a PDF" box */
 #app.no-tools .tools{display:none}
 #app.focus .status{display:none}
 #app.focus .thumbs,#app.focus .tools{display:none}
 /* maximized: toggleFocus() moves the tab row up beside the logo; only brand, tabs and Restore/Full screen stay
    (the view tools are then in the right-click menu) */
-#app.focus .menubar{padding-bottom:0;align-items:stretch}
+#app.focus .menubar{padding-top:0;padding-bottom:0;height:40px;box-sizing:border-box;align-items:stretch}
 #app.focus .menubar>:not(.brand,.tabbar,#bFocus,#bFull){display:none}
-#app.focus .menubar>.brand,#app.focus .menubar>.btn{align-self:center}
-#app.focus .menubar>.tabbar{flex:1;padding:0 0 0 4px;border-bottom:0}
+#app.focus .menubar>.brand,#app.focus .menubar>.btn{align-self:center}   /* centred on the bar's full height */
+#app.focus .menubar>.tabbar{flex:1;padding:0;border-bottom:0}   /* tabs sit on the bar's bottom edge */
+/* dividers keep the tabs apart from the logo block and from Restore / Full screen */
+#app.focus .menubar>.tabbar::before,#app.focus .menubar>.tabbar::after{content:"";width:1px;height:20px;background:var(--line-strong);align-self:center;flex:none}
+#app.focus .menubar>.tabbar::before{margin:0 8px 0 4px}
+#app.focus .menubar>.tabbar::after{margin:0 8px 0 auto}
+#app:not(.focus) #bNewTab{display:none}   /* + only while maximized: the normal view has Open */
 /* ...and it is a slideshow in the window: only the current page, fitted whole and centred */
 #app.focus #pages{box-sizing:border-box;min-height:100%;justify-content:center;padding:12px}
 #app.focus .page:not(.current){display:none}
@@ -297,7 +307,12 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
     <button class="btn icon" id="bTheme" title="Theme"><svg class="i" data-i="sys"></svg></button>
   </header>
 
-  <nav class="tabbar" id="tabs" aria-label="Open documents"></nav>
+  <nav class="tabbar" id="tabs" aria-label="Open documents">
+    <button class="btn icon tabscroll" data-dir="-1" title="Scroll tabs left" tabindex="-1"><svg class="i" data-i="left"></svg></button>
+    <div class="tabstrip" id="tabstrip" role="tablist"></div>
+    <button class="btn icon tabscroll" data-dir="1" title="Scroll tabs right" tabindex="-1"><svg class="i" data-i="right"></svg></button>
+    <button class="btn icon newtab" id="bNewTab" title="Open PDF in a new tab"><svg class="i" data-i="plus"></svg></button>
+  </nav>
 
   <div class="workspace" id="ws">
     <aside class="thumbs" id="thumbs" aria-label="Pages"></aside>
@@ -416,7 +431,7 @@ const svg = n => `<svg class="i" viewBox="0 0 24 24">${ICONS[n]}</svg>`;
 document.querySelectorAll('svg[data-i]').forEach(s => { s.setAttribute('viewBox','0 0 24 24'); s.innerHTML = ICONS[s.dataset.i] || ''; });
 
 const $ = s => document.querySelector(s);
-const app=$('#app'), viewer=$('#viewer'), pagesEl=$('#pages'), thumbsEl=$('#thumbs'), tabsEl=$('#tabs');
+const app=$('#app'), viewer=$('#viewer'), pagesEl=$('#pages'), thumbsEl=$('#thumbs'), tabsEl=$('#tabs'), stripEl=$('#tabstrip');
 const { PDFDocument, degrees, rgb, StandardFonts } = PDFLib;
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -575,7 +590,7 @@ async function redo(){ const d=active(); if (!d?.future.length) return;
 
 /* ---------- tabs ---------- */
 function renderTabs(){
-  tabsEl.innerHTML = '';
+  stripEl.innerHTML = '';
   for (const d of state.docs){
     const t = document.createElement('div'); t.className = 'tab' + (d.id===state.activeId?' active':''); t.tabIndex = 0; t.title = d.name;
     t.setAttribute('role','tab'); t.setAttribute('aria-selected', d.id===state.activeId);
@@ -584,11 +599,25 @@ function renderTabs(){
     t.addEventListener('click', e => { if (e.target.closest('.x')) closeDoc(d.id); else if (d.id!==state.activeId) activate(d.id); });
     t.addEventListener('auxclick', e => { if (e.button===1) closeDoc(d.id); });
     t.addEventListener('keydown', e => { if (e.key==='Enter') activate(d.id); });
-    tabsEl.appendChild(t);
+    stripEl.appendChild(t);
   }
-  const plus = document.createElement('button'); plus.className='btn icon newtab'; plus.title='Open PDF in a new tab'; plus.innerHTML = svg('plus');
-  plus.onclick = () => $('#fOpen').click(); if (state.docs.length) tabsEl.appendChild(plus);
-  const a = tabsEl.querySelector('.tab.active'); if (a) a.scrollIntoView({block:'nearest',inline:'nearest'});
+  const a = stripEl.querySelector('.tab.active'); if (a) a.scrollIntoView({block:'nearest',inline:'nearest'});
+  updateTabArrows();
+}
+$('#bNewTab').onclick = () => $('#fOpen').click();
+function updateTabArrows(){   // ‹ › only when the tabs don't fit; each greys out at its end
+  tabsEl.classList.toggle('overflow', stripEl.scrollWidth > stripEl.clientWidth + 1);
+  const [l, r] = tabsEl.querySelectorAll('.tabscroll');
+  l.disabled = stripEl.scrollLeft <= 0; r.disabled = stripEl.scrollLeft >= stripEl.scrollWidth - stripEl.clientWidth - 1;
+}
+tabsEl.querySelectorAll('.tabscroll').forEach(b => b.onclick = () => stripEl.scrollBy({ left: +b.dataset.dir * Math.max(120, stripEl.clientWidth * .7), behavior:'smooth' }));
+stripEl.addEventListener('scroll', updateTabArrows, { passive:true });
+stripEl.addEventListener('wheel', e => { if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; e.preventDefault(); stripEl.scrollLeft += e.deltaY; }, { passive:false });
+new ResizeObserver(updateTabArrows).observe(stripEl);
+function switchTab(dir){   // Ctrl+Tab / Ctrl+Shift+Tab, wrapping round like a browser
+  const n = state.docs.length; if (n < 2) return;
+  const i = state.docs.findIndex(d => d.id === state.activeId);
+  activate(state.docs[(i + dir + n) % n].id);
 }
 
 /* ---------- viewer ---------- */
@@ -1053,6 +1082,7 @@ function toggleFocus(force){
   app.classList.toggle('focus', on);
   // Maximized, the tabs sit beside the logo so the tab row's height goes to the page.
   if (on) $('.brand').after(tabsEl); else $('.menubar').after(tabsEl);
+  stripEl.querySelector('.tab.active')?.scrollIntoView({block:'nearest',inline:'nearest'}); updateTabArrows();   // moving the row resets its scroll
   renderViewer(); const d = active(); if (d) goTo(d.current, true);   // one fitted page / the old zoom again
   updateZoomUI();
   const b = $('#bFocus'); b.classList.toggle('on', on);
@@ -1254,6 +1284,9 @@ window.addEventListener('resize', () => {
 
 /* keyboard */
 document.addEventListener('keydown', e => {
+  if (e.ctrlKey && !e.altKey && ['Tab','PageDown','PageUp'].includes(e.key) && !$('.modal-bg')) {   // switch tabs, as in a browser
+    e.preventDefault(); switchTab(e.key === 'PageUp' || (e.key === 'Tab' && e.shiftKey) ? -1 : 1); return;
+  }
   if (isInput(e.target) || $('.modal-bg')) return;
   const mod = e.ctrlKey || e.metaKey, k = e.key;
   if (k==='F5') { e.preventDefault(); presentCmd(!e.shiftKey); return; }   // as in PowerPoint

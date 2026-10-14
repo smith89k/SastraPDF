@@ -91,7 +91,16 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Without it (web), it falls back to file inputs and browser downloads.
 - Menu items in main.js use `registerAccelerator: false`; the page's keydown handler owns the
   shortcuts (Ctrl+O/S/Shift+S/W/Z/Y/=/-/0/1/2/A, Ctrl+Shift+L/R, Delete, H, V, F, Esc,
-  PageUp/Down, Home/End). F11 is handled natively in main.js.
+  PageUp/Down, Home/End, Ctrl+Tab/Ctrl+Shift+Tab and Ctrl+PgDn/PgUp to switch tabs — these
+  work even while typing in a field; File > Next/Previous Tab). F11 is handled natively in main.js.
+- Tab row (`#tabs`): ‹ `#tabstrip` › + . The strip scrolls sideways with no scrollbar; the ‹ ›
+  buttons appear only when tabs overflow (`updateTabArrows`, ResizeObserver) and grey out at the
+  ends; the wheel over the strip scrolls it; + (`#bNewTab`) sits outside the strip and shows only
+  while maximized (the normal view has Open). Hidden when there are no tabs
+  (`#app>.tabbar:not(:has(.tab))`). Maximized, the bar is 40px with no vertical padding: logo block
+  and Restore/Full screen are centred on its full height, tabs sit on its bottom edge, and the
+  tab row's ::before/::after draw dividers next to the logo block and the right-hand buttons.
+  `toggleFocus` re-scrolls the active tab into view after moving the row (a move resets scroll).
 - Brand mark: the logo image (26 px) left of "Sastra PDF | សាស្ត្រា" in the menubar. It is a
   button (`#bAbout`) that opens the About screen.
 - About screen (`openAbout`, data in `AUTHOR` and `CREDITS`): opened by the brand button or

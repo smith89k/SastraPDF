@@ -209,3 +209,20 @@ faint dashed page outlines; real thumbnails replace them when a PDF opens. Also 
   window); the right one only looked grey from its many grey controls. Both side panels now use the
   grey of the top and status bars, and the Tools panel's controls and the Pages placeholders are
   lighter cards on it. Checked in Chrome (light/dark) and in the running app window.
+
+### 19. Tab row: no scrollbar, ‹ › buttons, Ctrl+Tab (Claude Code, 2026-10-15)
+"1. disable scrollbar on tab 2. click to go left and right 3. control tab and control shift tab to
+switch": the tabs now sit in a strip with no scrollbar; ‹ › buttons appear at its ends only when the
+tabs don't fit (greyed at each end) and scroll it by most of its width; the mouse wheel over the tabs
+scrolls them too; + stays visible after ›. Ctrl+Tab / Ctrl+Shift+Tab (and Ctrl+PgDn/PgUp) switch to
+the next/previous tab, wrapping round, even from a text field; File > Next Tab / Previous Tab in the
+desktop menu. Works in Maximize too (tabs beside the logo).
+Also asked mid-way: "Maximize have to show right click panel to switch hand tool just like acrobat" —
+checked in Chrome and Electron: right-click in Maximize shows the menu with Select tool / Hand tool
+first, and choosing Hand tool switches to it. Tested in Chrome (23 checks) and Electron.
+- Follow-up, "1. remove + button on tab bar when minimize but keep it on maximize 2. when maximize,
+  logo block and right button block have top and bottom margin not = 3. keep tab separate from logo
+  block and right button block": + shows only while maximized; the maximized bar lost its top-only
+  padding, so the logo block (was 6.5px above / 0.5px below) and Restore/Full screen (7.5 / 1.5) are
+  now centred (3.5 / 3.5 and 4.5 / 4.5); thin dividers separate the tabs from both blocks. Also fixed:
+  entering Maximize could leave the active tab scrolled out of view.
