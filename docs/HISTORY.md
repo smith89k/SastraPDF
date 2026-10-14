@@ -75,3 +75,137 @@ This file and CLAUDE.md were written so Claude Code has the full context.
   split inputs. Fixes applied to both app/index.html and web/index.html.
 - `npm run dist` built `dist\Sastra PDF Setup 1.0.0.exe` (82 MB, unsigned). The packaged app
   passed the same checks as `npm start`.
+
+### 9. New logo (Claude Code, 2026-10-14)
+"here is the logo" → the user supplied `logo.png` (1254 px). Claude Code cleared the stray red
+pixels in its transparent area, cropped it to the tile and made `build/logo.png` (1024 px master),
+`build/icon.ico` (16–256 px), `build/icon.png` (512 px) and `app/logo.png` (64 px). The old
+CSS-drawn page mark in the menubar was replaced by the logo in both app/index.html and
+web/index.html, which also got a favicon. The installer must be rebuilt (`npm run dist`) to
+carry the new icon.
+
+The supplied logo had a red swirl "A" on the page that is very close to Adobe's Acrobat
+trademark. At the user's request it was painted out and replaced by a plain red "PDF"
+(Inter Black, OFL font) in all icon files. The root logo.png is left as the untouched original.
+`npm start` was also run on the user's Mac (npm install, Electron 33.2.1 binary was fine there);
+the new logo shows in the menubar.
+
+### 10. Maximize fixes (Claude Code, 2026-10-14)
+- "click maximizing without file open, it have black screen": hiding the menubar shifted every
+  grid child up one row, so the workspace landed in an `auto` row and collapsed to 48 px (with
+  files open the pages happened to fill it). `#app` now uses named grid areas.
+- "should keep logo and app name and move pdf tab after the logo": in Maximize mode the tab row
+  now sits in the menubar after the logo, with Restore and Full screen on the right.
+- Also fixed: Maximize zoomed around the view's centre, hiding the top ~220 px of the page you
+  were reading; an automatic refit now keeps the top edge in place (manual zoom still centres).
+- Checked in headless Chrome and in the real Electron app (playwright-core `_electron`, scripts
+  outside the project), both with no file open and with files open, plus restore.
+
+### 11. Theme switch, no "+" without a PDF (Claude Code, 2026-10-14)
+- "is there a dark and light mode?" → there were both, following the OS only. "add theme
+  switch": a menubar button cycles System / Light / Dark, remembered between runs, plus
+  View > Theme in the desktop menu; Electron's title bar follows via nativeTheme.
+- "without pdf open, shouldn't have + on tab bar, it should show only 'Open a PDF' box": the "+"
+  appears only once a PDF is open, and the empty tab row is hidden.
+- Also fixed: after closing the last file, the Organize panel still said "actions apply to the
+  current page (1)"; it now goes back to its default hint.
+- Checked in headless Chrome (app and web) and in the real Electron app (button ↔ menu ↔
+  nativeTheme in sync, choice survives reload, saved choice reset to System after the test).
+
+### 12. Maximize hides the toolbar; right-click menu (Claude Code, 2026-10-14)
+- "when maximizing should hide this bar" + "Everything in right click panel": Maximize now also
+  hides the view toolbar, and a right-click menu on the page area carries everything from it
+  (tools, zoom dropdown, zoom in/out, actual size, fit width/page, page number, previous/next,
+  rotate, delete, panel toggles, Maximize/Restore), in both normal and maximized views.
+- Right-clicking a page that the actions would not touch selects it first, so Delete/Rotate hit
+  the page you clicked. Delete shows the count ("Delete 2 pages") when several are selected.
+- Checked in headless Chrome (dark + light, app and web) and in the Electron app.
+
+### 13. Empty state shows only the box (Claude Code, 2026-10-14)
+"when no pdf opened, should show only box 'open pdf to get started', everything none": with no PDF
+open, the toolbar, both side panels, status bar and the Open/Save/Undo/Redo/Maximize/Full screen
+buttons are hidden. The logo row stays (logo, name, theme switch), since the user wants the
+branding kept. F and right-click do nothing without a PDF; closing the last PDF while maximized
+returns to the normal empty screen. Checked in Chrome (app + web) and Electron.
+- Follow-up, "give them back, and just disable them": the bars and buttons are visible again with
+  no PDF open; every control in the toolbar and Tools panel and the Maximize button is disabled
+  instead (Open, theme switch, Full screen stay usable; the tab row stays hidden).
+
+### 14. No text selection (Claude Code, 2026-10-14)
+"disable text select to make it look native": UI text can no longer be selected by drag,
+double-click or Ctrl+A, the cursor stays an arrow over labels, and the logo can't be dragged out.
+Text fields (page number, pages per file, ranges) still select and edit. Checked in Chrome (app + web).
+
+### 15. Toolbar in the logo row (Claude Code, 2026-10-14)
+"i think tool bar should be along side with the logo to save space": the view toolbar moved into
+the logo row (between Undo/Redo and Theme), so with a PDF open the page starts 41px higher. To fit
+common Windows widths the row drops, as it narrows: button labels (<1440px), Fit width/page
+(<1280), the Khmer name (<1200, top bar only), Zoom −/+ (<1120), Prev/Next (<1080). Everything
+fits from 980px up; below that the tool strip scrolls. Earlier tests (maximize, right-click menu,
+empty state, theme, no text select) rerun and pass. A second Claude session was adding an About
+screen to app/index.html at the same time; both sets of changes are intact.
+
+### 16. About screen with the author (Claude Code, 2026-10-14)
+"create about page of my work, using my linkedin profile": Help > About and a click on the logo
+open an About screen inside the app (it replaced the plain Windows message box). It shows the app
+(logo, version, what សាស្ត្រា means), "Made by" and open-source credits.
+- The author's details were read from LinkedIn (linkedin.com/in/sunnguon). "don't show too many
+  info about me", then "nah too simple": settled on work only — name, "Full-stack & DevOps
+  developer · Cambodia" (title from smith89k.com), a one-line bio, skills, and "Other work" from
+  the public GitHub repos (Khmer Swipe Keyboard, AI Hub Remote, Claude Code Style, Khmer Unicode
+  Fonts). No employer, career history, education or town.
+- Added on request: GitHub (smith89k), the site smith89k.com, and the profile photo. The GitHub
+  avatar is a text logo, so the photo is the LinkedIn one (app/author.jpg, 200 px).
+- "which open source used in project should be given credit": the credits list pdf.js
+  (Apache-2.0), pdf-lib, JSZip, pako, Electron (MIT), IBM Plex and Noto Sans Khmer (SIL OFL 1.1),
+  and note the small libraries bundled inside pdf-lib and JSZip (UPNG, tslib, lie,
+  readable-stream, setimmediate).
+- package.json: author "Sunnguon Taing", copyright "© 2026 Sunnguon Taing" (installer publisher).
+- Checked in headless Chrome (app + web, light + dark, 1400 px and 380 px): opens scrolled to the
+  top, fits the window and scrolls inside, Esc / backdrop / Close all close it, images load, no
+  console errors. Built on a Mac, so Help > About and the version line in the Electron app are
+  not yet tried on Windows.
+- "i think remove other work to keep it short": the "Other work" project list is gone; the About
+  screen now fits a 900 px window without scrolling. Rechecked in headless Chrome (app + web).
+- Copyright line changed to "© 2026 smith89k" (About footer and package.json `copyright`).
+
+### 16. Present mode (Claude Code, 2026-10-14)
+"page not full for presentation, look page 2 still show on the screen" (a 16:9 slide deck in
+Maximize, where the next page peeked in): added Present — one page at a time, fitted to the whole
+screen on black, in real full screen (like Acrobat's Full Screen Mode / a PowerPoint slideshow).
+Present button (also while maximized), F5 from the start, Shift+F5 or Ctrl+L from the current
+page, View menu items, and "Present from this page" in the right-click menu (right-clicking a page
+now also makes it the current page). Arrow keys/Space/click/wheel flip pages, typing a number then
+Enter jumps, a small page bar appears on mouse move, Esc ends it back on that page. Logo-row
+breakpoints moved up ~45px to make room for the button. Tested in Chrome and Electron (full screen
+from both F5 and the View menu).
+- Follow-up, "reorder: theme move to the right": the theme switch is now the last button on the
+  right of the logo row (Present, Maximize, Full screen, Theme).
+- Dev name "smith89k" shown next to the full name. Bio rewritten, without mentioning Khmer
+  (the author's pick): "I build web apps, run my own servers and make everyday tools."
+- "polish my 3 link": the three links are now cards in a row (one column on phones): an icon,
+  a label and the handle under it — Website / smith89k.com (globe, accent colour), LinkedIn /
+  in/sunnguon (LinkedIn mark in LinkedIn blue, `--linkedin` token per theme), GitHub / smith89k
+  (GitHub mark). Hover outlines the card in the accent colour. The `ext` arrow icon is gone.
+
+### 17. Maximize as a slideshow in the window (Claude Code, 2026-10-14)
+"1. Maximize hide Present 2. Maximize should be use for present too without fullscreen, so make
+arrow key work, and disable arrow key for other keep only for next slide": while maximized the
+Present button is hidden, only the current page shows, fitted whole below the logo/tabs row (no
+neighbour peeking in), arrows and PgUp/PgDn only change page, and the wheel moves one page per
+flick. Restore brings back the previous zoom (e.g. Fit width). The normal view keeps scrolling
+arrows. Tested in Chrome and Electron; F5 still starts the full-screen Present from Maximize.
+
+### 18. Pages panel placeholder (Claude Code, 2026-10-14)
+"when no pdf opened, left sidebar feel a bit empty with nothing": with no PDF open the Pages panel
+shows its heading ("Pages 0"), the hint "Page thumbnails appear here when you open a PDF." and three
+faint dashed page outlines; real thumbnails replace them when a PDF opens. Also drawn at startup.
+- Follow-up, "make it gray same as right sidebar": the placeholders are now grey boxes styled like
+  the Tools panel's disabled buttons (same fill, border, corners and 45% opacity).
+- "still white": at 45% opacity the Tools-panel grey almost vanished on the panel background, so the
+  placeholders are now a solid grey fill (the `--line` colour) with no dimming, visible in both themes.
+- "nah, i mean the background of the left sidebar should be gray as background of right sidebar,
+  consistent": the two panels were already the same off-white (measured 247,246,243 in the user's
+  window); the right one only looked grey from its many grey controls. Both side panels now use the
+  grey of the top and status bars, and the Tools panel's controls and the Pages placeholders are
+  lighter cards on it. Checked in Chrome (light/dark) and in the running app window.

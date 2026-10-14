@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Sastra PDF (សាស្ត្រា PDF) — combine, split, organize and export PDF pages",
   "main": "main.js",
-  "author": "Sastra PDF",
+  "author": "Sunnguon Taing",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -23,7 +23,7 @@
   "build": {
     "appId": "kh.sastra.pdf",
     "productName": "Sastra PDF",
-    "copyright": "Sastra PDF",
+    "copyright": "© 2026 smith89k",
     "directories": { "output": "dist", "buildResources": "build" },
     "files": ["main.js", "preload.js", "app/**/*", "build/icon.png", "package.json"],
     "win": {
