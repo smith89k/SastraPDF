@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script>/* saved theme before first paint, so there is no flash */try{const t=localStorage.getItem('sastra-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
 <style>[hidden]{display:none!important}body{margin:0}</style>
@@ -11,7 +11,7 @@
 <title>Sastra PDF</title>
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Khmer:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Khmer:wght@400;500;600&display=swap">
 <style>
 /* Layout: desktop document workbench — menu bar, document tabs, view toolbar, then thumbnails | page canvas | organize tools, status bar at the foot. */
 :root{
@@ -19,8 +19,8 @@
   --fg:#23201c; --muted:#6c665e; --accent:#b8432a; --accent-fg:#ffffff; --accent-soft:rgba(184,67,42,.12);
   --hover:rgba(35,32,28,.07); --page-shadow:0 1px 2px rgba(0,0,0,.18),0 6px 18px rgba(0,0,0,.12);
   --ok:#2f7a4b; --err:#b3261e; --tab-active:#f8f6f3; --linkedin:#0a66c2;
-  --ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --ui:"IBM Plex Sans","Noto Sans Khmer","Khmer UI",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono","Noto Sans Khmer","Khmer UI",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --chrome:#1f1d1b; --panel:#272523; --canvas:#141312; --line:#34312e; --line-strong:#47433e;
@@ -215,6 +215,8 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .credits a{color:var(--accent);text-decoration:none;font-weight:500}
 .credits a:hover{text-decoration:underline}
 .credits span{color:var(--muted);overflow-wrap:anywhere}
+.credits .cn{white-space:nowrap}
+.credits .cv{font-family:var(--mono);font-size:11px}
 .credits span:last-child{font-family:var(--mono);font-size:11px;text-align:right;white-space:nowrap}
 /* right-click menu on the page area (openMenu): the view toolbar as a list */
 .cmenu{position:fixed;left:0;top:0;z-index:55;min-width:250px;max-height:calc(100vh - 16px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px;box-shadow:0 12px 36px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:1px;outline:none}
@@ -389,8 +391,6 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 <input type="file" id="fInsert" accept="application/pdf,.pdf" multiple hidden>
 <input type="file" id="fAdd" accept="application/pdf,.pdf" multiple hidden>
 
-<script src="vendor/pdf.min.js"></script>
-<script src="vendor/pdf.worker.min.js"></script>
 <script src="vendor/pdf-lib.min.js"></script>
 <script src="vendor/jszip.min.js"></script>
 <script>
@@ -434,7 +434,13 @@ document.querySelectorAll('svg[data-i]').forEach(s => { s.setAttribute('viewBox'
 const $ = s => document.querySelector(s);
 const app=$('#app'), viewer=$('#viewer'), pagesEl=$('#pages'), thumbsEl=$('#thumbs'), tabsEl=$('#tabs'), stripEl=$('#tabstrip');
 const { PDFDocument, degrees, rgb, StandardFonts } = PDFLib;
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+// pdf.js ships only as an ES module; import() works from this classic script, so the rest stays as is.
+// Its support files (scanned-image decoders, standard fonts, CJK character maps) need absolute URLs:
+// the worker resolves relative ones against its own folder.
+const vendorUrl = p => new URL('vendor/' + p, location.href).href;
+let pdfjsLib = null;
+const pdfReady = import('./vendor/pdf.min.mjs').then(m => { m.GlobalWorkerOptions.workerSrc = vendorUrl('pdf.worker.min.mjs'); pdfjsLib = m; });
+const PDFJS_OPTS = { cMapUrl:vendorUrl('pdfjs/cmaps/'), standardFontDataUrl:vendorUrl('pdfjs/standard_fonts/'), wasmUrl:vendorUrl('pdfjs/wasm/') };
 
 const state = { docs:[], activeId:null, tool:'select', space:false, busy:false, splitOut:'tabs', exportScope:'all', combine:[] };
 let uid = 0;
@@ -488,16 +494,18 @@ const AUTHOR = {
   links:[['Website','smith89k.com','https://smith89k.com','web'],['LinkedIn','in/sunnguon','https://www.linkedin.com/in/sunnguon/','linkedin'],['GitHub','smith89k','https://github.com/smith89k','github']]
 };
 // open-source code that ships in the app: name, copyright holder, licence, project page
+// [name, version, by, licence, link]. Versions must match package.json; scripts/check-credits.js
+// warns on `npm install` when they don't. Fonts come from Google Fonts, so they carry no version.
 const CREDITS = [
-  ['pdf.js','Mozilla Foundation','Apache-2.0','https://github.com/mozilla/pdf.js'],
-  ['pdf-lib','Andrew Dillon','MIT','https://github.com/Hopding/pdf-lib'],
-  ['JSZip','Stuart Knightley and contributors','MIT','https://github.com/Stuk/jszip'],
-  ['pako','Vitaly Puzrin, Andrei Tuputcyn','MIT, Zlib','https://github.com/nodeca/pako'],
-  ['Electron','Electron contributors, GitHub Inc.','MIT','https://www.electronjs.org/'],
-  ['IBM Plex Sans & Mono','IBM','SIL OFL 1.1','https://github.com/IBM/plex'],
-  ['Noto Sans Khmer','Google','SIL OFL 1.1','https://github.com/notofonts/khmer']
+  ['pdf.js','6.4.299','Mozilla Foundation','Apache-2.0','https://github.com/mozilla/pdf.js'],
+  ['pdf-lib','1.17.1','Andrew Dillon','MIT','https://github.com/Hopding/pdf-lib'],
+  ['JSZip','3.10.1','Stuart Knightley and contributors','MIT','https://github.com/Stuk/jszip'],
+  ['pako','1.0.11','Vitaly Puzrin, Andrei Tuputcyn','MIT, Zlib','https://github.com/nodeca/pako'],
+  ['Electron','44.7.2','Electron contributors, GitHub Inc.','MIT','https://www.electronjs.org/'],
+  ['IBM Plex Sans & Mono','','IBM','SIL OFL 1.1','https://github.com/IBM/plex'],
+  ['Noto Sans Khmer','','Google','SIL OFL 1.1','https://github.com/notofonts/khmer']
 ];
-const CREDITS_NOTE = 'pdf-lib and JSZip also include UPNG (Photopea), tslib (Microsoft), lie, readable-stream and setimmediate, under MIT or 0BSD. Electron includes Chromium and Node.js under their own open-source licences.';
+const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib and JSZip: UPNG, tslib, lie, readable-stream and setimmediate (MIT or 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. The installer is made with electron-builder (MIT) and NSIS (zlib).';
 function openAbout(){
   if ($('.modal-bg')) return;
   const back = document.activeElement, A = AUTHOR, out = 'target="_blank" rel="noopener"';   // links open in the normal browser
@@ -514,7 +522,7 @@ function openAbout(){
       <div class="links">${A.links.map(([n, v, u, ic]) => `<a class="link-${ic}" href="${u}" ${out} title="${u}">${svg(ic)}<span><b>${n}</b><small>${v}</small></span></a>`).join('')}</div>
     </section>
     <section aria-label="Open-source credits"><h3>Built with open source</h3>
-      <ul class="credits">${CREDITS.map(([n, by, lic, u]) => `<li><a href="${u}" ${out}>${n}</a><span>${by}</span><span>${lic}</span></li>`).join('')}</ul>
+      <ul class="credits">${CREDITS.map(([n, v, by, lic, u]) => `<li><span class="cn"><a href="${u}" ${out}>${n}</a>${v ? ` <span class="cv">${v}</span>` : ''}</span><span>${by}</span><span>${lic}</span></li>`).join('')}</ul>
       <p class="note">${CREDITS_NOTE}</p></section>
     <div class="acts"><span class="note">© 2026 smith89k</span><button class="btn primary" data-close>Close</button></div>
   </div>`;
@@ -542,7 +550,8 @@ const targets = d => d.sel.size ? [...d.sel].sort((a,b)=>a-b) : [d.current];
 /* ---------- documents ---------- */
 async function loadPdf(d){
   if (d.pdf) { try { d.pdf.destroy(); } catch {} }
-  d.pdf = await pdfjsLib.getDocument({ data: d.bytes.slice(), isEvalSupported:false }).promise;
+  await pdfReady;
+  d.pdf = await pdfjsLib.getDocument({ data: d.bytes.slice(), ...PDFJS_OPTS }).promise;
   d.n = d.pdf.numPages; d.sizes = [];
   for (let i=1;i<=d.n;i++){ const v=(await d.pdf.getPage(i)).getViewport({scale:1}); d.sizes.push({w:v.width,h:v.height}); }
   d.thumbCanvas = []; d.viewGen = (d.viewGen||0)+1;
@@ -551,7 +560,7 @@ async function openBytes(bytes, name, opts={}){
   const d = { id:++uid, name, bytes, sel:new Set(), anchor:null, current:0, zoom:1, fit:'width', history:[], future:[], dirty:!!opts.dirty, sample:!!opts.sample, path:opts.path||null, scroll:0 };
   try { await loadPdf(d); }
   catch(e){
-    const m = e?.name === 'PasswordException' ? `${name} is password-protected, so it can't be opened here.` : `Couldn't open ${name}. The file may be damaged or not a PDF.`;
+    const m = !pdfjsLib ? 'The PDF engine did not load. Reinstall Sastra PDF.' : e?.name === 'PasswordException' ? `${name} is password-protected, so it can't be opened here.` : `Couldn't open ${name}. The file may be damaged or not a PDF.`;
     toast(m, true); return null;
   }
   state.docs.push(d); state.combine.push({id:d.id, on:true});
@@ -1118,7 +1127,9 @@ function toggleFocus(force){
 $('#bFocus').onclick = () => toggleFocus();
 $('#bPresent').onclick = () => presentCmd(false);
 $('#bFull').onclick = async () => {
-  try { if (document.fullscreenElement) await document.exitFullscreen(); else await app.requestFullscreen(); }
+  // The whole page, not #app: the right-click menu, dialogs and toasts live on <body>, and only the
+  // full-screen element and what's inside it can be seen.
+  try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); }
   catch { toggleFocus(true); }
 };
 document.addEventListener('fullscreenchange', () => { $('#bFull').classList.toggle('on', !!document.fullscreenElement); refit(); });
@@ -1351,7 +1362,8 @@ document.addEventListener('keyup', e => { if (e.key===' ') { state.space = false
 /* ---------- desktop (Electron) integration ---------- */
 function updateTitle(){
   const d = active();
-  const t = d ? `${d.dirty && !d.sample ? '• ' : ''}${d.name} — Sastra PDF` : 'Sastra PDF';
+  const tag = desk?.appTitle || 'Sastra PDF';   // "Sastra PDF 1.0.0", "… (dev)" when run from source
+  const t = d ? `${d.dirty && !d.sample ? '• ' : ''}${d.name} — ${tag}` : tag;
   document.title = t; desk?.setTitle(t);
 }
 async function openResults(list){
