@@ -37,10 +37,15 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        Use build/logo.png, not the root original, for any new icon sizes.
     build/icon.ico|png App/installer icon made from logo.png (.ico: 16–256 px, PNG entries;
                        .png: 512 px window icon)
-    build/pdf-file.ico Icon of .pdf files in Explorer (package.json fileAssociations): icon.ico
-                       with only its strong reds lifted (HSV value ** 0.6 where hue is within
-                       ~18° of red and saturation > 0.45) — the user found the app's dark red too
-                       heavy on file icons. The app/taskbar/shortcut icon stays icon.ico.
+    build/pdf-file.ico|png  Icon of .pdf files in Explorer (package.json fileAssociations), from
+                       the user's root file-icon.png (2026-10-15): a portrait document — white page
+                       with a folded corner, red "PDF", red band with សាស្ត្រា. The original is
+                       nearly square, so it was made portrait (page 990 × 1289, ≈ 0.77) by
+                       stretching ONLY the plain white rows above "PDF" (+80 px) and below it
+                       (+110 px); text, corner and band keep their shape. Faint specks (alpha ≤ 6)
+                       outside the shape were cleared. .png = 1024 px master (page 96 % of the
+                       height, centred); .ico = 16–256 px PNG entries made from it. It replaced an
+                       earlier lightened copy of icon.ico. The app/taskbar/shortcut icon stays icon.ico.
     app/logo.png       64 px logo for the menubar brand mark and favicon
     app/author.jpg     200 px photo of the author (Sunnguon Taing), from their LinkedIn profile,
                        for the About screen
@@ -240,6 +245,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   plain-browser fallback all passed. Not yet tested on real paper (the user's office printers: Canon
   iR-ADV C3830 copier = Windows default, HP Color LaserJet M855): check paper size, both-sides flip and
   that nothing is cut off at the edges.
+- **v1.0.2 built 2026-10-15** (Print dialog, Split/Export to a folder with no ZIP, new portrait .pdf file
+  icon): `dist\Sastra PDF Setup 1.0.2.exe` (114 MB, unsigned). The packaged `dist\win-unpacked` app
+  passed the 71 print checks and the 22 folder-saving checks; title "… — Sastra PDF v1.0.2", About
+  "Version 1.0.2". Not run: the silent install test (it would replace the user's own installed copy).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 

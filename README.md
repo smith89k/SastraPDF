@@ -49,7 +49,7 @@ Double-click **build.bat**, or in a terminal in this folder:
     npm install
     npm run dist
 
-The installer is written to `dist\Sastra PDF Setup 1.0.0.exe`.
+The installer is written to `dist\Sastra PDF Setup <version>.exe` (the version comes from package.json).
 For a single .exe without installing, run `npm run dist:portable`.
 
 ## Run without installing (for development)
