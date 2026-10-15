@@ -249,6 +249,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   icon): `dist\Sastra PDF Setup 1.0.2.exe` (114 MB, unsigned). The packaged `dist\win-unpacked` app
   passed the 71 print checks and the 22 folder-saving checks; title "… — Sastra PDF v1.0.2", About
   "Version 1.0.2". Not run: the silent install test (it would replace the user's own installed copy).
+  **Released v1.0.2 on 2026-10-15**: GitHub release `v1.0.2` with `Sastra.PDF.Setup.1.0.2.exe`
+  (SHA-256 99d63275…dc326, matches GitHub's digest), uploaded with `gh release create` because the
+  tag's workflow run was again blocked by billing. Tag message = release notes (`--cleanup=whitespace`
+  keeps the ## headings, which the default cleanup strips as comments).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
