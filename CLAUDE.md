@@ -24,7 +24,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
     app/print.js       Printing only (classic script, `window.SastraPrint`): page choice, sheet
                        layouts, sheet drawing, the Print dialog and the print run. See "Printing".
     app/pdfops.js      `window.SastraOps`, shared by index.html and task.html so both make the same files:
-                       pdf.js loading (`pdfjs()`, `PDFJS_OPTS`), `baseName`, `rangeLabel`, `imageName`,
+                       pdf.js loading (`pdfjs()`, `PDFJS_OPTS`), `closePdf`, `baseName`, `rangeLabel`, `imageName`,
                        `renderPage` (white page → JPG/PNG blob; dpi lowered past 16 384 px a side / 64 MP)
     app/task.html|.js  The small "task window" for Explorer-menu Split / Images jobs. See "Explorer menu".
     app/pdf-file.png   The task window's header icon: build/pdf-file.png cropped to the page, 98 × 128
@@ -322,8 +322,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Not tested: a real Windows 10 PC, a PC without admin rights, the full NSIS installer run (it would
   replace the user's installed copy). The local `dist\Sastra PDF Setup 1.0.2.exe` was rebuilt with
   the menu: it is NOT the released 1.0.2 — bump the version before releasing.
-  Found on the way: pdf.js 6's PDFDocumentProxy has no destroy() (it's on the loading task); index.html
-  `loadPdf` still calls `d.pdf.destroy()` inside try/catch, so old documents aren't freed after edits.
+  Found on the way and fixed 2026-10-16: pdf.js 6's PDFDocumentProxy has no destroy() (it's on the loading
+  task), so `d.pdf.destroy()` threw silently and every edit kept the old copy in memory. Now
+  `SastraOps.closePdf(pdf)` (= `pdf.loadingTask.destroy()`) in loadPdf and closeDoc; a closed doc's
+  getPage() throws synchronously (not a rejected promise).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
