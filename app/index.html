@@ -628,7 +628,7 @@ const targets = d => d.sel.size ? [...d.sel].sort((a,b)=>a-b) : [d.current];
 
 /* ---------- documents ---------- */
 async function loadPdf(d){
-  if (d.pdf) { try { d.pdf.destroy(); } catch {} }
+  if (d.pdf) SastraOps.closePdf(d.pdf);   // free the previous copy (each edit re-opens the document)
   await pdfReady;
   d.pdf = await pdfjsLib.getDocument({ data: d.bytes.slice(), ...PDFJS_OPTS }).promise;
   d.n = d.pdf.numPages; d.sizes = [];
@@ -661,7 +661,7 @@ async function closeDoc(id){
   const d = state.docs.find(x => x.id===id); if (!d) return;
   if (d.dirty && !d.sample && !(await askConfirm(`${d.name} has changes that haven't been saved. Close it anyway?`))) return;
   const idx = state.docs.indexOf(d);
-  try { d.pdf.destroy(); } catch {}
+  SastraOps.closePdf(d.pdf);
   state.docs.splice(idx,1); state.combine = state.combine.filter(c => c.id!==id);
   if (state.activeId === id) { const nx = state.docs[Math.min(idx, state.docs.length-1)]; state.activeId = null; if (nx) activate(nx.id); else { renderTabs(); renderThumbs(); renderViewer(); updateUI(); } }
   else { renderTabs(); updateUI(); }

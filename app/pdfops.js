@@ -7,6 +7,10 @@
   let libP = null;
   const pdfjs = () => libP ??= import('./vendor/pdf.min.mjs').then(m => { m.GlobalWorkerOptions.workerSrc = vendorUrl('pdf.worker.min.mjs'); return m; });
 
+  // Frees an open pdf.js document (and its copy in the worker). pdf.js 6: PDFDocumentProxy has no destroy();
+  // it lives on the loading task — calling pdf.destroy() threw silently and kept every old copy in memory.
+  const closePdf = pdf => { try { return pdf?.loadingTask?.destroy(); } catch {} };
+
   const baseName = n => n.replace(/\.pdf$/i, '');
   function rangeLabel(idx) {   // [0,1,2,4] → "1-3_5"
     const out = []; let s = idx[0], p = idx[0];
@@ -31,5 +35,5 @@
     return { blob, dpi: use };
   }
 
-  window.SastraOps = { PDFJS_OPTS, pdfjs, baseName, rangeLabel, imageName, renderPage };
+  window.SastraOps = { PDFJS_OPTS, pdfjs, closePdf, baseName, rangeLabel, imageName, renderPage };
 })();
