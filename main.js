@@ -163,6 +163,46 @@ ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind }) => {
 });
 let lastDir = null;
 
+// Split / Export with several files: pick a folder (before anything is made), then check the names.
+// Returns the folder and the final names, or null when cancelled. The page writes each file itself.
+const exists = p => fs.access(p).then(() => true, () => false);
+const numbered = (name, k) => { const ext = path.extname(name); return `${name.slice(0, name.length - ext.length)} (${k})${ext}`; };
+ipcMain.handle('pick-folder', async (_e, { title, names } = {}) => {
+  const r = await dialog.showOpenDialog(win, {
+    title: String(title || 'Choose a folder'), buttonLabel: 'Save here',
+    defaultPath: lastDir || app.getPath('documents'), properties: ['openDirectory', 'createDirectory']
+  });
+  if (r.canceled || !r.filePaths.length) return null;
+  const dir = r.filePaths[0]; lastDir = dir;
+  // file names only (never a path); the same name twice in one batch gets " (2)", like Explorer
+  const seen = new Set(), list = (Array.isArray(names) ? names : []).map(n => {
+    let name = path.basename(String(n)), k = 1;
+    while (seen.has(name.toLowerCase())) name = numbered(path.basename(String(n)), ++k);
+    seen.add(name.toLowerCase()); return name;
+  });
+  const clash = [];
+  for (const n of list) if (await exists(path.join(dir, n))) clash.push(n);
+  if (!clash.length) return { dir, names: list };
+  const q = await dialog.showMessageBox(win, {
+    type: 'question', buttons: ['Replace', 'Keep both', 'Cancel'], defaultId: 1, cancelId: 2, noLink: true, title: APP_NAME,
+    message: clash.length === 1 ? `"${clash[0]}" is already in this folder.` : `${clash.length} of these files are already in this folder.`,
+    detail: 'Replace them, or keep both? With Keep both the new files get a number added to their name.'
+  });
+  if (q.response === 2) return null;
+  if (q.response === 0) return { dir, names: list };
+  const out = [];   // Keep both: a clashing name gets the first free number
+  for (const n of list) {
+    let name = n;
+    if (clash.includes(n)) {
+      let k = 1;
+      do name = numbered(n, ++k); while (seen.has(name.toLowerCase()) || await exists(path.join(dir, name)));
+      seen.add(name.toLowerCase());
+    }
+    out.push(name);
+  }
+  return { dir, names: out };
+});
+
 ipcMain.handle('confirm-close', async (_e, names) => {
   const r = await dialog.showMessageBox(win, {
     type: 'warning', buttons: ['Close without saving', 'Cancel'], defaultId: 1, cancelId: 1,
