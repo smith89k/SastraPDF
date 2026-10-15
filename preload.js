@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('sastra', {
   isDesktop: true,
+  // window title tag from main.js: "Sastra PDF 1.0.0", or "Sastra PDF 1.0.0 (dev)" when run from source
+  appTitle: (process.argv.find(a => a.startsWith('--sastra-title=')) || '--sastra-title=Sastra PDF').slice('--sastra-title='.length),
   openDialog: () => ipcRenderer.invoke('open-dialog'),
   readFile: p => ipcRenderer.invoke('read-file', p),
   writeFile: (filePath, data) => ipcRenderer.invoke('write-file', { filePath, data }),

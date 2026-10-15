@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const APP_NAME = 'Sastra PDF';
+// Window title: "Sastra PDF 1.0.0", plus " (dev)" when run from source (npm start / run.bat).
+const APP_TITLE = `${APP_NAME} ${app.getVersion()}${app.isPackaged ? '' : ' (dev)'}`;
 let win = null;
 let pendingPaths = [];      // PDFs passed before the window was ready
 let allowClose = false;
@@ -28,7 +30,7 @@ function pdfArgs(argv) {
 function createWindow() {
   win = new BrowserWindow({
     width: 1400, height: 900, minWidth: 720, minHeight: 480,
-    title: APP_NAME,
+    title: APP_TITLE,
     icon: path.join(__dirname, 'build', 'icon.png'),
     backgroundColor: '#efece8',
     show: false,
@@ -37,7 +39,8 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      spellcheck: false
+      spellcheck: false,
+      additionalArguments: ['--sastra-title=' + APP_TITLE]   // read by preload.js
     }
   });
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
@@ -121,9 +124,12 @@ async function readPdf(p) {
   return { path: p, name: path.basename(p), data: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) };
 }
 
+// Since Electron 43 a dialog without defaultPath always starts in Downloads, so remember the folder here.
+let lastOpenDir = null;
 ipcMain.handle('open-dialog', async () => {
-  const r = await dialog.showOpenDialog(win, { title: 'Open PDF', properties: ['openFile', 'multiSelections'], filters: PDF_FILTER });
+  const r = await dialog.showOpenDialog(win, { title: 'Open PDF', defaultPath: lastOpenDir || undefined, properties: ['openFile', 'multiSelections'], filters: PDF_FILTER });
   if (r.canceled) return [];
+  if (r.filePaths.length) lastOpenDir = path.dirname(r.filePaths[0]);
   const out = [];
   for (const p of r.filePaths) { try { out.push(await readPdf(p)); } catch (e) { out.push({ path: p, name: path.basename(p), error: e.message }); } }
   return out;

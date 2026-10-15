@@ -15,7 +15,7 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
 - Works fully offline; files never leave the computer
 
 ## Requirements
-Node.js LTS (20 or newer) from https://nodejs.org
+Node.js 22.13 or newer (LTS) from https://nodejs.org — Electron 44 and pdf.js 6 need it
 
 ## Build the installer
 Double-click **build.bat**, or in a terminal in this folder:
@@ -36,8 +36,8 @@ Double-click **run.bat**, or run `npm start`.
     app/vendor/        pdf.js, pdf-lib, JSZip (copied automatically by npm install)
     build/icon.ico     App and installer icon (made from build/logo.png)
     build/logo.png     The Sastra logo, 1024 px master
-    scripts/           Helper that copies the libraries into app/vendor
-    web/index.html     Browser-only version (no install needed)
+    scripts/           Run by npm install: fetch Electron, copy the libraries into app/vendor,
+                       check the About screen's library versions
 
 ## Troubleshooting
 - **"Cannot create symbolic link" during `npm run dist`**: run build.bat once as Administrator,

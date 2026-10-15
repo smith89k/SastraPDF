@@ -1,7 +1,7 @@
 // Makes sure node_modules/electron/dist/electron.exe really exists after "npm install".
-// Electron's own installer unzips with extract-zip 2.0.1, which stalls on Node 24: npm reports
-// success but dist/ holds only locales/. Here we unzip the same (cached, checksummed) download
-// with Windows' built-in tar.exe instead.
+// Since Electron 42 the package no longer downloads its binary on install (only on first run), and
+// Electron 33's installer stalled on Node 24 anyway. Here we fetch the same checksummed download
+// and unzip it with Windows' built-in tar.exe, so the binary is ready right after install.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');

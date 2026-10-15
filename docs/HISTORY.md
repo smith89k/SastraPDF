@@ -226,3 +226,76 @@ first, and choosing Hand tool switches to it. Tested in Chrome (23 checks) and E
   padding, so the logo block (was 6.5px above / 0.5px below) and Restore/Full screen (7.5 / 1.5) are
   now centred (3.5 / 3.5 and 4.5 / 4.5); thin dividers separate the tabs from both blocks. Also fixed:
   entering Maximize could leave the active tab scrolled out of view.
+
+### 20. Security update: Electron 33 → 44 (Claude Code, 2026-10-15)
+The user pasted `npm audit` ("20 vulnerabilities (4 moderate, 15 high, 1 critical)"). Most were in
+build-only tools; the ones that matter were Electron 33 (end-of-life, dozens of advisories) and
+pdf.js 3.11.174 (script in a malicious font), which was already blocked by `isEvalSupported:false`
+and the CSP.
+- Electron 33.2.1 → 44.7.2, electron-builder 25.1.8 → 26.15.3. `overrides` pin
+  `@mapbox/node-pre-gyp` 2.0.3 and `global-agent` 4.1.3 (both build-time only). Audit: 20 → 1, the
+  mitigated pdf.js one; clearing it needs pdf.js 4.2+ (ES modules only), left for later.
+- Breaking changes that touched the app: Electron 42 stopped downloading its binary on install (the
+  existing postinstall script already does that, comment updated); Electron 43 makes dialogs start in
+  Downloads and forget the last folder, so the Open dialog now remembers its folder in main.js.
+- New 42-check Playwright run (script outside the project) passed on `npm start` and on the rebuilt
+  packaged app, including Help > About's version line in Electron for the first time. Installer is now
+  112 MB (was 82 MB), all from Electron itself; app.asar is still 2.5 MB.
+
+### 21. pdf.js 3.11 → 6.4 (Claude Code, 2026-10-15)
+"1 high severity vulnerability — can get replacement?" The last audit warning was pdf.js 3.11.174.
+The user added: "mostly khmer pdf save from word file", so those were the files to protect.
+- pdf.js 6.4.299 has no eval-based font path at all. It ships only ES modules: both pages now load it
+  with `import()` from the existing classic script (no other code moved). The app bundles its
+  support files (JBIG2/JPEG 2000 decoders, standard fonts, CJK maps; ~3.3 MB) and passes them as
+  absolute URLs; the web version loads pdf.js from jsDelivr because cdnjs lacks those folders.
+  CSP gained 'wasm-unsafe-eval' for the decoders. About > credits name the newly bundled parts
+  (all BSD/MIT/Apache, Liberation Sans GPL-2.0 with font exception; no AGPL).
+- Before/after render fingerprints: Khmer Word PDFs (three of the user's own work documents, 8
+  pages each checked) are pixel-identical (one non-Word file: 3 pixels of anti-aliasing). A JBIG2
+  test file that rendered blank now renders. Two synthetic JPEG 2000 test files render differently,
+  same as every pdf.js since 5.0 (upstream switched to OpenJPEG).
+- `npm audit`: 0. The `@mapbox/node-pre-gyp` override went away with pdf.js 3's optional canvas.
+  42-check run passed on `npm start` and the rebuilt installer's app; web version checked in Chrome.
+
+### 22. Full screen: right-click menu was invisible (Claude Code, 2026-10-15)
+"full screen can not right click". The Full screen button called `#app.requestFullscreen()`. Only the
+full-screen element and its children are drawn, and the right-click menu, About/confirm dialogs and
+toasts are appended to <body>, so all of them opened but stayed hidden behind the page (reproduced:
+`elementFromPoint` at the menu's centre hit the page canvas). Now the button puts the whole document
+in full screen. Checked in Electron (dev and packaged; plus Maximize + Full screen, and Full screen →
+F5 Present → Esc → right-click) and in Chrome for the web version; 42-check run still passes.
+- While testing, a test launch handed its PDF to the user's open window (single-instance lock);
+  test copies now run with their own `--user-data-dir`.
+
+### 23. About: open-source list with versions (Claude Code, 2026-10-15)
+"we updated package, please check list of open source in about page". The rows were right but had no
+versions, so the updates didn't show. Each library now shows its version (pdf.js 6.4.299, pdf-lib
+1.17.1, JSZip 3.10.1, pako 1.0.11, Electron 44.7.2; fonts have none). The note now also names
+Electron's FFmpeg, where the full Chromium/Node.js licences are (LICENSES.chromium.html in the app
+folder) and the installer tools (electron-builder MIT, NSIS zlib). Checked against the shipped files:
+Liberation Sans in pdf.js is 1.07.4 (GPL-2.0 with font exception), JSZip is MIT/GPLv3 dual (used
+under MIT), pdf-lib and JSZip both bundle pako 1.0.11. New `scripts/check-credits.js` runs on every
+`npm install` and warns when About or the web page's CDN URLs lag behind node_modules.
+
+### 24. Khmer text in the UI uses a Khmer font (Claude Code, 2026-10-15)
+"khmer word in app has no font" (screenshot of tabs named ករណីបំណុល …). Only `.brand-km` asked for
+Noto Sans Khmer; the UI stack (IBM Plex Sans, system-ui, Segoe UI…) has no Khmer, so Chromium fell
+back to Leelawadee UI (confirmed with CDP `CSS.getPlatformFontsForNode`). Now "Noto Sans Khmer",
+"Khmer UI" follow IBM Plex in `--ui` and `--mono`, and Google Fonts also loads weight 400. Checked:
+tab names render in Noto Sans Khmer with stacked letters intact (zoomed ×3), offline falls back to
+Khmer UI, the web version matches; 42-check run passed on `npm start` and the rebuilt installer app.
+
+### 25. Web version removed (Claude Code, 2026-10-15)
+"why have web version?" → it was the first draft (entry 2), kept in web/ when the Electron app was
+made, and every change had to be made twice. "no need web version" → web/index.html deleted (still
+in git history). check-credits.js now checks only app/index.html; README and CLAUDE.md updated, and
+README's Node requirement raised to 22.13 (Electron 44 / pdf.js 6). app/index.html keeps its
+plain-browser fallbacks (file inputs, downloads, sample PDFs); they do no harm in Electron.
+
+### 26. Version in the window title, "(dev)" for dev runs, first release (Claude Code, 2026-10-15)
+"1. add vesion on title of app 2. add (dev) on title for dev run 3. release the first version".
+The title is now "name — Sastra PDF 1.0.0", and "… Sastra PDF 1.0.0 (dev)" when run from source.
+main.js builds the tag from app.getVersion() and app.isPackaged and hands it to the page through
+`additionalArguments` (sandboxed preload reads process.argv), so page and window titles agree with
+no IPC round trip. Then v1.0.0 was released (see Status in CLAUDE.md).
