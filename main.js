@@ -72,7 +72,6 @@ function createWindow() {
     win.webContents.send('close-request');
   });
   win.on('closed', () => { win = null; });
-  buildMenu();
 }
 
 function send(cmd) { if (win) win.webContents.send('menu', cmd); }
@@ -340,6 +339,9 @@ ipcMain.handle('initial-paths', () => { const p = pendingPaths; pendingPaths = [
 
 app.whenReady().then(() => {
   app.setAppUserModelId('kh.sastra.pdf');
+  // Once, before any window: on Windows setApplicationMenu puts the menu on EVERY open window, so setting it
+  // when the main window opens would give the Explorer-menu task window a File/Edit/View bar too.
+  buildMenu();
   if (app.isPackaged) menu.cleanOld(path.dirname(process.execPath));
   if (handleTask(process.argv)) { if (!win && !taskWin) app.quit(); return; }
   pendingPaths = pdfArgs(process.argv);
