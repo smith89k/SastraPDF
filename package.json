@@ -10,6 +10,7 @@
   "scripts": {
     "postinstall": "node scripts/ensure-electron.js && node scripts/copy-vendor.js && node scripts/check-credits.js",
     "start": "electron .",
+    "build:menu": "node scripts/build-explorer-menu.js",
     "dist": "electron-builder --win nsis",
     "dist:portable": "electron-builder --win portable"
   },
