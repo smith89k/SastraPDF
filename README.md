@@ -14,7 +14,30 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
 - "Open with Sastra PDF" for .pdf files in File Explorer; asks before closing with unsaved changes
 - Works fully offline; files never leave the computer
 
-## Requirements
+## Download
+Get the installer from [Releases](https://github.com/smith89k/SastraPDF/releases) (Windows 10 or 11,
+64-bit). Each release is built by GitHub Actions from the code in this repository.
+
+## Code signing policy
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
+[SignPath Foundation](https://signpath.org). *(Applied for; until it is approved, releases are
+unsigned, so Windows SmartScreen may warn: click "More info" > "Run anyway".)*
+
+- Committers and reviewers: [Sunnguon Taing (smith89k)](https://github.com/smith89k)
+- Approvers: [Sunnguon Taing (smith89k)](https://github.com/smith89k)
+
+Only releases built by this repository's GitHub Actions workflow are signed, and each signing
+request is approved by hand.
+
+**Privacy policy:** this program will not transfer any information to other networked systems
+unless specifically requested by the user or the person installing or operating it. Your PDFs
+stay on your computer; the app has no telemetry, no update checks and no online fonts.
+
+## Licence
+MIT — see [LICENSE](LICENSE). The libraries and fonts it ships keep their own licences (listed on
+the app's About screen).
+
+## Requirements (to build it yourself)
 Node.js 22.13 or newer (LTS) from https://nodejs.org — Electron 44 and pdf.js 6 need it
 
 ## Build the installer

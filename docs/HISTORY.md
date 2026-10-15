@@ -315,3 +315,16 @@ installer's SHA-256. A manual run of the workflow was used as a dry run before t
   payments have failed or your spending limit needs to be increased". v1.0.1 was then built locally,
   passed the 44 checks (title "Sastra PDF v1.0.1", About "Version 1.0.1") and was uploaded by hand.
   The workflow stays for when the account's billing is sorted out.
+
+### 29. Preparing to go open source for free code signing (Claude Code, 2026-10-15)
+After Trend Micro blocked the downloaded installer ("Suspicious File", new and unsigned) and GitHub
+Actions was blocked by account billing, the user asked for a free route: "go open source to get free
+signing. how?" Plan: SignPath Foundation signs OSS for free (OSI licence, public repo, builds by CI
+from the repo, a "Code signing policy" with roles and a privacy statement, MFA, each signing
+approved by hand; the publisher shown is "SignPath Foundation"). Public repos also get free Actions.
+- Licence chosen: **MIT** (LICENSE, package.json). README gained Download, Code signing policy
+  (marked "applied for") and Licence sections.
+- The app no longer loads Google Fonts: IBM Plex Sans/Mono and Noto Sans Khmer ship in
+  app/vendor/fonts (Fontsource, Latin/Latin-ext/Khmer woff2, ~370 KB); CSP no longer allows Google.
+  Checked: zero non-local requests on startup, opening a PDF and About; all fonts load from the app.
+- Removed scripts/release.js (a local one-click release, never committed): no longer needed.
