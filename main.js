@@ -3,6 +3,7 @@ const { app, BrowserWindow, Menu, dialog, ipcMain, shell, nativeTheme } = requir
 const path = require('path');
 const fs = require('fs/promises');
 const { execFile } = require('child_process');
+const menu = require('./explorer-menu');
 
 const APP_NAME = 'Sastra PDF';
 // Window title: "Sastra PDF v1.0.0", plus " (dev)" when run from source (npm start / run.bat).
@@ -10,6 +11,18 @@ const APP_TITLE = `${APP_NAME} v${app.getVersion()}${app.isPackaged ? '' : ' (de
 let win = null;
 let pendingPaths = [];      // PDFs passed before the window was ready
 let allowClose = false;
+
+// Installer hooks (build/installer.nsh): "Sastra PDF.exe --explorer-menu=install|uninstall|release|add-package"
+// sets up the File Explorer right-click menu and exits — before the single-instance lock, with no window.
+const menuCmd = (process.argv.find(a => a.startsWith('--explorer-menu=')) || '').slice('--explorer-menu='.length);
+if (menuCmd) {
+  const res = path.join(process.resourcesPath, 'explorer-menu');
+  process.exit(app.isPackaged ? menu.runCommand(menuCmd, {
+    installDir: path.dirname(process.execPath), exe: process.execPath,
+    dll: path.join(res, 'SastraMenu.dll'), msix: path.join(res, menu.PKG + '.msix'),
+    silent: process.argv.includes('--silent')
+  }) : 2);   // 2: only the installed app can register the menu
+}
 
 // Only one Sastra window; a second launch ("Open with") hands its files to the first.
 if (!app.requestSingleInstanceLock()) { app.quit(); }
