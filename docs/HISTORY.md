@@ -328,3 +328,24 @@ approved by hand; the publisher shown is "SignPath Foundation"). Public repos al
   app/vendor/fonts (Fontsource, Latin/Latin-ext/Khmer woff2, ~370 KB); CSP no longer allows Google.
   Checked: zero non-local requests on startup, opening a PDF and About; all fonts load from the app.
 - Removed scripts/release.js (a local one-click release, never committed): no longer needed.
+
+### 30. Right-click menu in File Explorer (Claude Code, 2026-10-15)
+"add right click on selected pdf file in explorer: 1. combind those file (for more than 2 file
+selected) 2. split pdf here or in folder with the file name. 3. extract pdf to image (fix jpg 300dpi
+or select option, please suggest me) here or in folder with the file name." Asked also: "is work on
+windows 10?" → yes (Windows 10 has only the classic menu, where the items show right away).
+Decisions (asked one at a time):
+- **Where**: the first (compact) Windows 11 menu, not only "Show more options". That needs package
+  identity; the user chose to **try unsigned** first instead of buying a certificate.
+- A spike on this PC proved it: an unsigned sparse package + a small C++ IExplorerCommand DLL showed
+  "Sastra PDF (test)" in the first menu and got all 3 selected files in one call — but Windows only
+  accepts it when added as admin (one UAC "Yes" at install). No / no admin → the installer uses the
+  classic menu instead (under "Show more options"), the same code Windows 10 uses.
+- **Combine** opens the result in Sastra PDF as one unsaved tab, files in name order (Acrobat-style);
+  Save As starts in their folder. **Split** = one file per page. **Images** = fixed JPG 300 dpi (Claude's
+  suggestion: opens everywhere, sharp enough to print and read small Khmer text, 5–10× smaller than PNG;
+  other formats stay in the app's Export panel).
+- Split/Images run in a small progress window (Cancel; one Replace / Keep both / Cancel question per
+  click; problems listed); the main window doesn't open for them.
+Built from a written spec and plan with tests first: C++ harness, Node unit test, Playwright jobs test,
+then the user clicked through the real menu (both the package and the classic fallback).

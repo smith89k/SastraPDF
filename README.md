@@ -15,6 +15,10 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
   both sides, paper size, and a preview of every sheet
 - Ctrl+S saves back to the original file; Ctrl+Shift+S is Save As
 - "Open with Sastra PDF" for .pdf files in File Explorer; asks before closing with unsaved changes
+- Right-click PDFs in File Explorer → **Sastra PDF**: Combine the selected files, Split (one file per
+  page, here or into a folder named after the PDF), Images (JPG, 300 dpi, here or into a folder).
+  On Windows 11 the installer asks once for permission to put it in the first right-click menu;
+  without it, the same items are under "Show more options". On Windows 10 they show right away.
 - Works fully offline; files never leave the computer
 
 ## Download
@@ -41,7 +45,9 @@ MIT — see [LICENSE](LICENSE). The libraries and fonts it ships keep their own 
 the app's About screen).
 
 ## Requirements (to build it yourself)
-Node.js 22.13 or newer (LTS) from https://nodejs.org — Electron 44 and pdf.js 6 need it
+- Node.js 22.13 or newer (LTS) from https://nodejs.org — Electron 44 and pdf.js 6 need it
+- For the File Explorer menu (built by `npm run dist`): Visual Studio Build Tools with
+  "Desktop development with C++" (x64) and the Windows 10/11 SDK
 
 ## Build the installer
 Double-click **build.bat**, or in a terminal in this folder:
@@ -60,11 +66,17 @@ Double-click **run.bat**, or run `npm start`.
     preload.js         Safe bridge between the page and Windows (open/save files)
     app/index.html     The app itself (UI and all PDF tools)
     app/print.js       Printing: the Print window, sheet layouts and the print run
+    app/pdfops.js      PDF helpers shared by the app and the Explorer-menu window
+    app/task.html/.js  The small window that runs Split / Images from the Explorer menu
     app/vendor/        pdf.js and pdf-lib (copied automatically by npm install)
+    explorer-menu/     The File Explorer right-click menu: C++ source (menu.cpp) and its
+                       Windows 11 package manifest; built into explorer-menu/out/
+    explorer-menu.js   Adds/removes that menu (run by the installer) and reads what it asked for
+    build/installer.nsh  Installer steps for the Explorer menu
     build/icon.ico     App and installer icon (made from build/logo.png)
     build/logo.png     The Sastra logo, 1024 px master
     scripts/           Run by npm install: fetch Electron, copy the libraries into app/vendor,
-                       check the About screen's library versions
+                       check the About screen's library versions; build-explorer-menu.js (npm run dist)
 
 ## Troubleshooting
 - **"Cannot create symbolic link" during `npm run dist`**: run build.bat once as Administrator,

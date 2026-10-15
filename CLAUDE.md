@@ -23,11 +23,26 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
     app/index.html     The whole app UI + PDF logic in one file (HTML/CSS/JS, no build step)
     app/print.js       Printing only (classic script, `window.SastraPrint`): page choice, sheet
                        layouts, sheet drawing, the Print dialog and the print run. See "Printing".
+    app/pdfops.js      `window.SastraOps`, shared by index.html and task.html so both make the same files:
+                       pdf.js loading (`pdfjs()`, `PDFJS_OPTS`), `baseName`, `rangeLabel`, `imageName`,
+                       `renderPage` (white page → JPG/PNG blob; dpi lowered past 16 384 px a side / 64 MP)
+    app/task.html|.js  The small "task window" for Explorer-menu Split / Images jobs. See "Explorer menu".
+    explorer-menu/     File Explorer right-click menu: menu.cpp/.def (C++ IExplorerCommand DLL),
+                       AppxManifest.xml + Assets/ (unsigned sparse package for the Windows 11 first menu).
+                       Built by scripts/build-explorer-menu.js into explorer-menu/out/ (gitignored)
+    explorer-menu.js   Main-process module with no Electron in it: registers/unregisters the menu
+                       (installer hooks) and parses/reads menu jobs (`parseTaskArgs`, `readTaskList`)
+    build/installer.nsh  electron-builder `nsis.include`: customInstall / customUnInstall call
+                       `Sastra PDF.exe --explorer-menu=install|uninstall|release`
     app/vendor/        pdf.min.mjs, pdf.worker.min.mjs, pdf-lib.min.js, and
                        pdfjs/{wasm,standard_fonts,cmaps}/ (pdf.js support files, ~3.3 MB)
                        — filled by `scripts/copy-vendor.js` on `npm install` (gitignored; the script
                        empties the folder first so stale files never ship)
     scripts/check-credits.js    postinstall: warns if About's library versions are out of date
+    scripts/build-explorer-menu.js  run by `npm run dist` (and CI): finds MSVC with vswhere → vcvars64,
+                       compiles SastraMenu.dll (/MT), packs SastraPDF.ExplorerMenu.msix with makeappx;
+                       fails if the CLSID / package version differ between menu.cpp, the manifest and
+                       explorer-menu.js. Alone: `npm run build:menu`
     scripts/ensure-electron.js  postinstall: downloads electron.exe and unpacks it with Windows
                        tar.exe (Electron 42+ no longer downloads itself on install; see gotchas)
     build/logo.png     Logo master, 1024 px: red rounded tile, bound palm leaves (sastra)
@@ -164,6 +179,30 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   once: Replace / Keep both (default: clashing names get the first free " (n)") / Cancel. The page then
   makes each file and writes it at once with `write-file` (nothing big held in memory). One page of
   Export still uses the Save dialog. Plain browser: one download per file.
+- Explorer menu (design: docs/superpowers/specs/2026-10-15-explorer-menu-design.md). Right-click PDFs →
+  Sastra PDF ▸ Combine N files (2+ PDFs only) / Split here / Split to "name\" / Images here (JPG) /
+  Images to "name\" (JPG). The DLL (CLSID {47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}) gets ALL selected items
+  in one Invoke, writes them to `%TEMP%\Sastra PDF\menu-*.txt` (UTF-8, a line each) and starts
+  `Sastra PDF.exe --sastra-task=<combine|split-here|split-folder|images-here|images-folder> --sastra-list=<file>`
+  through Explorer (IShellDispatch2, so the app doesn't run inside the package identity). main.js
+  `handleTask` (first launch and `second-instance`): `readTaskList` reads only that folder/name pattern,
+  deletes the file and sorts by name like Explorer (01, 02, 10). Combine → main window `combine-paths`
+  → `combinePaths` (one unsaved tab "Combined.pdf", `d.saveDir` = the files' folder, Save As starts
+  there). Split/Images → `task-batch` to the task window (one per click, queued; "N more waiting"):
+  per click it opens the PDFs, asks ONE `resolve-names` question (Replace / Keep both / Cancel — the
+  same `resolveNames` as Split/Export "Save to folder"), `make-dir` (only `<folder>\<one name>`), writes
+  each file at once; problems are listed and keep the window open, otherwise it closes after 2 s; the app
+  quits when no window is left. body[data-done] counts finished runs (tests wait on it).
+  Registration (`--explorer-menu=install`, before the single-instance lock, no window): Windows 11 and
+  not `--silent` → re-runs itself elevated (`add-package`: `Add-AppxPackage -AllowUnsigned
+  -ExternalLocation <install>`; UAC names Sastra PDF), then checks `Get-AppxPackage` AS THE USER; else
+  (Windows 10, No, no admin, silent, failure) classic HKCU keys (`SystemFileAssociations\.pdf\shell\SastraPDF`
+  ExplorerCommandHandler + `CLSID\…\InprocServer32`, MultiSelectModel Player). Never both. State in
+  `HKCU\Software\Sastra PDF\ExplorerMenu` (Mode, Location, Version, Declined): a set-up package is kept
+  without asking; Declined=1 stops repeat prompts until a full uninstall. `release` (old uninstaller on
+  update) stops our dllhost and moves a DLL Explorer still holds to `%TEMP%\Sastra PDF\old` (same drive)
+  or `<parent of install>\sastra-pdf-old`; `cleanOld` empties those on install and app start.
+  Log: `%TEMP%\Sastra PDF\explorer-menu.log`.
 - Brand mark: the logo image (26 px) left of "Sastra PDF | សាស្ត្រា" in the menubar. It is a
   button (`#bAbout`) that opens the About screen.
 - About screen (`openAbout`, data in `AUTHOR` and `CREDITS`): opened by the brand button or
@@ -253,6 +292,21 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   (SHA-256 99d63275…dc326, matches GitHub's digest), uploaded with `gh release create` because the
   tag's workflow run was again blocked by billing. Tag message = release notes (`--cleanup=whitespace`
   keeps the ## headings, which the default cleanup strips as comments).
+- **Explorer right-click menu added 2026-10-15** (branch feat/explorer-menu; spec + plan in docs/superpowers).
+  Spike first: an unsigned sparse package shows in the first Windows 11 menu (build 26300, no Developer
+  Mode) but only when added from an elevated session (per-user add: 0x80073D2B "an unsigned package cannot
+  include Executable activations"); per-user Remove-AppxPackage needs no admin. Tests (outside the
+  project): C++ harness 20 checks (titles, hidden Combine, Khmer names, list file); unit 25 (explorer-menu.js,
+  registry on a test key); Playwright menu-test 33 (task window, clash question, problems, queue, Cancel,
+  Combine, guards) — all also on dist\win-unpacked, with the 71 print, 22 folder and 8 pdfops checks. With
+  the user on this PC: package install (UAC Yes) → all 4 menu actions worked from the first menu;
+  uninstall removed it; UAC No → classic menu under "Show more options" worked (Split, Combine); a DLL
+  held by Explorer was moved aside; reinstall didn't ask again; `--silent` → classic, no prompt.
+  Not tested: a real Windows 10 PC, a PC without admin rights, the full NSIS installer run (it would
+  replace the user's installed copy). The local `dist\Sastra PDF Setup 1.0.2.exe` was rebuilt with
+  the menu: it is NOT the released 1.0.2 — bump the version before releasing.
+  Found on the way: pdf.js 6's PDFDocumentProxy has no destroy() (it's on the loading task); index.html
+  `loadPdf` still calls `d.pdf.destroy()` inside try/catch, so old documents aren't freed after edits.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
@@ -261,7 +315,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Khmer UI language toggle (menus and labels in Khmer).
 - Remember recent files and window/panel state.
 - Text editing, OCR (Khmer OCR), digital signatures — the hard parts of Acrobat.
-- Code signing so SmartScreen doesn't warn.
+- Code signing so SmartScreen doesn't warn. A signed menu package would also install without admin
+  (no UAC prompt) — sign the .msix too and drop the OID from its Publisher.
 
 ## Known build gotchas
 - `npm run dist` can fail with "EPERM: operation not permitted, rename dist\win-unpacked.tmp" right
@@ -285,6 +340,16 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Testing while the user has Sastra PDF open (run.bat): the single-instance lock makes a test launch
   hand its files to the USER's window and quit. Launch test copies with
   `--user-data-dir=<scratch folder>` (a separate profile = a separate lock).
+- `npm run dist` needs Visual Studio Build Tools (C++ x64) + the Windows SDK for the Explorer menu
+  (this PC: Build Tools 2026 / MSVC 14.51, SDK 10.0.26100). vcvars prints "'vswhere.exe' is not
+  recognized" — harmless.
+- Explorer menu package: change `PKG_VERSION` (explorer-menu.js) and the manifest's Version together,
+  and only when the manifest changes — a new version makes the installer ask for admin again.
+- Testing the real menu: close the user's own Sastra PDF first (the single-instance lock would hand the
+  menu's jobs to it), and every PowerShell/bash call must clear ELECTRON_RUN_AS_NODE — with it set,
+  `Sastra PDF.exe --explorer-menu=…` silently does nothing.
+- print-test.js remembers print settings in its `ud` profile: delete `ud` before a run, or Poster
+  counts 80 tiles instead of 60.
 - electron-builder "Cannot create symbolic link": run as Administrator or enable Developer Mode
   (did not occur on the first build).
 - Unsigned installer → SmartScreen "More info → Run anyway".

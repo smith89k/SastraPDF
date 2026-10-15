@@ -36,7 +36,7 @@ certificate ("try unsigned first"). Windows 10 gets the same items in its normal
   password-protected; a 1-page PDF ("only one page — nothing to split"); a FILE already named like the
   folder; can't write (read-only folder, disk full). Combine skips unreadable files and names them in a
   toast; fewer than 2 readable → error toast, no tab.
-- A page that would exceed 16 384 px on a side at 300 dpi is drawn at the largest dpi that fits, noted.
+- A page that would exceed 16 384 px on a side or 64 megapixels at 300 dpi is drawn at the largest dpi that fits, noted.
 
 ## Installation (user-approved)
 - **Windows 11** (build ≥ 22000): the installer adds the menu add-on package; Windows shows ONE
@@ -93,7 +93,7 @@ windows-latest runners).
 
 ### 5. `explorer-menu.js` (main process, new) and installer hooks
 main.js, when started with `--explorer-menu=<install|uninstall|release|add-package>`, runs this BEFORE the
-single-instance lock, opens no window, uses a scratch userData folder and exits with a code.
+single-instance lock, opens no window and exits with a code.
 - `install`: Windows 11 and not silent → if the package is already registered for this user with the same
   version and this install folder → done. Else start itself elevated (`Start-Process -Verb RunAs -Wait`,
   so UAC names Sastra PDF) with `add-package`, then check `Get-AppxPackage` as the user: present → delete
