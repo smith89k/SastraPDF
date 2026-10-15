@@ -37,6 +37,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
     app/logo.png       64 px logo for the menubar brand mark and favicon
     app/author.jpg     200 px photo of the author (Sunnguon Taing), from their LinkedIn profile,
                        for the About screen
+    .github/workflows/release.yml  GitHub Actions: on a vX.Y.Z tag, builds the installer on
+                       Windows and publishes the GitHub release (see Status)
     build.bat          npm install + npm run dist, then opens dist\  (CRLF line endings)
     run.bat            npm install if needed, then npm start  (CRLF line endings)
     (no web version: web/index.html, a browser-only copy, was removed on 2026-10-15 at the
@@ -106,7 +108,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Right-clicking a page outside the current targets selects it first. Esc closes only the menu.
 - The main script is wrapped in an IIFE: Playwright can't read `state` etc.; test via the DOM.
 - `const desk = window.sastra || null` — when present (Electron), Open/Save/Save As/export use
-  native dialogs, Ctrl+S writes to `d.path`; window title is "name — Sastra PDF 1.0.0" ("• name …"
+  native dialogs, Ctrl+S writes to `d.path`; window title is "name — Sastra PDF v1.0.0" ("• name …"
   when dirty, just the tag with no PDF). The tag comes from main.js `APP_TITLE` (package.json
   version, + " (dev)" when `!app.isPackaged`, i.e. npm start / run.bat), passed to the renderer as
   `--sastra-title=` in `additionalArguments` and exposed by preload as `desk.appTitle`.
@@ -180,9 +182,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   entry (Sastra PDF 1.0.0, publisher Sunnguon Taing) and a .pdf "Open with" entry; the installed
   app opened a Khmer-named PDF with title "… — Sastra PDF 1.0.0"; the silent uninstall removed all
   of it. Not tested: the installer's interactive pages and real drag-and-drop from Explorer.
-- Next release: bump "version" in package.json (title, About and installer name follow it),
-  npm install (check-credits must say "match"), run the Playwright checks, `npm run dist`, then
-  `git tag vX.Y.Z`, push the tag and `gh release create vX.Y.Z "dist/Sastra PDF Setup X.Y.Z.exe"`.
+- Releases are built by GitHub Actions (`.github/workflows/release.yml`, windows-latest, Node 24)
+  since v1.0.1. To release: `npm version X.Y.Z --no-git-tag-version` (title, About and installer
+  name follow package.json), run the Playwright checks locally, merge to main, then
+  `git tag -a vX.Y.Z -F notes.md` (the tag message becomes the release notes) and
+  `git push origin vX.Y.Z`. The workflow fails if the tag and package.json disagree, builds with
+  `--publish never`, and creates the release with the installer + its SHA-256. "Run workflow" by
+  hand only builds (installer kept as an artifact). v1.0.0 was built locally and uploaded by hand.
 - Fixed during first run: Electron binary not unpacked on Node 24; zoomed page pushing the
   Tools panel off-screen (`#app` grid needed `grid-template-columns:minmax(0,1fr)`); stray
   Windows scrollbars on tab row, Pages panel and split inputs (box-sizing).

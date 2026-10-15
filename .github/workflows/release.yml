@@ -1,0 +1,67 @@
+# Builds the Windows installer on GitHub and attaches it to a GitHub release.
+# Runs when a version tag (v1.0.1, v1.1.0 …) is pushed. The release notes are the tag's message:
+#   git tag -a v1.0.1 -F notes.md && git push origin v1.0.1
+# "Run workflow" (manual) only builds and keeps the installer as a downloadable artifact.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create the release and upload the installer
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # the annotated tag (release notes) must be present
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install (fetches Electron, copies the PDF libraries, checks About versions)
+        run: npm ci
+
+      - name: Tag must match package.json version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          v="v$(node -p "require('./package.json').version")"
+          if [ "$v" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $v"; exit 1
+          fi
+
+      - name: Build the installer
+        run: npx electron-builder --win nsis --publish never
+
+      - name: Keep the installer as a build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer
+          path: dist/*.exe
+          if-no-files-found: error
+
+      - name: Publish the GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          exe=$(ls dist/*.exe | head -1)
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" | sed '/-----BEGIN PGP SIGNATURE-----/,$d' > notes.md
+          printf '\nSHA-256 of the installer: `%s`\n\nBuilt by GitHub Actions from %s.\n' \
+            "$(sha256sum "$exe" | cut -d' ' -f1)" "$GITHUB_SHA" >> notes.md
+          gh release create "$GITHUB_REF_NAME" "$exe" --title "Sastra PDF ${GITHUB_REF_NAME#v}" --notes-file notes.md
