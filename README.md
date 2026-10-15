@@ -10,6 +10,9 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
 - Rotate, delete, extract and insert pages, with Undo/Redo (Ctrl+Z / Ctrl+Y)
 - Combine files; Split every N pages, by ranges, or one file per page
 - Export pages as PNG or JPG at 72 / 150 / 300 dpi
+- Print (Ctrl+P) with an Acrobat-style Print window: printer and its Properties, copies, grayscale,
+  page ranges, odd/even, Fit / Actual size / Shrink / Custom scale, Poster, pages per sheet, Booklet,
+  both sides, paper size, and a preview of every sheet
 - Ctrl+S saves back to the original file; Ctrl+Shift+S is Save As
 - "Open with Sastra PDF" for .pdf files in File Explorer; asks before closing with unsaved changes
 - Works fully offline; files never leave the computer
@@ -56,6 +59,7 @@ Double-click **run.bat**, or run `npm start`.
     main.js            Window, menus, file dialogs, "Open with" handling
     preload.js         Safe bridge between the page and Windows (open/save files)
     app/index.html     The app itself (UI and all PDF tools)
+    app/print.js       Printing: the Print window, sheet layouts and the print run
     app/vendor/        pdf.js, pdf-lib, JSZip (copied automatically by npm install)
     build/icon.ico     App and installer icon (made from build/logo.png)
     build/logo.png     The Sastra logo, 1024 px master

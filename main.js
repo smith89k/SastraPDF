@@ -2,6 +2,7 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
+const { execFile } = require('child_process');
 
 const APP_NAME = 'Sastra PDF';
 // Window title: "Sastra PDF v1.0.0", plus " (dev)" when run from source (npm start / run.bat).
@@ -71,6 +72,8 @@ function buildMenu() {
       { type: 'separator' },
       k('&Save', 'Ctrl+S', 'save'),
       k('Save &As…', 'Ctrl+Shift+S', 'saveAs'),
+      { type: 'separator' },
+      k('&Print…', 'Ctrl+P', 'print'),
       { type: 'separator' },
       k('&Close Tab', 'Ctrl+W', 'closeTab'),
       k('Next Ta&b', 'Ctrl+Tab', 'nextTab'),
@@ -179,6 +182,41 @@ ipcMain.on('set-theme', (_e, t) => {
   if (item) item.checked = true;
 });
 ipcMain.on('show-folder', (_e, p) => { if (p) shell.showItemInFolder(p); });
+
+/* Printing: the page draws every sheet itself (app/print.js) and fills #printArea; this sends it,
+   with no system dialog, to the printer chosen in the page's Print window. */
+const PAPERS = ['A3', 'A4', 'A5', 'Letter', 'Legal'];
+const DUPLEX = ['simplex', 'shortEdge', 'longEdge'];
+// Electron's printer list no longer says which one is the default; Windows keeps it as
+// "Name,winspool,Ne01:" (printer names can't contain a comma).
+const defaultPrinter = () => new Promise(res => execFile('reg.exe',
+  ['query', 'HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Windows', '/v', 'Device'], { windowsHide: true },
+  (err, out) => { const m = !err && /Device\s+REG_SZ\s+([^,\r\n]+)/.exec(out); res(m ? m[1].trim() : ''); }));
+async function printerList() {
+  if (!win) return [];
+  const [list, def] = await Promise.all([win.webContents.getPrintersAsync(), defaultPrinter()]);
+  return list.map(p => ({ name: p.name, displayName: p.displayName || p.name, isDefault: p.name === def }));
+}
+ipcMain.handle('printers', () => printerList());
+ipcMain.handle('print', (_e, o = {}) => new Promise(res => {
+  if (!win) return res({ ok: false, reason: 'no window' });
+  win.webContents.print({
+    silent: true, printBackground: true, landscape: false, collate: true,
+    deviceName: String(o.deviceName || ''),
+    copies: Math.max(1, Math.min(999, Math.floor(+o.copies) || 1)),
+    color: o.color !== false,
+    duplexMode: DUPLEX.includes(o.duplexMode) ? o.duplexMode : 'simplex',
+    pageSize: PAPERS.includes(o.pageSize) ? o.pageSize : 'A4',
+    margins: { marginType: 'none' }   // each sheet image is exactly one sheet of paper
+  }, (ok, reason) => res({ ok, reason: ok ? '' : String(reason || '') }));
+}));
+// "Properties": Windows' own Printing preferences for that printer (tray, quality…). Unlike Acrobat's
+// per-job Properties, what is changed there stays as the printer's default for this user.
+ipcMain.handle('printer-prefs', async (_e, name) => {
+  if (!(await printerList()).some(p => p.name === name)) return false;
+  execFile('rundll32.exe', ['printui.dll,PrintUIEntry', '/e', '/n', name], () => {});
+  return true;
+});
 ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('initial-paths', () => { const p = pendingPaths; pendingPaths = []; return p; });
 
