@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:">
+<script>/* saved theme before first paint */try{const t=localStorage.getItem('sastra-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
+<title>Sastra PDF</title>
+<link rel="stylesheet" href="vendor/fonts/fonts.css">
+<style>
+/* The small window for File Explorer menu jobs: what it's doing, a progress bar, problems, Cancel/Close. */
+:root{
+  --chrome:#efece8; --panel:#f8f6f3; --line:#dcd7d0; --fg:#23201c; --muted:#6c665e; --accent:#b8432a; --accent-fg:#ffffff;
+  --hover:rgba(35,32,28,.07); --err:#b3261e;
+  --ui:"IBM Plex Sans","Noto Sans Khmer","Khmer UI",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --chrome:#1f1d1b; --panel:#272523; --line:#34312e; --fg:#ece8e2; --muted:#a29b91; --accent:#e46a4f; --accent-fg:#1a0d09;
+  --hover:rgba(255,255,255,.07); --err:#ff8a80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --chrome:#1f1d1b; --panel:#272523; --line:#34312e; --fg:#ece8e2; --muted:#a29b91; --accent:#e46a4f; --accent-fg:#1a0d09;
+  --hover:rgba(255,255,255,.07); --err:#ff8a80; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--chrome);color:var(--fg);font:14px/1.45 var(--ui);user-select:none;cursor:default;overflow:hidden}
+.task{box-sizing:border-box;height:100%;display:flex;flex-direction:column;gap:10px;padding:18px 20px 16px}
+.head{display:flex;gap:12px;align-items:center}
+.head img{flex:none}
+.head>div{min-width:0}
+#what{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.muted{color:var(--muted);font-size:13px}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;flex:none}
+#fill{height:100%;width:0;background:var(--accent);transition:width .15s}
+#problems{flex:1;min-height:0;overflow:auto;margin:0;padding:8px 10px 8px 26px;background:var(--panel);border:1px solid var(--line);border-radius:6px;color:var(--err);font-size:13px;user-select:text}
+.foot{margin-top:auto;display:flex;justify-content:flex-end;gap:8px}
+.btn{font:inherit;font-size:13px;height:30px;padding:0 16px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+.btn:hover:not(:disabled){background:var(--hover)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:500}
+</style>
+</head>
+<body>
+<main class="task">
+  <div class="head"><img src="logo.png" alt="" width="28" height="28" draggable="false"><div><div id="what">Getting ready…</div><div id="step" class="muted"></div></div></div>
+  <div class="bar"><div id="fill"></div></div>
+  <div id="waiting" class="muted" hidden></div>
+  <ul id="problems" hidden></ul>
+  <div class="foot"><button class="btn" id="bCancel">Cancel</button><button class="btn primary" id="bClose" hidden>Close</button></div>
+</main>
+<script src="vendor/pdf-lib.min.js"></script>
+<script src="pdfops.js"></script>
+<script src="task.js"></script>
+</body>
+</html>

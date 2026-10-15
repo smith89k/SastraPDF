@@ -28,12 +28,12 @@ if (menuCmd) {
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 else {
   app.on('second-instance', (_e, argv) => {
+    if (handleTask(argv)) return;
     const files = pdfArgs(argv);
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-      if (files.length) win.webContents.send('open-paths', files);
-    }
+    if (!win) { pendingPaths = files; createWindow(); return; }   // only the task window was open
+    if (win.isMinimized()) win.restore();
+    win.focus();
+    if (files.length) win.webContents.send('open-paths', files);
   });
 }
 
@@ -42,6 +42,7 @@ function pdfArgs(argv) {
 }
 
 function createWindow() {
+  allowClose = false;   // a window opened again later must ask again
   win = new BrowserWindow({
     width: 1400, height: 900, minWidth: 720, minHeight: 480,
     title: APP_TITLE,
@@ -75,6 +76,41 @@ function createWindow() {
 }
 
 function send(cmd) { if (win) win.webContents.send('menu', cmd); }
+
+/* ---------- File Explorer menu jobs (SastraMenu.dll → --sastra-task / --sastra-list) ---------- */
+let taskWin = null, taskReady = false, taskQueue = [];
+// true when argv is a menu job (handled, or empty because its files are gone)
+function handleTask(argv) {
+  const t = menu.parseTaskArgs(argv); if (!t) return false;
+  const paths = menu.readTaskList(t.list);
+  if (!paths.length) return true;
+  if (t.task === 'combine') { if (!win) createWindow(); sendToMain('combine-paths', paths); }
+  else { taskQueue.push({ task: t.task, paths }); openTaskWindow(); flushTasks(); }
+  return true;
+}
+function sendToMain(channel, data) {
+  const wc = win.webContents;
+  if (wc.isLoading()) wc.once('did-finish-load', () => wc.send(channel, data)); else wc.send(channel, data);
+  if (win.isVisible()) { if (win.isMinimized()) win.restore(); win.focus(); }
+}
+function openTaskWindow() {
+  if (taskWin) { if (taskWin.isMinimized()) taskWin.restore(); taskWin.focus(); return; }
+  taskReady = false;
+  taskWin = new BrowserWindow({
+    width: 480, height: 280, useContentSize: true, resizable: false, maximizable: false, fullscreenable: false,
+    title: APP_NAME, icon: path.join(__dirname, 'build', 'icon.png'), backgroundColor: '#efece8', show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false,
+      additionalArguments: ['--sastra-title=' + APP_TITLE] }
+  });
+  taskWin.setMenu(null);
+  taskWin.once('ready-to-show', () => taskWin.show());
+  taskWin.loadFile(path.join(__dirname, 'app', 'task.html'));
+  taskWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  taskWin.webContents.on('will-navigate', e => e.preventDefault());
+  taskWin.on('closed', () => { taskWin = null; taskReady = false; taskQueue = []; });
+}
+function flushTasks() { if (taskWin && taskReady) for (const b of taskQueue.splice(0)) taskWin.webContents.send('task-batch', b); }
+ipcMain.on('task-ready', e => { if (taskWin && e.sender === taskWin.webContents) { taskReady = true; flushTasks(); } });
 
 function buildMenu() {
   // registerAccelerator:false = shortcut is shown in the menu, but the page handles the key itself.
@@ -180,6 +216,45 @@ let lastDir = null;
 // Returns the folder and the final names, or null when cancelled. The page writes each file itself.
 const exists = p => fs.access(p).then(() => true, () => false);
 const numbered = (name, k) => { const ext = path.extname(name); return `${name.slice(0, name.length - ext.length)} (${k})${ext}`; };
+// Names already in the folder(s): ONE question for the whole batch. groups = [{ dir, names }] → final names per
+// group (same order), or null when cancelled. File names only (never a path); the same name twice in one group
+// gets " (2)", like Explorer.
+async function resolveNames(groups, parent) {
+  const gs = (Array.isArray(groups) ? groups : []).map(g => {
+    const seen = new Set(), names = (Array.isArray(g.names) ? g.names : []).map(n => {
+      const base = path.basename(String(n)); let name = base, k = 1;
+      while (seen.has(name.toLowerCase())) name = numbered(base, ++k);
+      seen.add(name.toLowerCase()); return name;
+    });
+    return { dir: String(g.dir), names, seen };
+  });
+  const clash = [];
+  for (const g of gs) for (const n of g.names) if (await exists(path.join(g.dir, n))) clash.push({ g, n });
+  if (!clash.length) return gs.map(g => g.names);
+  const where = gs.length > 1 ? 'their folders' : 'this folder';
+  const q = await dialog.showMessageBox(parent, {
+    type: 'question', buttons: ['Replace', 'Keep both', 'Cancel'], defaultId: 1, cancelId: 2, noLink: true, title: APP_NAME,
+    message: clash.length === 1 ? `"${clash[0].n}" is already in ${gs.length > 1 ? 'its folder' : 'this folder'}.` : `${clash.length} of these files are already in ${where}.`,
+    detail: 'Replace them, or keep both? With Keep both the new files get a number added to their name.'
+  });
+  if (q.response === 2) return null;
+  if (q.response === 0) return gs.map(g => g.names);
+  const out = [];   // Keep both: a clashing name gets the first free number
+  for (const g of gs) {
+    const list = [];
+    for (const n of g.names) {
+      let name = n;
+      if (clash.some(c => c.g === g && c.n === n)) {
+        let k = 1;
+        do name = numbered(n, ++k); while (g.seen.has(name.toLowerCase()) || await exists(path.join(g.dir, name)));
+        g.seen.add(name.toLowerCase());
+      }
+      list.push(name);
+    }
+    out.push(list);
+  }
+  return out;
+}
 ipcMain.handle('pick-folder', async (_e, { title, names } = {}) => {
   const r = await dialog.showOpenDialog(win, {
     title: String(title || 'Choose a folder'), buttonLabel: 'Save here',
@@ -187,33 +262,17 @@ ipcMain.handle('pick-folder', async (_e, { title, names } = {}) => {
   });
   if (r.canceled || !r.filePaths.length) return null;
   const dir = r.filePaths[0]; lastDir = dir;
-  // file names only (never a path); the same name twice in one batch gets " (2)", like Explorer
-  const seen = new Set(), list = (Array.isArray(names) ? names : []).map(n => {
-    let name = path.basename(String(n)), k = 1;
-    while (seen.has(name.toLowerCase())) name = numbered(path.basename(String(n)), ++k);
-    seen.add(name.toLowerCase()); return name;
-  });
-  const clash = [];
-  for (const n of list) if (await exists(path.join(dir, n))) clash.push(n);
-  if (!clash.length) return { dir, names: list };
-  const q = await dialog.showMessageBox(win, {
-    type: 'question', buttons: ['Replace', 'Keep both', 'Cancel'], defaultId: 1, cancelId: 2, noLink: true, title: APP_NAME,
-    message: clash.length === 1 ? `"${clash[0]}" is already in this folder.` : `${clash.length} of these files are already in this folder.`,
-    detail: 'Replace them, or keep both? With Keep both the new files get a number added to their name.'
-  });
-  if (q.response === 2) return null;
-  if (q.response === 0) return { dir, names: list };
-  const out = [];   // Keep both: a clashing name gets the first free number
-  for (const n of list) {
-    let name = n;
-    if (clash.includes(n)) {
-      let k = 1;
-      do name = numbered(n, ++k); while (seen.has(name.toLowerCase()) || await exists(path.join(dir, name)));
-      seen.add(name.toLowerCase());
-    }
-    out.push(name);
-  }
-  return { dir, names: out };
+  const final = await resolveNames([{ dir, names }], win);
+  return final ? { dir, names: final[0] } : null;
+});
+ipcMain.handle('resolve-names', (e, groups) => resolveNames(groups, BrowserWindow.fromWebContents(e.sender)));
+const isDir = p => fs.stat(p).then(s => s.isDirectory(), () => false);
+// Explorer-menu "… to folder": only "<existing folder>\<one name>" is ever made.
+ipcMain.handle('make-dir', async (_e, dir) => {
+  const d = path.resolve(String(dir));
+  if (!(await isDir(path.dirname(d)))) return { error: 'its folder is gone' };
+  try { await fs.mkdir(d); } catch (e) { if (e.code !== 'EEXIST') return { error: e.code === 'EPERM' || e.code === 'EACCES' ? 'no permission' : e.message }; }
+  return (await isDir(d)) ? { dir: d } : { error: 'a file already has that name' };
 });
 
 ipcMain.handle('confirm-close', async (_e, names) => {
@@ -275,6 +334,8 @@ ipcMain.handle('initial-paths', () => { const p = pendingPaths; pendingPaths = [
 
 app.whenReady().then(() => {
   app.setAppUserModelId('kh.sastra.pdf');
+  if (app.isPackaged) menu.cleanOld(path.dirname(process.execPath));
+  if (handleTask(process.argv)) { if (!win && !taskWin) app.quit(); return; }
   pendingPaths = pdfArgs(process.argv);
   createWindow();
 });
