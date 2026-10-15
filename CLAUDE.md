@@ -20,10 +20,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
     preload.js         contextBridge API `window.sastra` (open/read/write/save dialog,
                        menu events, close request, setTheme, webUtils.getPathForFile)
     app/index.html     The whole app UI + PDF logic in one file (HTML/CSS/JS, no build step)
-    app/vendor/        pdf.min.js, pdf.worker.min.js, pdf-lib.min.js, jszip.min.js
-                       — filled by `scripts/copy-vendor.js` on `npm install` (gitignored)
-    scripts/ensure-electron.js  postinstall: unpacks electron.exe with Windows tar.exe when
-                       Electron's own installer silently fails (see gotchas)
+    app/vendor/        pdf.min.mjs, pdf.worker.min.mjs, pdf-lib.min.js, jszip.min.js, and
+                       pdfjs/{wasm,standard_fonts,cmaps}/ (pdf.js support files, ~3.3 MB)
+                       — filled by `scripts/copy-vendor.js` on `npm install` (gitignored; the script
+                       empties the folder first so stale files never ship)
+    scripts/check-credits.js    postinstall: warns if About's library versions are out of date
+    scripts/ensure-electron.js  postinstall: downloads electron.exe and unpacks it with Windows
+                       tar.exe (Electron 42+ no longer downloads itself on install; see gotchas)
     build/logo.png     Logo master, 1024 px: red rounded tile, bound palm leaves (sastra)
                        turning into a white page marked "PDF" (Inter Black), សាស្ត្រា below.
                        Made from the user's root logo.png: stray red pixels cleared, cropped,
@@ -31,22 +34,33 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        Use build/logo.png, not the root original, for any new icon sizes.
     build/icon.ico|png App/installer icon made from logo.png (.ico: 16–256 px, PNG entries;
                        .png: 512 px window icon)
-    app/logo.png       64 px logo for the menubar brand mark and favicon (web/index.html
-                       embeds the same image as a data URI)
+    app/logo.png       64 px logo for the menubar brand mark and favicon
     app/author.jpg     200 px photo of the author (Sunnguon Taing), from their LinkedIn profile,
-                       for the About screen (web/index.html embeds it as a data URI)
+                       for the About screen
     build.bat          npm install + npm run dist, then opens dist\  (CRLF line endings)
     run.bat            npm install if needed, then npm start  (CRLF line endings)
-    web/index.html     Browser-only version (libraries from cdnjs, includes sample PDFs)
+    (no web version: web/index.html, a browser-only copy, was removed on 2026-10-15 at the
+     user's request — "no need web version". It is in git history if ever wanted again.)
 
 ## Tech choices
-- Rendering: **pdf.js 3.11.174** (UMD build `pdfjsLib`; worker also loaded as a script tag so
-  pdf.js can fall back to the main thread if a Worker can't start from file://).
+- Rendering: **pdf.js 6.4.299**. It ships only as ES modules, so the classic main script loads it
+  with `import('./vendor/pdf.min.mjs')` into `pdfjsLib` (`pdfReady`; `loadPdf` awaits it — nothing
+  else touches pdf.js before a doc is loaded). `PDFJS_OPTS` passes `wasmUrl` (JBIG2 / JPEG 2000
+  decoders, colour profiles), `standardFontDataUrl` and `cMapUrl` as ABSOLUTE URLs: the worker
+  resolves relative ones against its own folder. Without `wasmUrl`, JBIG2/JPX images in scans come
+  out blank. In Electron the worker runs as a real module Worker from file://.
+- Checked when upgrading from 3.11: Khmer PDFs from Word (the user's own work documents) render
+  pixel-identical; JBIG2 scans render better; two synthetic JPEG 2000 test files from pdf.js's own
+  test set (odd channel counts/subsampling) render differently in every pdf.js since 5.0 — an
+  upstream change (OpenJPEG replaced the old JS decoder), not something in this app.
 - Editing: **pdf-lib 1.17.1** (merge, split, reorder, rotate, delete, insert).
 - ZIP output: **JSZip 3.10.1**.
-- Electron **33.2.1**, electron-builder **25.1.8**, NSIS installer (not one-click, choose dir,
+- Electron **44.7.2**, electron-builder **26.15.3**, NSIS installer (not one-click, choose dir,
   desktop + Start menu shortcuts), `.pdf` file association. appId `kh.sastra.pdf`.
-- Security: contextIsolation on, nodeIntegration off, sandbox on, CSP meta in app/index.html.
+- `npm audit`: 0 warnings (2026-10-15). package.json `overrides` pins `global-agent` 4.1.3 (pulled in
+  by electron-builder's @electron/get, build-time only; it cleared the sprintf-js warnings).
+- Security: contextIsolation on, nodeIntegration off, sandbox on, CSP meta in app/index.html. The CSP
+  allows 'wasm-unsafe-eval' (WebAssembly only, for pdf.js's image decoders) but not 'unsafe-eval'.
 - Licensing: all libraries are permissive. Avoid AGPL libraries (PyMuPDF, iText) unless a
   commercial licence is bought.
 
@@ -67,6 +81,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   button labels (<1536px), Fit width/page (<1300), the Khmer name (<1240), Zoom −/+ (<1180),
   Prev/Next (<1120); all stay reachable via dropdown, right-click menu or shortcuts. Below
   ~1020px the tool strip scrolls sideways. Re-measure if a button is added to that row.
+- Full screen button (`#bFull`): HTML full screen on `document.documentElement`, NOT `#app`. The
+  right-click menu, dialogs (About, confirm) and toasts are appended to <body>, and only the
+  full-screen element's subtree is drawn — with `#app` they opened invisibly behind the page.
+  Anything new that floats over the page must go on <body> (or inside the full-screen element).
+  F11 is different: native window full screen from main.js, no HTML full screen involved.
 - Present (`startShow`/`showPage`/`endShow`): one page at a time on black, fitted to the screen,
   in HTML full screen. Button in the logo row (kept when maximized), F5 = from the start,
   Shift+F5 / Ctrl+L = from the current page, View > Present…, right-click > Present from this
@@ -87,8 +106,12 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Right-clicking a page outside the current targets selects it first. Esc closes only the menu.
 - The main script is wrapped in an IIFE: Playwright can't read `state` etc.; test via the DOM.
 - `const desk = window.sastra || null` — when present (Electron), Open/Save/Save As/export use
-  native dialogs, Ctrl+S writes to `d.path`; window title shows "• name — Sastra PDF" when dirty.
-  Without it (web), it falls back to file inputs and browser downloads.
+  native dialogs, Ctrl+S writes to `d.path`; window title is "name — Sastra PDF 1.0.0" ("• name …"
+  when dirty, just the tag with no PDF). The tag comes from main.js `APP_TITLE` (package.json
+  version, + " (dev)" when `!app.isPackaged`, i.e. npm start / run.bat), passed to the renderer as
+  `--sastra-title=` in `additionalArguments` and exposed by preload as `desk.appTitle`.
+  Without it (app/index.html opened in a plain browser) it falls back to file inputs, browser
+  downloads and two generated sample PDFs — leftovers from the removed web version, still working.
 - Menu items in main.js use `registerAccelerator: false`; the page's keydown handler owns the
   shortcuts (Ctrl+O/S/Shift+S/W/Z/Y/=/-/0/1/2/A, Ctrl+Shift+L/R, Delete, H, V, F, Esc,
   PageUp/Down, Home/End, Ctrl+Tab/Ctrl+Shift+Tab and Ctrl+PgDn/PgUp to switch tabs — these
@@ -104,15 +127,22 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Brand mark: the logo image (26 px) left of "Sastra PDF | សាស្ត្រា" in the menubar. It is a
   button (`#bAbout`) that opens the About screen.
 - About screen (`openAbout`, data in `AUTHOR` and `CREDITS`): opened by the brand button or
-  Help > About (main sends `about`; version comes from `desk.appVersion()` → `app-version`, the
-  web page says "Web version"). Shows the app, "Made by" (photo, name + dev name smith89k, title, bio, skills,
+  Help > About (main sends `about`; version comes from `desk.appVersion()` → `app-version`; in a
+  plain browser it says "Web version"). Shows the app, "Made by" (photo, name + dev name smith89k, title, bio, skills,
   links to smith89k.com / LinkedIn / GitHub smith89k) and open-source credits. The author
   asked to keep it short: no employer, career history, education, town or project list.
-  Credits list every open-source part that ships: pdf.js, pdf-lib, JSZip, pako, Electron (not in
-  web), IBM Plex, Noto Sans Khmer, plus a note for the small libraries bundled inside them —
-  update it when adding a library. Links use target=_blank, which main.js opens in the browser.
-- Design: IBM Plex Sans/Mono (Google Fonts, falls back to Segoe UI offline), Noto Sans Khmer for
-  the Khmer name; terracotta accent; light and dark themes via CSS tokens. Both side panels use
+  Credits list every open-source part that ships, with its version: pdf.js, pdf-lib, JSZip, pako,
+  Electron, IBM Plex, Noto Sans Khmer (fonts: no version, served by Google Fonts), plus
+  a note for the parts bundled inside them (pdf.js's OpenJPEG, PDFium JBIG2 + Foxit fonts, qcms,
+  Adobe CMaps, Liberation Sans; pdf-lib/JSZip's small libraries; Electron's Chromium/Node.js/FFmpeg
+  with LICENSES.chromium.html in the app folder; the installer's electron-builder and NSIS). Rows
+  are [name, version, by, licence, link]; `scripts/check-credits.js` (postinstall) warns when a
+  version there differs from node_modules. Update it when
+  adding a library. Links use target=_blank, which main.js opens in the browser.
+- Design: IBM Plex Sans/Mono (Google Fonts, falls back to Segoe UI offline). Khmer anywhere in the
+  UI (tab and file names, toasts, the brand) uses Noto Sans Khmer 400/500/600: it sits second in the
+  `--ui` and `--mono` stacks, then "Khmer UI" (Windows) for offline. Without it Chromium drew Khmer
+  with Leelawadee UI (a Thai font) — keep a Khmer font in any new font stack; terracotta accent; light and dark themes via CSS tokens. Both side panels use
   `--chrome` (the grey of the top and status bars); inside the Tools panel `--chrome` is
   redefined to `--panel`, so its buttons/fields/lists become lighter cards on the grey.
 - Native feel: UI text can't be selected (`user-select:none` on body, arrow cursor, logo not
@@ -130,23 +160,27 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   The Pages panel then shows "Pages 0", a one-line hint and three blank page cards
   (`renderThumbs`, `.thumb.ghost`) instead of an empty strip.
 
-## Status (2026-10-14)
-- Web version: done and working (also published as a claude.ai artifact — that published copy
-  predates the 2026-10-14 CSS fixes below and has not been republished).
-- Electron app: installed, run and built on Windows (Node 24.16). `dist\Sastra PDF Setup 1.0.0.exe`
-  (82 MB, unsigned) exists. Both `npm start` and the packaged `dist\win-unpacked\Sastra PDF.exe`
-  passed a 40-check Playwright run: launch maximized, argv/"Open with", second-instance handoff,
-  tabs, zoom, hand-tool pan, maximize page area, select/delete/undo/redo/rotate, Ctrl+S
-  overwrite (incl. Khmer filename and files from Add files), combine, split to tabs and ZIP,
-  export PNG/ZIP, insert file, broken-PDF error, close prompt (Cancel + Close without saving).
+## Status (2026-10-15)
+- Web version: removed 2026-10-15 (user doesn't need it). An old copy published as a claude.ai
+  artifact in the first conversation may still exist; it was never updated and is not this app.
+- Electron app: upgraded 2026-10-15 from Electron 33 (end-of-life) to 44.7.2, electron-builder
+  25 → 26.15.3 and pdf.js 3.11.174 → 6.4.299; `npm audit` went from 20 warnings to 0.
+  `dist\Sastra PDF Setup 1.0.0.exe` (114 MB, unsigned; +30 MB is Electron itself) rebuilt.
+  Both `npm start` and the packaged `dist\win-unpacked\Sastra PDF.exe` passed a 42-check Playwright
+  run: Electron version, launch maximized, argv/"Open with" (Khmer filename), second-instance
+  handoff, page + thumbnail rendering, zoom, hand-tool pan, delete/undo/redo/rotate, Ctrl+S
+  overwrite, Save As, Open (remembers folder), broken-PDF error, combine, split to tabs and ZIP,
+  export PNG, Maximize, Present (F5/Esc), theme ↔ nativeTheme, About version line, close prompt
+  (Cancel + Close without saving), no console errors. Test script lives outside the project.
+  A render check (page canvases fingerprinted, old vs new pdf.js) covered Khmer Word PDFs and
+  pdf.js test files for JBIG2, JPEG 2000, non-embedded fonts and Japanese CMaps, in both builds.
 - Not yet tested: running the NSIS installer itself (install dir choice, shortcuts, .pdf
-  association, uninstall) and real drag-and-drop from Explorer. The About screen (added on a Mac)
-  was checked in Chrome only: Help > About and its version line still need a run in Electron.
+  association, uninstall) and real drag-and-drop from Explorer.
 - Fixed during first run: Electron binary not unpacked on Node 24; zoomed page pushing the
   Tools panel off-screen (`#app` grid needed `grid-template-columns:minmax(0,1fr)`); stray
   Windows scrollbars on tab row, Pages panel and split inputs (box-sizing).
-- Next steps: run the installer and test it; consider upgrading Electron (33 is end-of-life,
-  `npm audit` lists many Electron CVEs — needs a re-test after upgrading).
+- Next steps: run the installer and test it. Keep Electron on a supported version (each major
+  gets about 6 months of fixes); re-run the Playwright checks after every upgrade.
 
 ## Ideas not built yet
 - Extract the original embedded images from a PDF (current export renders whole pages).
@@ -156,10 +190,17 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Code signing so SmartScreen doesn't warn.
 
 ## Known build gotchas
-- Node 24: Electron's installer (extract-zip 2.0.1) stalls mid-unzip and exits 0, leaving
-  `node_modules/electron/dist` with only `locales/`. `scripts/ensure-electron.js` (postinstall)
-  detects this and unpacks the cached zip with `C:\Windows\System32\tar.exe` (Git Bash's GNU
-  tar can't read .zip).
+- `npm run dist` can fail with "EPERM: operation not permitted, rename dist\win-unpacked.tmp" right
+  after the old build was run or tested (antivirus/indexer still holding files). Delete
+  `dist\win-unpacked.tmp` and run it again; the retry worked.
+- Electron binary: Electron 42+ doesn't download electron.exe on `npm install` (only on first run),
+  and Electron 33's installer stalled on Node 24. `scripts/ensure-electron.js` (postinstall) fetches
+  the checksummed zip via `@electron/get` and unpacks it with `C:\Windows\System32\tar.exe`
+  (Git Bash's GNU tar can't read .zip).
+- Electron 43+: open/save dialogs without `defaultPath` always start in Downloads and the OS no
+  longer remembers the last folder, so main.js keeps `lastOpenDir` (Open) and `lastDir` (Save/Export).
+- Before upgrading Electron, read docs/breaking-changes.md in the electron repo for every major
+  version crossed.
 - Claude Code / VS Code extension shells set `ELECTRON_RUN_AS_NODE=1`, which makes electron.exe
   act as plain Node ("Process failed to launch"). `unset ELECTRON_RUN_AS_NODE` before launching;
   run.bat and build.bat clear it.
@@ -167,6 +208,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   lock on the new exe); the retry succeeded — icon and version info were verified.
 - The page CSP has no 'unsafe-eval', so Playwright's `page.waitForFunction` fails inside the app;
   poll with `page.evaluate` instead.
+- Testing while the user has Sastra PDF open (run.bat): the single-instance lock makes a test launch
+  hand its files to the USER's window and quit. Launch test copies with
+  `--user-data-dir=<scratch folder>` (a separate profile = a separate lock).
 - electron-builder "Cannot create symbolic link": run as Administrator or enable Developer Mode
   (did not occur on the first build).
 - Unsigned installer → SmartScreen "More info → Run anyway".
