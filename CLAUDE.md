@@ -240,6 +240,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   plain-browser fallback all passed. Not yet tested on real paper (the user's office printers: Canon
   iR-ADV C3830 copier = Windows default, HP Color LaserJet M855): check paper size, both-sides flip and
   that nothing is cut off at the edges.
+- **v1.0.2 built 2026-10-15** (Print dialog, Split/Export to a folder with no ZIP, lighter .pdf file
+  icon): `dist\Sastra PDF Setup 1.0.2.exe` (114 MB, unsigned). The packaged `dist\win-unpacked` app
+  passed the 71 print checks and the 22 folder-saving checks; title "… — Sastra PDF v1.0.2", About
+  "Version 1.0.2". Not run: the silent install test (it would replace the user's own installed copy).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
