@@ -63,7 +63,7 @@
         "name": "PDF document",
         "description": "PDF document",
         "role": "Editor",
-        "icon": "build/icon.ico"
+        "icon": "build/pdf-file.ico"
       }
     ]
   }

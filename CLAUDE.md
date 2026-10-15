@@ -34,6 +34,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        Use build/logo.png, not the root original, for any new icon sizes.
     build/icon.ico|png App/installer icon made from logo.png (.ico: 16–256 px, PNG entries;
                        .png: 512 px window icon)
+    build/pdf-file.ico Icon of .pdf files in Explorer (package.json fileAssociations): icon.ico
+                       with only its strong reds lifted (HSV value ** 0.6 where hue is within
+                       ~18° of red and saturation > 0.45) — the user found the app's dark red too
+                       heavy on file icons. The app/taskbar/shortcut icon stays icon.ico.
     app/logo.png       64 px logo for the menubar brand mark and favicon
     app/author.jpg     200 px photo of the author (Sunnguon Taing), from their LinkedIn profile,
                        for the About screen
