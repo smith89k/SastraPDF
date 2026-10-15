@@ -299,3 +299,15 @@ The title is now "name — Sastra PDF 1.0.0", and "… Sastra PDF 1.0.0 (dev)" w
 main.js builds the tag from app.getVersion() and app.isPackaged and hands it to the page through
 `additionalArguments` (sandboxed preload reads process.argv), so page and window titles agree with
 no IPC round trip. Then v1.0.0 was released (see Status in CLAUDE.md).
+
+### 27. Title shows "v1.0.0" (Claude Code, 2026-10-15)
+"for version on title should be v.x.x.x" → the title tag is now "Sastra PDF v1.0.0" ("… (dev)" from
+source). Read as the usual "v" + version, matching the git tag v1.0.0. The released v1.0.0 installer
+still shows "Sastra PDF 1.0.0"; the rebuilt dist installer has the new title. Also asked: "for .exe
+file is github run it?" → no: the installer was built on this PC and uploaded; GitHub only hosts it.
+
+### 28. v1.0.1, built by GitHub Actions (Claude Code, 2026-10-15)
+"ok" (to publishing the title change as v1.0.1 and letting GitHub build the installer). Version
+bumped to 1.0.1; `.github/workflows/release.yml` builds the NSIS installer on windows-latest when a
+vX.Y.Z tag is pushed and creates the release from the annotated tag's message, adding the
+installer's SHA-256. A manual run of the workflow was used as a dry run before tagging.

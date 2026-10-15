@@ -4,8 +4,8 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const APP_NAME = 'Sastra PDF';
-// Window title: "Sastra PDF 1.0.0", plus " (dev)" when run from source (npm start / run.bat).
-const APP_TITLE = `${APP_NAME} ${app.getVersion()}${app.isPackaged ? '' : ' (dev)'}`;
+// Window title: "Sastra PDF v1.0.0", plus " (dev)" when run from source (npm start / run.bat).
+const APP_TITLE = `${APP_NAME} v${app.getVersion()}${app.isPackaged ? '' : ' (dev)'}`;
 let win = null;
 let pendingPaths = [];      // PDFs passed before the window was ready
 let allowClose = false;
