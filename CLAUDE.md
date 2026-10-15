@@ -27,6 +27,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        pdf.js loading (`pdfjs()`, `PDFJS_OPTS`), `baseName`, `rangeLabel`, `imageName`,
                        `renderPage` (white page → JPG/PNG blob; dpi lowered past 16 384 px a side / 64 MP)
     app/task.html|.js  The small "task window" for Explorer-menu Split / Images jobs. See "Explorer menu".
+    app/pdf-file.png   The task window's header icon: build/pdf-file.png cropped to the page, 98 × 128
+                       (shown 26 × 34) — a file icon, since the window works on files
     explorer-menu/     File Explorer right-click menu: menu.cpp/.def (C++ IExplorerCommand DLL),
                        AppxManifest.xml + Assets/ (unsigned sparse package for the Windows 11 first menu).
                        Built by scripts/build-explorer-menu.js into explorer-menu/out/ (gitignored)
