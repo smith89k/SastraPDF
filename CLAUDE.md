@@ -182,13 +182,19 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   entry (Sastra PDF 1.0.0, publisher Sunnguon Taing) and a .pdf "Open with" entry; the installed
   app opened a Khmer-named PDF with title "… — Sastra PDF 1.0.0"; the silent uninstall removed all
   of it. Not tested: the installer's interactive pages and real drag-and-drop from Explorer.
-- Releases are built by GitHub Actions (`.github/workflows/release.yml`, windows-latest, Node 24)
-  since v1.0.1. To release: `npm version X.Y.Z --no-git-tag-version` (title, About and installer
+- **GitHub Actions is blocked by account billing (2026-10-15)**: every run of the release workflow
+  stops before starting with "recent account payments have failed or your spending limit needs to
+  be increased" (the user must fix it under GitHub Settings > Billing & plans). So v1.0.0 and v1.0.1
+  were built locally (`npm run dist`) and uploaded with `gh release create`; the v1.0.1 tag's
+  workflow run failed for that reason (re-running it would now fail anyway: the release exists).
+  Until billing is fixed, release by hand the same way, after running the Playwright checks.
+- Once billing works, releases are built by GitHub Actions (`.github/workflows/release.yml`,
+  windows-latest, Node 24). To release: `npm version X.Y.Z --no-git-tag-version` (title, About and installer
   name follow package.json), run the Playwright checks locally, merge to main, then
   `git tag -a vX.Y.Z -F notes.md` (the tag message becomes the release notes) and
   `git push origin vX.Y.Z`. The workflow fails if the tag and package.json disagree, builds with
   `--publish never`, and creates the release with the installer + its SHA-256. "Run workflow" by
-  hand only builds (installer kept as an artifact). v1.0.0 was built locally and uploaded by hand.
+  hand only builds (installer kept as an artifact).
 - Fixed during first run: Electron binary not unpacked on Node 24; zoomed page pushing the
   Tools panel off-screen (`#app` grid needed `grid-template-columns:minmax(0,1fr)`); stray
   Windows scrollbars on tab row, Pages panel and split inputs (box-sizing).
