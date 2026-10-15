@@ -175,17 +175,22 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   as that printer's default for the user — unlike Acrobat's per-job Properties). Without `desk`
   (plain browser) the printer rows are hidden and Print calls `window.print()`.
   Tests never print on paper: they swap main's `print` handler for `printToPDF` (see Status).
+- No Windows message boxes anywhere (user's wish 2026-10-16: every popup should look like the app's own
+  boxes — no title bar, no X). Questions use `askChoice(msg, [[label, 'outline'|'primary'], …], { detail,
+  names })` in index.html (class `.modal.ask`; first button = Cancel = Esc/click outside; last has focus;
+  returns the index); `askConfirm` is Cancel | ok on top of it. Only the system file pickers remain native.
 - Saving several files (`saveMany`, Split "Save to folder", Export of 2+ pages): main.js `pick-folder`
-  shows a folder picker (starts in `lastDir`, shared with Save/Export) BEFORE anything is made, keeps
-  base names only, numbers same-name parts within one batch " (2)", and when names already exist asks
-  once: Replace / Keep both (default: clashing names get the first free " (n)") / Cancel. The page then
-  makes each file and writes it at once with `write-file` (nothing big held in memory). One page of
-  Export still uses the Save dialog. Plain browser: one download per file.
-- Closing with unsaved changes asks in the app's own box (`askConfirm`, the same one as closing a tab),
-  never a Windows message box: main's window `close` restores/focuses the window and sends
-  `close-request`; the page asks ("… Close Sastra PDF anyway?", 2+ files listed), Esc = Cancel, then
-  `close-now`. A second X while it's open is ignored (`closeAsking`). (Changed 2026-10-16: it used to be
-  a native dialog, which looked different from the tab one.)
+  shows a folder picker (starts in `lastDir`, shared with Save/Export) BEFORE anything is made and returns
+  `{ dir }`. Then `name-clashes` (groups `[{ dir, names }]` → `{ count, message, detail }`) and, when names
+  already exist, ONE `askChoice`: Cancel / Replace / Keep both (default: clashing names get the first free
+  " (n)"); `resolve-names(groups, 'replace'|'keep'|null)` returns the final names (base names only,
+  same-name parts in one batch numbered " (2)"). The page then makes each file and writes it at once with
+  `write-file` (nothing big held in memory). One page of Export still uses the Save dialog. Plain browser:
+  one download per file.
+- Closing with unsaved changes asks in the app's own box (`askConfirm`, the same one as closing a tab):
+  main's window `close` restores/focuses the window and sends `close-request`; the page asks ("… Close
+  Sastra PDF anyway?", 2+ files listed), Esc = Cancel, then `close-now`. A second X while it's open is
+  ignored (`closeAsking`).
 - Explorer menu (design: docs/superpowers/specs/2026-10-15-explorer-menu-design.md). Right-click PDFs →
   Sastra PDF ▸ Combine N files (2+ PDFs only) / Split here / Split to "name\" / Images here (JPG) /
   Images to "name\" (JPG). The DLL (CLSID {47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}) gets ALL selected items
@@ -196,12 +201,15 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   deletes the file and sorts by name like Explorer (01, 02, 10). Combine → main window `combine-paths`
   → `combinePaths` (one unsaved tab "Combined.pdf", `d.saveDir` = the files' folder, Save As starts
   there). Split/Images → `task-batch` to the task window (one per click, queued; "N more waiting"):
-  per click it opens the PDFs, asks ONE `resolve-names` question (Replace / Keep both / Cancel — the
-  same `resolveNames` as Split/Export "Save to folder"), `make-dir` (only `<folder>\<one name>`), writes
+  per click it opens the PDFs, asks ONE "already there" question INSIDE the task window (`#ask` +
+  Cancel / Replace / Keep both buttons; same `name-clashes` / `resolve-names` as Split/Export "Save to
+  folder"; `task-focus` brings the window up), `make-dir` (only `<folder>\<one name>`), writes
   each file at once; problems are listed and keep the window open, otherwise it closes after 2 s; the app
   quits when no window is left. body[data-done] counts finished runs (tests wait on it). The window is as
   tall as its content (task.js ResizeObserver → `task-size` → `setContentSize`, 440 wide, 100–420 tall;
-  the problem list scrolls past 216 px): 440 × 130 while working, no empty space.
+  the problem list scrolls past 216 px): 440 × 130 while working, no empty space. No Windows title bar
+  (`frame:false`; Windows 11 still rounds the corners and adds the shadow): `.task` is a drag region
+  (buttons and the problem list `no-drag`), Esc answers Cancel / stops the job / closes the finished window.
   Registration (`--explorer-menu=install`, before the single-instance lock, no window): Windows 11 and
   not `--silent` → re-runs itself elevated (`add-package`: `Add-AppxPackage -AllowUnsigned
   -ExternalLocation <install>`; UAC names Sastra PDF), then checks `Get-AppxPackage` AS THE USER; else

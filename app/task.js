@@ -27,6 +27,24 @@
   desk.onTaskBatch(b => { clearTimeout(closeTimer); queue.push(b); showWaiting(); if (!running) run(); });
   $('#bCancel').onclick = () => { cancelled = true; queue.length = 0; showWaiting(); $('#bCancel').disabled = true; $('#step').textContent = 'Stopping…'; };
   $('#bClose').onclick = () => window.close();
+
+  // "Already there": the question is asked inside this window, like the app's own boxes → 'replace' | 'keep' | null
+  let answer = null;
+  const ASK = ['#bNo', '#bReplace', '#bKeep'];
+  function ask(message, detail) {
+    return new Promise(res => {
+      $('#askMsg').textContent = message; $('#askDetail').textContent = detail; $('#ask').hidden = false;
+      $('#bCancel').hidden = true; for (const id of ASK) $(id).hidden = false;
+      answer = v => { answer = null; $('#ask').hidden = true; for (const id of ASK) $(id).hidden = true; $('#bCancel').hidden = false; res(v); };
+      desk.taskFocus(); $('#bKeep').focus();
+    });
+  }
+  $('#bNo').onclick = () => answer?.(null); $('#bReplace').onclick = () => answer?.('replace'); $('#bKeep').onclick = () => answer?.('keep');
+  // no title bar, so Esc: answers Cancel, stops the job, or closes the finished window
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (answer) answer(null); else if (running) $('#bCancel').click(); else window.close();
+  });
   desk.taskReady();
 
   async function run() {
@@ -73,8 +91,14 @@
       jobs.push({ path: p, name, n, dir, names });
     }
     if (!jobs.length || cancelled) return;
-    const final = await desk.resolveNames(jobs.map(j => ({ dir: j.dir, names: j.names })));
-    if (!final) { problem(`Cancelled: nothing saved for ${jobs.length === 1 ? jobs[0].name : plural(jobs.length, 'PDF')}`); return; }
+    const groups = jobs.map(j => ({ dir: j.dir, names: j.names })), q = await desk.nameClashes(groups);
+    let choice = null;
+    if (q.count) {
+      show('Some files are already there', '', 0);
+      choice = await ask(q.message, q.detail);
+      if (!choice) { problem(`Cancelled: nothing saved for ${jobs.length === 1 ? jobs[0].name : plural(jobs.length, 'PDF')}`); return; }
+    }
+    const final = await desk.resolveNames(groups, choice);
     for (const [k, j] of jobs.entries()) {
       if (cancelled) return;
       j.names = final[k];

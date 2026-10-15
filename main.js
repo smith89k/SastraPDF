@@ -100,7 +100,8 @@ function openTaskWindow() {
   if (taskWin) { if (taskWin.isMinimized()) taskWin.restore(); taskWin.focus(); return; }
   taskReady = false;
   taskWin = new BrowserWindow({
-    width: TASK_W, height: 140, useContentSize: true, resizable: false, maximizable: false, fullscreenable: false,
+    // no Windows title bar: it looks like the app's own boxes (drag it anywhere; Cancel/Close/Esc close it)
+    frame: false, width: TASK_W, height: 140, useContentSize: true, resizable: false, maximizable: false, fullscreenable: false,
     title: APP_NAME, icon: path.join(__dirname, 'build', 'icon.png'), backgroundColor: '#efece8', show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false,
       additionalArguments: ['--sastra-title=' + APP_TITLE] }
@@ -114,6 +115,8 @@ function openTaskWindow() {
 }
 function flushTasks() { if (taskWin && taskReady) for (const b of taskQueue.splice(0)) taskWin.webContents.send('task-batch', b); }
 ipcMain.on('task-ready', e => { if (taskWin && e.sender === taskWin.webContents) { taskReady = true; flushTasks(); } });
+// a question in the task window ("already there"): bring it up so it's seen
+ipcMain.on('task-focus', e => { if (taskWin && e.sender === taskWin.webContents) { if (taskWin.isMinimized()) taskWin.restore(); taskWin.focus(); } });
 // The task window is as tall as its contents (task.js measures them): small while working, taller with problems.
 ipcMain.on('task-size', (e, h) => {
   if (taskWin && e.sender === taskWin.webContents && Number.isFinite(h)) taskWin.setContentSize(TASK_W, Math.max(100, Math.min(420, Math.ceil(h))));
@@ -220,15 +223,14 @@ ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind, dir }) => {
 });
 let lastDir = null;
 
-// Split / Export with several files: pick a folder (before anything is made), then check the names.
-// Returns the folder and the final names, or null when cancelled. The page writes each file itself.
+// Saving several files (Split / Export "Save to folder", Explorer-menu jobs): the page picks the folder(s),
+// asks `name-clashes`, shows the Replace / Keep both / Cancel question in its OWN box (never a Windows box,
+// so it looks like the rest of the app), then gets the final names from `resolve-names`.
 const exists = p => fs.access(p).then(() => true, () => false);
 const numbered = (name, k) => { const ext = path.extname(name); return `${name.slice(0, name.length - ext.length)} (${k})${ext}`; };
-// Names already in the folder(s): ONE question for the whole batch. groups = [{ dir, names }] → final names per
-// group (same order), or null when cancelled. File names only (never a path); the same name twice in one group
-// gets " (2)", like Explorer.
-async function resolveNames(groups, parent) {
-  const gs = (Array.isArray(groups) ? groups : []).map(g => {
+// groups = [{ dir, names }] → file names only (never a path); the same name twice in one group gets " (2)", like Explorer
+function nameGroups(groups) {
+  return (Array.isArray(groups) ? groups : []).map(g => {
     const seen = new Set(), names = (Array.isArray(g.names) ? g.names : []).map(n => {
       const base = path.basename(String(n)); let name = base, k = 1;
       while (seen.has(name.toLowerCase())) name = numbered(base, ++k);
@@ -236,18 +238,27 @@ async function resolveNames(groups, parent) {
     });
     return { dir: String(g.dir), names, seen };
   });
+}
+async function clashesOf(gs) {
   const clash = [];
   for (const g of gs) for (const n of g.names) if (await exists(path.join(g.dir, n))) clash.push({ g, n });
-  if (!clash.length) return gs.map(g => g.names);
-  const where = gs.length > 1 ? 'their folders' : 'this folder';
-  const q = await dialog.showMessageBox(parent, {
-    type: 'question', buttons: ['Replace', 'Keep both', 'Cancel'], defaultId: 1, cancelId: 2, noLink: true, title: APP_NAME,
-    message: clash.length === 1 ? `"${clash[0].n}" is already in ${gs.length > 1 ? 'its folder' : 'this folder'}.` : `${clash.length} of these files are already in ${where}.`,
+  return clash;
+}
+// → { count: 0 } or { count, message, detail } for the page's question
+ipcMain.handle('name-clashes', async (_e, groups) => {
+  const gs = nameGroups(groups), clash = await clashesOf(gs);
+  if (!clash.length) return { count: 0 };
+  return {
+    count: clash.length,
+    message: clash.length === 1 ? `"${clash[0].n}" is already in ${gs.length > 1 ? 'its folder' : 'this folder'}.` : `${clash.length} of these files are already in ${gs.length > 1 ? 'their folders' : 'this folder'}.`,
     detail: 'Replace them, or keep both? With Keep both the new files get a number added to their name.'
-  });
-  if (q.response === 2) return null;
-  if (q.response === 0) return gs.map(g => g.names);
-  const out = [];   // Keep both: a clashing name gets the first free number
+  };
+});
+// choice 'keep': a clashing name gets the first free " (n)"; otherwise (replace / no clash) names stay → final names per group
+ipcMain.handle('resolve-names', async (_e, groups, choice) => {
+  const gs = nameGroups(groups);
+  const clash = choice === 'keep' ? await clashesOf(gs) : [];
+  const out = [];
   for (const g of gs) {
     const list = [];
     for (const n of g.names) {
@@ -262,18 +273,17 @@ async function resolveNames(groups, parent) {
     out.push(list);
   }
   return out;
-}
-ipcMain.handle('pick-folder', async (_e, { title, names } = {}) => {
+});
+// Split / Export with several files: pick the folder first, before anything is made → { dir } or null
+ipcMain.handle('pick-folder', async (_e, { title } = {}) => {
   const r = await dialog.showOpenDialog(win, {
     title: String(title || 'Choose a folder'), buttonLabel: 'Save here',
     defaultPath: lastDir || app.getPath('documents'), properties: ['openDirectory', 'createDirectory']
   });
   if (r.canceled || !r.filePaths.length) return null;
-  const dir = r.filePaths[0]; lastDir = dir;
-  const final = await resolveNames([{ dir, names }], win);
-  return final ? { dir, names: final[0] } : null;
+  lastDir = r.filePaths[0];
+  return { dir: lastDir };
 });
-ipcMain.handle('resolve-names', (e, groups) => resolveNames(groups, BrowserWindow.fromWebContents(e.sender)));
 const isDir = p => fs.stat(p).then(s => s.isDirectory(), () => false);
 // Explorer-menu "… to folder": only "<existing folder>\<one name>" is ever made.
 ipcMain.handle('make-dir', async (_e, dir) => {
