@@ -311,3 +311,7 @@ file is github run it?" → no: the installer was built on this PC and uploaded;
 bumped to 1.0.1; `.github/workflows/release.yml` builds the NSIS installer on windows-latest when a
 vX.Y.Z tag is pushed and creates the release from the annotated tag's message, adding the
 installer's SHA-256. A manual run of the workflow was used as a dry run before tagging.
+- Result: the dry run (and the v1.0.1 tag's run) never started — GitHub said "recent account
+  payments have failed or your spending limit needs to be increased". v1.0.1 was then built locally,
+  passed the 44 checks (title "Sastra PDF v1.0.1", About "Version 1.0.1") and was uploaded by hand.
+  The workflow stays for when the account's billing is sorted out.
