@@ -10,8 +10,7 @@ fs.mkdirSync(out, { recursive: true });
 const files = [
   'pdfjs-dist/build/pdf.min.mjs',
   'pdfjs-dist/build/pdf.worker.min.mjs',
-  'pdf-lib/dist/pdf-lib.min.js',
-  'jszip/dist/jszip.min.js'
+  'pdf-lib/dist/pdf-lib.min.js'
 ];
 // pdf.js support files: image decoders for scanned pages (JBIG2, JPEG 2000) and colour profiles,
 // the 14 standard PDF fonts, and character maps for Chinese/Japanese/Korean text.

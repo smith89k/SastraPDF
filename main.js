@@ -149,7 +149,7 @@ ipcMain.handle('write-file', async (_e, { filePath, data }) => {
 
 ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind }) => {
   const ext = (path.extname(defaultName).slice(1) || 'pdf').toLowerCase();
-  const names = { pdf: 'PDF document', zip: 'ZIP archive', png: 'PNG image', jpg: 'JPEG image' };
+  const names = { pdf: 'PDF document', png: 'PNG image', jpg: 'JPEG image' };
   const last = app.getPath('documents');
   const r = await dialog.showSaveDialog(win, {
     title: kind === 'export' ? 'Export' : 'Save As',

@@ -433,7 +433,6 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 <input type="file" id="fAdd" accept="application/pdf,.pdf" multiple hidden>
 
 <script src="vendor/pdf-lib.min.js"></script>
-<script src="vendor/jszip.min.js"></script>
 <script src="print.js"></script>
 <script>
 (() => {
@@ -559,13 +558,12 @@ const AUTHOR = {
 const CREDITS = [
   ['pdf.js','6.4.299','Mozilla Foundation','Apache-2.0','https://github.com/mozilla/pdf.js'],
   ['pdf-lib','1.17.1','Andrew Dillon','MIT','https://github.com/Hopding/pdf-lib'],
-  ['JSZip','3.10.1','Stuart Knightley and contributors','MIT','https://github.com/Stuk/jszip'],
   ['pako','1.0.11','Vitaly Puzrin, Andrei Tuputcyn','MIT, Zlib','https://github.com/nodeca/pako'],
   ['Electron','44.7.2','Electron contributors, GitHub Inc.','MIT','https://www.electronjs.org/'],
   ['IBM Plex Sans & Mono','','IBM','SIL OFL 1.1','https://github.com/IBM/plex'],
   ['Noto Sans Khmer','','Google','SIL OFL 1.1','https://github.com/notofonts/khmer']
 ];
-const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib and JSZip: UPNG, tslib, lie, readable-stream and setimmediate (MIT or 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. The installer is made with electron-builder (MIT) and NSIS (zlib). The font files are packaged by Fontsource (MIT).';
+const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib: UPNG and tslib (MIT and 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. The installer is made with electron-builder (MIT) and NSIS (zlib). The font files are packaged by Fontsource (MIT).';
 function openAbout(){
   if ($('.modal-bg')) return;
   const back = document.activeElement, A = AUTHOR, out = 'target="_blank" rel="noopener"';   // links open in the normal browser
