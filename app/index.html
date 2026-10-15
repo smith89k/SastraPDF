@@ -434,6 +434,7 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 
 <script src="vendor/pdf-lib.min.js"></script>
 <script src="print.js"></script>
+<script src="pdfops.js"></script>
 <script>
 (() => {
 const ICONS = {
@@ -479,10 +480,9 @@ const { PDFDocument, degrees, rgb, StandardFonts } = PDFLib;
 // pdf.js ships only as an ES module; import() works from this classic script, so the rest stays as is.
 // Its support files (scanned-image decoders, standard fonts, CJK character maps) need absolute URLs:
 // the worker resolves relative ones against its own folder.
-const vendorUrl = p => new URL('vendor/' + p, location.href).href;
 let pdfjsLib = null;
-const pdfReady = import('./vendor/pdf.min.mjs').then(m => { m.GlobalWorkerOptions.workerSrc = vendorUrl('pdf.worker.min.mjs'); pdfjsLib = m; });
-const PDFJS_OPTS = { cMapUrl:vendorUrl('pdfjs/cmaps/'), standardFontDataUrl:vendorUrl('pdfjs/standard_fonts/'), wasmUrl:vendorUrl('pdfjs/wasm/') };
+const pdfReady = SastraOps.pdfjs().then(m => { pdfjsLib = m; });
+const PDFJS_OPTS = SastraOps.PDFJS_OPTS;
 
 const state = { docs:[], activeId:null, tool:'select', space:false, busy:false, splitOut:'tabs', exportScope:'all', combine:[] };
 let uid = 0;
@@ -600,7 +600,7 @@ async function busy(label, fn){
   catch(e){ console.error(e); toast(label.replace(/…$/,'') + ' failed: ' + (e?.message || e), true); }
   finally { state.busy = false; $('#stBusy').textContent=''; updateUI(); }
 }
-const baseName = n => n.replace(/\.pdf$/i,'');
+const baseName = SastraOps.baseName;
 const fmtBytes = b => b < 1024 ? b+' B' : b < 1048576 ? (b/1024).toFixed(0)+' KB' : (b/1048576).toFixed(1)+' MB';
 const isInput = el => el && (el.tagName==='INPUT' || el.tagName==='SELECT' || el.tagName==='TEXTAREA' || el.isContentEditable);
 const targets = d => d.sel.size ? [...d.sel].sort((a,b)=>a-b) : [d.current];
@@ -972,11 +972,7 @@ async function insertFiles(files){
     goTo(start);
   });
 }
-function rangeLabel(idx){
-  const out = []; let s = idx[0], p = idx[0];
-  for (let k=1;k<=idx.length;k++){ const v = idx[k]; if (v === p+1) { p = v; continue; } out.push(s===p ? `${s+1}` : `${s+1}-${p+1}`); s = p = v; }
-  return out.join('_');
-}
+const rangeLabel = SastraOps.rangeLabel;
 
 /* ---------- combine ---------- */
 function renderCombine(){
@@ -1051,18 +1047,11 @@ async function exportImages(){
   const d = active(); if (!d) return;
   const pages = exportPages(d), fmt = $('#eFmt').value, dpi = +$('#eDpi').value;
   const mime = fmt === 'png' ? 'image/png' : 'image/jpeg';
-  const pad = String(d.n).length;
-  const names = pages.map(i => `${baseName(d.name)}_page-${String(i+1).padStart(pad,'0')}.${fmt}`);
+  const names = pages.map(i => SastraOps.imageName(baseName(d.name), i, d.n, fmt));
   const render = async k => {
     const i = pages[k];
     $('#stBusy').innerHTML = `<span class="busy"><span class="spin"></span>Rendering page ${i+1} (${k+1} of ${pages.length})…</span>`;
-    const page = await d.pdf.getPage(i+1); const vp = page.getViewport({ scale: dpi/72 });
-    const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
-    const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
-    await page.render({ canvasContext:ctx, viewport:vp }).promise;
-    const blob = await new Promise(r => c.toBlob(r, mime, 0.92));
-    c.width = c.height = 0;
-    return blob;
+    return (await SastraOps.renderPage(d.pdf, i, dpi, mime)).blob;
   };
   if (pages.length === 1) { await busy('Exporting 1 image…', async () => saveFile(names[0], await render(0))); return; }
   await saveMany(names, `${pages.length} images`, `Exporting ${pages.length} images…`, render);
