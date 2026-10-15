@@ -1362,7 +1362,7 @@ document.addEventListener('keyup', e => { if (e.key===' ') { state.space = false
 /* ---------- desktop (Electron) integration ---------- */
 function updateTitle(){
   const d = active();
-  const tag = desk?.appTitle || 'Sastra PDF';   // "Sastra PDF 1.0.0", "… (dev)" when run from source
+  const tag = desk?.appTitle || 'Sastra PDF';   // "Sastra PDF v1.0.0", "… (dev)" when run from source
   const t = d ? `${d.dirty && !d.sample ? '• ' : ''}${d.name} — ${tag}` : tag;
   document.title = t; desk?.setTitle(t);
 }

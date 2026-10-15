@@ -1,7 +1,7 @@
 {
   "name": "sastra-pdf",
   "productName": "Sastra PDF",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Sastra PDF (សាស្ត្រា PDF) — combine, split, organize and export PDF pages",
   "main": "main.js",
   "author": "Sunnguon Taing",
@@ -27,10 +27,21 @@
     "appId": "kh.sastra.pdf",
     "productName": "Sastra PDF",
     "copyright": "© 2026 smith89k",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "app/**/*", "build/icon.png", "package.json"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "build/icon.ico"
     },
     "nsis": {
@@ -44,7 +55,13 @@
       "uninstallerIcon": "build/icon.ico"
     },
     "fileAssociations": [
-      { "ext": "pdf", "name": "PDF document", "description": "PDF document", "role": "Editor", "icon": "build/icon.ico" }
+      {
+        "ext": "pdf",
+        "name": "PDF document",
+        "description": "PDF document",
+        "role": "Editor",
+        "icon": "build/icon.ico"
+      }
     ]
   }
 }
