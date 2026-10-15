@@ -174,13 +174,20 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   (Cancel + Close without saving), no console errors. Test script lives outside the project.
   A render check (page canvases fingerprinted, old vs new pdf.js) covered Khmer Word PDFs and
   pdf.js test files for JBIG2, JPEG 2000, non-embedded fonts and Japanese CMaps, in both builds.
-- Not yet tested: running the NSIS installer itself (install dir choice, shortcuts, .pdf
-  association, uninstall) and real drag-and-drop from Explorer.
+- **Released v1.0.0 on 2026-10-15**: GitHub release `v1.0.0` on smith89k/SastraPDF (private repo)
+  with `Sastra PDF Setup 1.0.0.exe` attached. Before release the installer was run silently
+  (`/S /D=<dir>`): installs in ~16 s, makes desktop + Start-menu shortcuts, an "Installed apps"
+  entry (Sastra PDF 1.0.0, publisher Sunnguon Taing) and a .pdf "Open with" entry; the installed
+  app opened a Khmer-named PDF with title "… — Sastra PDF 1.0.0"; the silent uninstall removed all
+  of it. Not tested: the installer's interactive pages and real drag-and-drop from Explorer.
+- Next release: bump "version" in package.json (title, About and installer name follow it),
+  npm install (check-credits must say "match"), run the Playwright checks, `npm run dist`, then
+  `git tag vX.Y.Z`, push the tag and `gh release create vX.Y.Z "dist/Sastra PDF Setup X.Y.Z.exe"`.
 - Fixed during first run: Electron binary not unpacked on Node 24; zoomed page pushing the
   Tools panel off-screen (`#app` grid needed `grid-template-columns:minmax(0,1fr)`); stray
   Windows scrollbars on tab row, Pages panel and split inputs (box-sizing).
-- Next steps: run the installer and test it. Keep Electron on a supported version (each major
-  gets about 6 months of fixes); re-run the Playwright checks after every upgrade.
+- Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
+  re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
 ## Ideas not built yet
 - Extract the original embedded images from a PDF (current export renders whole pages).
