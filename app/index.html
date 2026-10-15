@@ -227,6 +227,47 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .cmenu hr{border:0;border-top:1px solid var(--line);margin:4px 8px;flex:none}
 .cmenu .cf{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:10px;height:36px;padding:0 6px 0 10px;flex:none}
 .cmenu .cf .zoomsel{min-width:150px}
+/* Print (app/print.js): settings on the left, a preview of each sheet on the right, like Acrobat */
+.modal.print{box-sizing:border-box;max-width:1000px;height:min(720px,calc(100vh - 32px));padding:0;gap:0;display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;overflow:hidden}
+.pr-set{overflow-y:auto;padding:18px 20px 20px;display:flex;flex-direction:column;gap:16px;border-right:1px solid var(--line)}
+.pr-set h2{margin:0;font-size:18px;font-weight:600}
+.pr-grp{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:8px}
+.pr-grp legend{padding:0;margin-bottom:8px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.pr-set .hint{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
+.pr-set .row .btn{height:32px;flex:none}
+.pr-copies{flex:0 0 96px!important}
+.chk{display:flex;align-items:center;gap:8px;min-height:24px;cursor:pointer}
+.chk input[type=radio],.chk input[type=checkbox]{margin:0;accent-color:var(--accent);flex:none}
+.chk:has(input:disabled){opacity:.5;cursor:default}
+.pr-note{color:var(--muted);font-family:var(--mono);font-size:11.5px}
+.pr-range input[type=text],.pr-panel .chk input[type=number]{height:28px;box-sizing:border-box;border:1px solid var(--line-strong);border-radius:6px;background:var(--chrome);padding:0 8px;min-width:0}
+.pr-range input[type=text]{flex:1}
+.pr-panel .chk input[type=number]{width:72px}
+.pr-more{align-items:center;margin-top:2px}
+.pr-more .chk{flex:none;padding-top:18px}
+.pr-panel{display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.pr-inline{display:flex;flex-wrap:wrap;gap:4px 16px}
+.pr-flip{padding-left:22px}
+.pr-view{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--canvas)}
+.pr-info{padding:12px 16px 0;min-height:18px;font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-stage{flex:1;min-height:0;display:grid;place-items:center;padding:16px 20px;overflow:hidden}
+.pr-stage canvas{display:block;background:#fff;box-shadow:var(--page-shadow)}
+.pr-none{margin:0;color:var(--muted)}
+.pr-nav{display:flex;align-items:center;justify-content:center;gap:10px;padding:0 0 12px;font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
+.pr-nav span{min-width:120px;text-align:center}
+.pr-foot{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
+.pr-status{margin-right:auto;color:var(--muted);font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal.print.running .pr-status{color:var(--accent)}
+@media (max-width:760px){.modal.print{grid-template-columns:minmax(0,1fr) minmax(0,.8fr)}}
+/* the sheets themselves, made by app/print.js; the only thing on paper */
+#printArea{display:none}
+@media print{
+  html,body{height:auto!important;overflow:visible!important;background:#fff!important}
+  body>:not(#printArea){display:none!important}
+  #printArea{display:block!important}
+  #printArea img{display:block;break-after:page}
+  #printArea img:last-child{break-after:auto}
+}
 /* presentation (startShow): one page on black, filling the screen */
 .show{position:fixed;inset:0;z-index:80;background:#000;display:grid;place-items:center;outline:none;overflow:hidden}
 .show canvas{display:block}
@@ -274,6 +315,7 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
     <button class="brand" id="bAbout" title="About Sastra PDF"><img class="brand-mark" src="logo.png" alt="" width="26" height="26"><span>Sastra PDF</span><span class="brand-km" lang="km">សាស្ត្រា</span></button>
     <button class="btn" id="bOpen" title="Open PDF files (Ctrl+O)"><svg class="i" data-i="open"></svg><span class="lbl">Open</span></button>
     <button class="btn" id="bSave" title="Save PDF (Ctrl+S)"><svg class="i" data-i="save"></svg><span class="lbl">Save</span></button>
+    <button class="btn" id="bPrint" title="Print (Ctrl+P)"><svg class="i" data-i="print"></svg><span class="lbl">Print</span></button>
     <span class="sep"></span>
     <button class="btn icon" id="bUndo" title="Undo (Ctrl+Z)"><svg class="i" data-i="undo"></svg></button>
     <button class="btn icon" id="bRedo" title="Redo (Ctrl+Y)"><svg class="i" data-i="redo"></svg></button>
@@ -398,6 +440,7 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 const ICONS = {
   open:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   save:'<path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/>',
+  print:'<path d="M7 9V4h10v5"/><path d="M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/>',
   undo:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   redo:'<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
   cursor:'<path d="M5 3.5l13 7.5-5.6 1.6L10 18.5z"/>',
@@ -1062,7 +1105,7 @@ function updateUI(){
     if (!has && !el.disabled) { el.disabled = true; el.dataset.nodoc = ''; }
     else if (has && 'nodoc' in el.dataset) { el.disabled = false; delete el.dataset.nodoc; }
   }
-  ['#bSave','#bZoomOut','#bZoomIn','#bFitW','#bFitP','#bRotL','#bRotR','#bDel','#oRotL','#oRotR','#oDel','#oExtract','#oInsert','#oAll','#sGo','#eGo'].forEach(s => $(s).disabled = !has || b);
+  ['#bSave','#bPrint','#bZoomOut','#bZoomIn','#bFitW','#bFitP','#bRotL','#bRotR','#bDel','#oRotL','#oRotR','#oDel','#oExtract','#oInsert','#oAll','#sGo','#eGo'].forEach(s => $(s).disabled = !has || b);
   $('#bUndo').disabled = !d?.history.length || b; $('#bRedo').disabled = !d?.future.length || b;
   updatePageUI(); updateZoomUI(); renderCombine();
   if (!d) { $('#stDoc').textContent = 'No document open'; $('#stSel').textContent=''; $('#eHint').textContent='';
@@ -1125,6 +1168,12 @@ function toggleFocus(force){
   if (on) toast('Maximized: ← → change page · right-click for tools · F or Esc to restore.');
 }
 $('#bFocus').onclick = () => toggleFocus();
+// Print window (app/print.js): it gets the active document and the few app helpers it needs
+function printCmd(){
+  const d = active(); if (!d || state.busy || $('.modal-bg')) return;
+  closeMenu(); SastraPrint.open({ doc:d, desk, toast, svg, parseRanges });
+}
+$('#bPrint').onclick = printCmd;
 $('#bPresent').onclick = () => presentCmd(false);
 $('#bFull').onclick = async () => {
   // The whole page, not #app: the right-click menu, dialogs and toasts live on <body>, and only the
@@ -1170,7 +1219,7 @@ const CMENU = [
   ['page'], ['bPrev','Previous page','PgUp'], ['bNext','Next page','PgDn'], '-',
   ['bRotL','Rotate left','Ctrl+Shift+L'], ['bRotR','Rotate right','Ctrl+Shift+R'], ['bDel','Delete page','Del'], '-',
   ['bThumbs','Page thumbnails',''], ['bTools','Tools panel',''], ['bFocus','Maximize page area','F'],
-  ['bPresent','Present from this page','Shift+F5']
+  ['bPresent','Present from this page','Shift+F5'], ['bPrint','Print…','Ctrl+P']
 ];
 const CHECKABLE = ['tSelect','tHand','bFitW','bFitP','bThumbs','bTools'];
 let cmenu = null;
@@ -1335,6 +1384,7 @@ document.addEventListener('keydown', e => {
   if (mod && e.shiftKey && (k==='r'||k==='R')) { e.preventDefault(); if (active()) rotate(90); return; }
   if (mod && k==='2') { e.preventDefault(); setZoom(0,'width'); return; }
   if (mod && (k==='s'||k==='S')) { e.preventDefault(); saveActive(); return; }
+  if (mod && (k==='p'||k==='P')) { e.preventDefault(); printCmd(); return; }
   if (mod && !e.shiftKey && (k==='z'||k==='Z')) { e.preventDefault(); undo(); return; }
   if (mod && (k==='y'||k==='Y'||(e.shiftKey&&(k==='z'||k==='Z')))) { e.preventDefault(); redo(); return; }
   if (mod && (k==='='||k==='+')) { e.preventDefault(); stepZoom(1); return; }
@@ -1398,7 +1448,7 @@ if (desk) {
       themeSystem:() => setTheme('system', true), themeLight:() => setTheme('light', true), themeDark:() => setTheme('dark', true),
       present:() => presentCmd(false), presentStart:() => presentCmd(true),
       nextTab:() => switchTab(1), prevTab:() => switchTab(-1),
-      about:openAbout
+      print:printCmd, about:openAbout
     };
     map[cmd]?.();
   });

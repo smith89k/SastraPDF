@@ -137,5 +137,338 @@ function planSheets(sizes, pages, o){
   return { sheets: plan(sizes, pages, o), duplex: o.mode === 'booklet' && o.booklet.subset === 'both' ? 'shortEdge' : null };
 }
 
-window.SastraPrint = { PAPERS, pickPages, planSheets };
+/* ---------- drawing one sheet ----------
+   pxPerPt = canvas pixels per point. base = a canvas transform under everything (printing turns
+   landscape sheets onto portrait paper with it). pdf.js paints a white background over its whole
+   canvas, so each page is drawn on its own canvas, only the part that shows, then copied over. */
+async function drawSheet(getPage, sizes, sh, px, ctx, opt = {}){
+  const base = opt.base || [1, 0, 0, 1, 0, 0], reset = () => ctx.setTransform(...base);
+  reset(); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, sh.w * px, sh.h * px);
+  const area = sh.clip || { x:0, y:0, w:sh.w, h:sh.h };
+  for (const it of sh.items) {
+    if (it.i == null || opt.cancelled?.()) continue;
+    const sz = sizes[it.i], bw = (it.rot ? sz.h : sz.w) * it.s, bh = (it.rot ? sz.w : sz.h) * it.s;
+    const x0 = Math.max(it.x, area.x, 0), y0 = Math.max(it.y, area.y, 0);
+    const x1 = Math.min(it.x + bw, area.x + area.w, sh.w), y1 = Math.min(it.y + bh, area.y + area.h, sh.h);
+    if (x1 - x0 < 0.01 || y1 - y0 < 0.01) continue;
+    const X0 = Math.floor(x0 * px), Y0 = Math.floor(y0 * px), X1 = Math.ceil(x1 * px), Y1 = Math.ceil(y1 * px);
+    const page = await getPage(it.i);
+    const vp = page.getViewport({ scale: it.s * px, rotation: (page.rotate + it.rot) % 360 });
+    const c = document.createElement('canvas'); c.width = X1 - X0; c.height = Y1 - Y0;
+    // intent 'print': annotations show as they do on paper (some are screen-only or print-only)
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp, intent: 'print', transform: [1, 0, 0, 1, it.x * px - X0, it.y * px - Y0] }).promise;
+    reset(); ctx.filter = opt.gray ? 'grayscale(1)' : 'none'; ctx.drawImage(c, X0, Y0); ctx.filter = 'none';
+    c.width = c.height = 0;   // free the memory now, not at the next garbage collection
+  }
+  reset();
+  if (sh.border) {
+    ctx.strokeStyle = '#555'; ctx.lineWidth = Math.max(1, 0.5 * px);
+    for (const it of sh.items) if (it.i != null) {
+      const sz = sizes[it.i]; ctx.strokeRect(it.x * px, it.y * px, (it.rot ? sz.h : sz.w) * it.s * px, (it.rot ? sz.w : sz.h) * it.s * px);
+    }
+  }
+  if (sh.marks.length) {
+    ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(1, 0.3 * px); ctx.beginPath();
+    for (const [a, b, c, d] of sh.marks) { ctx.moveTo(a * px, b * px); ctx.lineTo(c * px, d * px); }
+    ctx.stroke();
+  }
+  if (sh.label) {
+    ctx.fillStyle = '#555'; ctx.textBaseline = 'middle';
+    ctx.font = `${7 * px}px "IBM Plex Sans","Noto Sans Khmer","Khmer UI",sans-serif`;
+    ctx.fillText(sh.label, area.x * px, area.y / 2 * px, area.w * px);
+  }
+}
+
+/* ---------- the Print dialog ---------- */
+const DEFAULTS = { printer:'', paper:'A4', mode:'size', orient:'auto', gray:false, duplex:false, flip:'long',
+  size:{ how:'fit', pct:100 }, poster:{ pct:100, overlap:0, labels:false, marks:false },
+  multi:{ n:2, order:'h', border:false }, booklet:{ subset:'both', binding:'left' } };
+const STORE = 'sastra-print';
+function loadSettings(){
+  let s = {}; try { s = JSON.parse(localStorage.getItem(STORE) || '{}') || {}; } catch {}
+  const o = structuredClone(DEFAULTS);
+  for (const k of Object.keys(o)) if (s[k] != null && typeof s[k] === typeof o[k]) o[k] = typeof o[k] === 'object' ? { ...o[k], ...s[k] } : s[k];
+  if (!PAPERS[o.paper]) o.paper = 'A4';
+  return o;
+}
+const saveSettings = s => { try { localStorage.setItem(STORE, JSON.stringify(s)); } catch {} };
+const fmtMm = pt => Math.round(pt / MM);
+
+const DIALOG = `
+<div class="pr-set">
+  <h2 id="prTitle">Print</h2>
+  <div class="pr-grp" data-desk>
+    <div class="row">
+      <div class="field"><label for="prPrinter">Printer</label><select id="prPrinter"><option>Finding printers…</option></select></div>
+      <button class="btn outline" id="prProps" type="button" title="Windows' printing preferences for this printer: paper tray, quality… What you change there stays as the printer's default.">Properties</button>
+    </div>
+    <div class="row">
+      <div class="field pr-copies"><label for="prCopies">Copies</label><input type="number" id="prCopies" min="1" max="999" value="1"></div>
+    </div>
+  </div>
+  <p class="hint" data-web>Your browser asks which printer to use in the next window.</p>
+  <label class="chk"><input type="checkbox" id="prGray">Print in grayscale (black and white)</label>
+
+  <fieldset class="pr-grp"><legend>Pages to print</legend>
+    <label class="chk"><input type="radio" name="prScope" value="all">All</label>
+    <label class="chk"><input type="radio" name="prScope" value="current">Current page <span class="pr-note" id="prCurN"></span></label>
+    <label class="chk"><input type="radio" name="prScope" value="selected">Selected pages <span class="pr-note" id="prSelN"></span></label>
+    <label class="chk pr-range"><input type="radio" name="prScope" value="range">Pages <input type="text" id="prRange" aria-label="Pages to print" placeholder="1-3, 7" spellcheck="false"></label>
+    <div class="row pr-more">
+      <div class="field"><label for="prSubset">More options</label>
+        <select id="prSubset"><option value="all">All pages in range</option><option value="odd">Odd pages only</option><option value="even">Even pages only</option></select></div>
+      <label class="chk"><input type="checkbox" id="prReverse">Reverse pages</label>
+    </div>
+    <p class="err-msg" id="prErr" hidden></p>
+  </fieldset>
+
+  <fieldset class="pr-grp"><legend>Page sizing &amp; handling</legend>
+    <div class="seg" id="prMode"><button type="button" data-v="size">Size</button><button type="button" data-v="poster">Poster</button><button type="button" data-v="multiple">Multiple</button><button type="button" data-v="booklet">Booklet</button></div>
+    <div class="pr-panel" data-mode="size">
+      <label class="chk"><input type="radio" name="prSize" value="fit">Fit</label>
+      <label class="chk"><input type="radio" name="prSize" value="actual">Actual size</label>
+      <label class="chk"><input type="radio" name="prSize" value="shrink">Shrink oversized pages</label>
+      <label class="chk"><input type="radio" name="prSize" value="custom">Custom scale <input type="number" id="prPct" min="1" max="1000" aria-label="Custom scale in percent"> %</label>
+    </div>
+    <div class="pr-panel" data-mode="poster">
+      <div class="row">
+        <div class="field"><label for="prTile">Tile scale (%)</label><input type="number" id="prTile" min="10" max="1000"></div>
+        <div class="field"><label for="prOverlap">Overlap (mm)</label><input type="number" id="prOverlap" min="0" max="50"></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="prLabels">Labels (file name, page, row and column)</label>
+      <label class="chk"><input type="checkbox" id="prMarks">Cut marks</label>
+    </div>
+    <div class="pr-panel" data-mode="multiple">
+      <div class="row">
+        <div class="field"><label for="prPer">Pages per sheet</label><select id="prPer"><option>2</option><option>4</option><option>6</option><option>9</option><option>16</option></select></div>
+        <div class="field"><label for="prOrder">Page order</label><select id="prOrder"><option value="h">Horizontal</option><option value="hr">Horizontal reversed</option><option value="v">Vertical</option><option value="vr">Vertical reversed</option></select></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="prBorder">Print page border</label>
+    </div>
+    <div class="pr-panel" data-mode="booklet">
+      <div class="row">
+        <div class="field"><label for="prSubsetB">Booklet subset</label><select id="prSubsetB"><option value="both">Both sides</option><option value="front">Front side only</option><option value="back">Back side only</option></select></div>
+        <div class="field"><label for="prBinding">Binding</label><select id="prBinding"><option value="left">Left</option><option value="right">Right</option></select></div>
+      </div>
+      <p class="hint">Fold the printed stack in half to make the booklet. If the printer can't print on both sides, print <b>Front side only</b>, put the stack back in the tray, then print <b>Back side only</b>.</p>
+    </div>
+  </fieldset>
+
+  <fieldset class="pr-grp"><legend>Orientation and paper</legend>
+    <div class="pr-inline">
+      <label class="chk"><input type="radio" name="prOrient" value="auto">Auto</label>
+      <label class="chk"><input type="radio" name="prOrient" value="portrait">Portrait</label>
+      <label class="chk"><input type="radio" name="prOrient" value="landscape">Landscape</label>
+    </div>
+    <div class="field"><label for="prPaper">Paper</label><select id="prPaper">${Object.entries(PAPERS).map(([k, [w, h]]) => `<option value="${k}">${k} (${w} × ${h} mm)</option>`).join('')}</select></div>
+  </fieldset>
+
+  <div class="pr-grp" data-desk>
+    <label class="chk"><input type="checkbox" id="prDuplex">Print on both sides of paper</label>
+    <div class="pr-inline pr-flip">
+      <label class="chk"><input type="radio" name="prFlip" value="long">Flip on long edge</label>
+      <label class="chk"><input type="radio" name="prFlip" value="short">Flip on short edge</label>
+    </div>
+  </div>
+</div>
+<div class="pr-view">
+  <div class="pr-info" id="prInfo"></div>
+  <div class="pr-stage" id="prStage"><canvas id="prCanvas"></canvas><p class="pr-none" hidden>Nothing to print</p></div>
+  <div class="pr-nav"><button class="btn icon" id="prPrev" type="button" title="Previous sheet"></button><span id="prSheet"></span><button class="btn icon" id="prNext" type="button" title="Next sheet"></button></div>
+</div>
+<div class="pr-foot"><span class="pr-status" id="prStatus" role="status"></span><button class="btn outline" id="prCancel" type="button">Cancel</button><button class="btn primary" id="prGo" type="button">Print</button></div>`;
+
+let openNow = false;
+function open({ doc, desk, toast, svg, parseRanges }){
+  if (openNow) return; openNow = true;
+  const S = loadSettings(), back = document.activeElement;
+  const getPage = i => doc.pdf.getPage(i + 1);
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal print" role="dialog" aria-modal="true" aria-labelledby="prTitle">${DIALOG}</div>`;
+  const dlg = bg.firstElementChild, q = s => dlg.querySelector(s), qa = s => [...dlg.querySelectorAll(s)];
+  const radioVal = n => q(`input[name="${n}"]:checked`)?.value;
+  const setRadio = (n, v) => { const r = q(`input[name="${n}"][value="${v}"]`); if (r) r.checked = true; };
+  q('#prPrev').innerHTML = svg('left'); q('#prNext').innerHTML = svg('right');
+  qa(desk ? '[data-web]' : '[data-desk]').forEach(el => el.hidden = true);
+
+  // page choice belongs to this document and this time only; the rest is remembered
+  const sel = [...doc.sel];
+  q('#prCurN').textContent = `(${doc.current + 1})`;
+  q('#prSelN').textContent = sel.length ? `(${sel.length})` : '';
+  q('input[name="prScope"][value="selected"]').disabled = !sel.length;
+  setRadio('prScope', sel.length >= 2 ? 'selected' : 'all');
+  q('#prRange').value = doc.n > 1 ? `1-${doc.n}` : '1';
+
+  // settings → controls
+  function syncUI(){
+    q('#prGray').checked = S.gray;
+    qa('#prMode button').forEach(b => b.classList.toggle('on', b.dataset.v === S.mode));
+    qa('.pr-panel').forEach(p => p.hidden = p.dataset.mode !== S.mode);
+    setRadio('prSize', S.size.how); q('#prPct').value = S.size.pct;
+    q('#prTile').value = S.poster.pct; q('#prOverlap').value = S.poster.overlap;
+    q('#prLabels').checked = S.poster.labels; q('#prMarks').checked = S.poster.marks;
+    q('#prPer').value = String(S.multi.n); q('#prOrder').value = S.multi.order; q('#prBorder').checked = S.multi.border;
+    q('#prSubsetB').value = S.booklet.subset; q('#prBinding').value = S.booklet.binding;
+    setRadio('prOrient', S.orient); q('#prPaper').value = S.paper;
+    const bk = S.mode === 'booklet';   // a booklet decides both-sides printing itself
+    q('#prDuplex').checked = bk ? S.booklet.subset === 'both' : S.duplex; q('#prDuplex').disabled = bk;
+    setRadio('prFlip', bk ? 'short' : S.flip);
+    qa('input[name="prFlip"]').forEach(r => r.disabled = bk || !S.duplex);
+    q('#prSubset').disabled = bk;   // odd/even makes no sense in a booklet; Reverse reverses its sheets
+  }
+  // controls → settings
+  function readUI(){
+    S.gray = q('#prGray').checked;
+    S.size = { how: radioVal('prSize') || 'fit', pct: clamp(q('#prPct').value, 1, 1000, 100) };
+    S.poster = { pct: clamp(q('#prTile').value, 10, 1000, 100), overlap: clamp(q('#prOverlap').value, 0, 50, 0), labels: q('#prLabels').checked, marks: q('#prMarks').checked };
+    S.multi = { n: +q('#prPer').value, order: q('#prOrder').value, border: q('#prBorder').checked };
+    S.booklet = { subset: q('#prSubsetB').value, binding: q('#prBinding').value };
+    S.orient = radioVal('prOrient') || 'auto'; S.paper = q('#prPaper').value;
+    if (S.mode !== 'booklet') { S.duplex = q('#prDuplex').checked; S.flip = radioVal('prFlip') || 'long'; }
+    if (desk && q('#prPrinter').value && printers.length) S.printer = q('#prPrinter').value;
+  }
+
+  // the plan and the preview
+  let plan = { sheets:[], duplex:null }, view = 0, drawGen = 0, drawT = 0;
+  function recompute(){
+    const r = pickPages(doc.n, { scope: radioVal('prScope'), current: doc.current, sel, range: q('#prRange').value,
+      subset: S.mode === 'booklet' ? 'all' : q('#prSubset').value, reverse: S.mode !== 'booklet' && q('#prReverse').checked }, parseRanges);
+    plan = planSheets(doc.sizes, r.pages, { ...S, reverse: S.mode === 'booklet' && q('#prReverse').checked, name: doc.name });
+    view = Math.max(0, Math.min(view, plan.sheets.length - 1));
+    const err = q('#prErr'); err.textContent = r.error || ''; err.hidden = !r.error;
+    updateView();
+  }
+  function updateView(){
+    const n = plan.sheets.length, sh = plan.sheets[view];
+    q('#prSheet').textContent = n ? `${S.mode === 'booklet' && S.booklet.subset === 'both' ? 'Side' : 'Sheet'} ${view + 1} of ${n}` : 'Nothing to print';
+    q('#prPrev').disabled = view <= 0; q('#prNext').disabled = view >= n - 1;
+    q('#prGo').disabled = !n || running || (desk && !printers.length);
+    q('#prCanvas').hidden = !n; q('.pr-none').hidden = !!n;
+    let info = '';
+    if (sh) {
+      info = `${S.paper} · ${sh.w > sh.h ? 'landscape' : 'portrait'}`;
+      const it = sh.items[0];
+      if (S.mode === 'size') info = `Page ${it.i + 1} · ${fmtMm(doc.sizes[it.i].w)} × ${fmtMm(doc.sizes[it.i].h)} mm → ${info} · scale ${Math.round(it.s * 100)} %`;
+      if (S.mode === 'booklet') info += ` · ${view % 2 && S.booklet.subset === 'both' ? 'back' : S.booklet.subset === 'back' ? 'back' : 'front'}`;
+      if (S.mode === 'poster') info += ` · ${plan.sheets.filter(s => s.items[0].i === it.i).length} sheets for page ${it.i + 1}`;
+    }
+    q('#prInfo').textContent = info;
+    redraw();
+  }
+  // the preview follows 120 ms after the last change; .drawing marks it as not yet up to date
+  function redraw(){ dlg.classList.add('drawing'); clearTimeout(drawT); drawT = setTimeout(drawPreview, 120); }
+  async function drawPreview(){
+    const sh = plan.sheets[view], gen = ++drawGen;
+    if (!sh || !bg.isConnected) { dlg.classList.remove('drawing'); return; }   // nothing to show, or closed meanwhile
+    const stage = q('#prStage'), cs = getComputedStyle(stage);
+    const sw = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const shH = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const fit = Math.max(0.05, Math.min(sw / sh.w, shH / sh.h)), dpr = Math.min(devicePixelRatio || 1, 2);
+    const c = document.createElement('canvas'); c.id = 'prCanvas';
+    c.width = Math.round(sh.w * fit * dpr); c.height = Math.round(sh.h * fit * dpr);
+    c.style.width = Math.round(sh.w * fit) + 'px'; c.style.height = Math.round(sh.h * fit) + 'px';
+    try { await drawSheet(getPage, doc.sizes, sh, fit * dpr, c.getContext('2d'), { gray: S.gray, cancelled: () => gen !== drawGen }); }
+    catch (e) { console.error(e); }
+    if (gen !== drawGen || !bg.isConnected) return;
+    q('#prCanvas').replaceWith(c); dlg.classList.remove('drawing');
+  }
+  const changed = () => { readUI(); syncUI(); saveSettings(S); recompute(); };
+
+  // printers
+  let printers = [];
+  if (desk) desk.printers().then(list => {
+    if (!bg.isConnected) return;   // closed before the list came
+    printers = list || []; const s = q('#prPrinter');
+    if (!printers.length) { s.innerHTML = '<option value="">No printers installed</option>'; s.disabled = true; q('#prProps').disabled = true; }
+    else {
+      s.innerHTML = printers.map(p => `<option></option>`).join('');
+      printers.forEach((p, k) => { s.options[k].value = p.name; s.options[k].textContent = p.displayName; });
+      s.value = (printers.find(p => p.name === S.printer) || printers.find(p => p.isDefault) || printers[0]).name;
+    }
+    updateView();
+  }, () => toast('Could not list the printers', true));
+  q('#prProps').onclick = async () => { if (!(await desk.printerPrefs(q('#prPrinter').value))) toast('Could not open the settings of this printer', true); };
+
+  // wiring
+  dlg.addEventListener('change', e => {
+    if (e.target.matches('#prPrinter')) { readUI(); saveSettings(S); } else changed();
+  });
+  dlg.addEventListener('input', e => { if (e.target.matches('#prRange')) { setRadio('prScope', 'range'); recompute(); } else if (e.target.matches('input[type=number]')) changed(); });
+  q('#prRange').addEventListener('focus', () => { setRadio('prScope', 'range'); recompute(); });
+  q('#prMode').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || running) return; S.mode = b.dataset.v; view = 0; syncUI(); saveSettings(S); recompute(); });
+  q('#prPrev').onclick = () => { view--; updateView(); };
+  q('#prNext').onclick = () => { view++; updateView(); };
+  q('#prStage').addEventListener('wheel', e => { e.preventDefault(); const v = Math.max(0, Math.min(plan.sheets.length - 1, view + Math.sign(e.deltaY))); if (v !== view) { view = v; updateView(); } }, { passive:false });
+  q('#prCancel').onclick = () => running ? (cancelled = true) : close();
+  q('#prGo').onclick = () => go();
+  bg.addEventListener('click', e => { if (e.target === bg && !running) close(); });
+  const keys = e => {
+    if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); if (running) cancelled = true; else close(); }
+    else if (e.key === 'Enter' && !e.target.closest('button, select') && !q('#prGo').disabled) { e.preventDefault(); go(); }
+  };
+  document.addEventListener('keydown', keys, true);
+  const ro = new ResizeObserver(redraw); ro.observe(q('#prStage'));
+  function close(){
+    if (!bg.isConnected) return;
+    drawGen++; clearTimeout(drawT); ro.disconnect(); document.removeEventListener('keydown', keys, true);
+    bg.remove(); openNow = false; back?.focus?.({ preventScroll:true });
+  }
+
+  /* ---------- printing: draw every sheet at print resolution, then send ---------- */
+  let running = false, cancelled = false;
+  async function go(){
+    if (running || !plan.sheets.length) return;
+    readUI(); saveSettings(S);
+    const sheets = plan.sheets, n = sheets.length, [pw, ph] = PAPERS[S.paper];
+    const dpi = n > 150 ? 150 : 300, outW = Math.round(pw / 25.4 * dpi), outH = Math.round(ph / 25.4 * dpi);
+    const printer = desk ? q('#prPrinter').selectedOptions[0]?.textContent || S.printer : '';
+    running = true; cancelled = false; dlg.classList.add('running');
+    qa('.pr-set :is(input, select, button), #prMode button, #prGo').forEach(el => { if (!el.disabled) { el.disabled = true; el.dataset.run = ''; } });
+    const status = t => { q('#prStatus').textContent = t; };
+    const area = printArea(); area.textContent = '';
+    let pageCss = document.getElementById('printPage');
+    if (!pageCss) { pageCss = document.createElement('style'); pageCss.id = 'printPage'; document.head.appendChild(pageCss); }
+    pageCss.textContent = `@page{size:${pw}mm ${ph}mm;margin:0}#printArea img{width:${pw}mm;height:${ph}mm}`;
+    const urls = [];
+    let result = null;
+    try {
+      for (let k = 0; k < n && !cancelled; k++) {
+        status(`Preparing sheet ${k + 1} of ${n}…`);
+        const sh = sheets[k], land = sh.w > sh.h, px = (land ? outH : outW) / sh.w;
+        const c = document.createElement('canvas'); c.width = outW; c.height = outH;
+        // landscape sheets go on the portrait paper turned, top to the left edge, as a printer driver does
+        await drawSheet(getPage, doc.sizes, sh, px, c.getContext('2d'), { gray: S.gray, base: land ? [0, -1, 1, 0, 0, outH] : null, cancelled: () => cancelled });
+        const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92)); c.width = c.height = 0;
+        const img = new Image(); img.className = 'psheet'; img.dataset.pages = sh.tag; img.alt = '';
+        img.src = URL.createObjectURL(blob); urls.push(img.src); area.appendChild(img);
+      }
+      if (!cancelled) {
+        await Promise.all([...area.children].map(i => i.decode()));
+        status(desk ? `Sending ${n} sheet${n > 1 ? 's' : ''} to ${printer}…` : 'Opening the print window…');
+        if (desk) result = await desk.print({ deviceName: q('#prPrinter').value, copies: clamp(q('#prCopies').value, 1, 999, 1), color: !S.gray,
+          duplexMode: plan.duplex || (S.mode !== 'booklet' && S.duplex ? (S.flip === 'short' ? 'shortEdge' : 'longEdge') : 'simplex'), pageSize: S.paper });
+        else { window.print(); result = { ok:true }; }
+      }
+    } catch (e) { console.error(e); result = { ok:false, reason: e?.message || String(e) }; }
+    area.textContent = ''; urls.forEach(u => URL.revokeObjectURL(u));
+    running = false; dlg.classList.remove('running');
+    qa('[data-run]').forEach(el => { el.disabled = false; delete el.dataset.run; });
+    if (cancelled) { status('Cancelled'); syncUI(); updateView(); return; }
+    close();
+    if (result?.ok) toast(desk ? `Sent ${n} sheet${n > 1 ? 's' : ''} to ${printer}` : 'Print window closed');
+    else if (/cancel/i.test(result?.reason || '')) toast('Printing cancelled');
+    else toast(`Couldn't print: ${result?.reason || 'unknown error'}`, true);
+  }
+
+  document.body.appendChild(bg);
+  syncUI(); recompute();
+  q('#prGo').focus({ preventScroll:true });
+}
+function printArea(){
+  let a = document.getElementById('printArea');
+  if (!a) { a = document.createElement('div'); a.id = 'printArea'; document.body.appendChild(a); }
+  return a;
+}
+
+window.SastraPrint = { PAPERS, pickPages, planSheets, drawSheet, open };
 })();
