@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('sastra', {
   makeDir: dir => ipcRenderer.invoke('make-dir', dir),
   resolveNames: groups => ipcRenderer.invoke('resolve-names', groups),
   taskReady: () => ipcRenderer.send('task-ready'),
+  taskSize: height => ipcRenderer.send('task-size', height),
   onTaskBatch: fn => ipcRenderer.on('task-batch', (_e, b) => fn(b)),
   confirmClose: names => ipcRenderer.invoke('confirm-close', names),
   closeNow: () => ipcRenderer.send('close-now'),

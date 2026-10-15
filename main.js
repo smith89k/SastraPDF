@@ -79,6 +79,7 @@ function send(cmd) { if (win) win.webContents.send('menu', cmd); }
 
 /* ---------- File Explorer menu jobs (SastraMenu.dll → --sastra-task / --sastra-list) ---------- */
 let taskWin = null, taskReady = false, taskQueue = [];
+const TASK_W = 440;
 // true when argv is a menu job (handled, or empty because its files are gone)
 function handleTask(argv) {
   const t = menu.parseTaskArgs(argv); if (!t) return false;
@@ -97,7 +98,7 @@ function openTaskWindow() {
   if (taskWin) { if (taskWin.isMinimized()) taskWin.restore(); taskWin.focus(); return; }
   taskReady = false;
   taskWin = new BrowserWindow({
-    width: 480, height: 280, useContentSize: true, resizable: false, maximizable: false, fullscreenable: false,
+    width: TASK_W, height: 140, useContentSize: true, resizable: false, maximizable: false, fullscreenable: false,
     title: APP_NAME, icon: path.join(__dirname, 'build', 'icon.png'), backgroundColor: '#efece8', show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false,
       additionalArguments: ['--sastra-title=' + APP_TITLE] }
@@ -111,6 +112,10 @@ function openTaskWindow() {
 }
 function flushTasks() { if (taskWin && taskReady) for (const b of taskQueue.splice(0)) taskWin.webContents.send('task-batch', b); }
 ipcMain.on('task-ready', e => { if (taskWin && e.sender === taskWin.webContents) { taskReady = true; flushTasks(); } });
+// The task window is as tall as its contents (task.js measures them): small while working, taller with problems.
+ipcMain.on('task-size', (e, h) => {
+  if (taskWin && e.sender === taskWin.webContents && Number.isFinite(h)) taskWin.setContentSize(TASK_W, Math.max(100, Math.min(420, Math.ceil(h))));
+});
 
 function buildMenu() {
   // registerAccelerator:false = shortcut is shown in the menu, but the page handles the key itself.

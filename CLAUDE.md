@@ -192,7 +192,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   per click it opens the PDFs, asks ONE `resolve-names` question (Replace / Keep both / Cancel — the
   same `resolveNames` as Split/Export "Save to folder"), `make-dir` (only `<folder>\<one name>`), writes
   each file at once; problems are listed and keep the window open, otherwise it closes after 2 s; the app
-  quits when no window is left. body[data-done] counts finished runs (tests wait on it).
+  quits when no window is left. body[data-done] counts finished runs (tests wait on it). The window is as
+  tall as its content (task.js ResizeObserver → `task-size` → `setContentSize`, 440 wide, 100–420 tall;
+  the problem list scrolls past 216 px): 440 × 130 while working, no empty space.
   Registration (`--explorer-menu=install`, before the single-instance lock, no window): Windows 11 and
   not `--silent` → re-runs itself elevated (`add-package`: `Add-AppxPackage -AllowUnsigned
   -ExternalLocation <install>`; UAC names Sastra PDF), then checks `Get-AppxPackage` AS THE USER; else

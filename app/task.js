@@ -22,6 +22,8 @@
   function showWaiting() { const n = queue.length; $('#waiting').hidden = !n; $('#waiting').textContent = n ? `${n} more waiting` : ''; }
   function problem(text) { problemCount++; const li = document.createElement('li'); li.textContent = text; $('#problems').appendChild(li); $('#problems').hidden = false; }
 
+  // the window is as tall as this content: report every change (problems list, "N more waiting")
+  new ResizeObserver(() => desk.taskSize($('.task').getBoundingClientRect().height)).observe($('.task'));
   desk.onTaskBatch(b => { clearTimeout(closeTimer); queue.push(b); showWaiting(); if (!running) run(); });
   $('#bCancel').onclick = () => { cancelled = true; queue.length = 0; showWaiting(); $('#bCancel').disabled = true; $('#step').textContent = 'Stopping…'; };
   $('#bClose').onclick = () => window.close();
