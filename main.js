@@ -196,13 +196,14 @@ ipcMain.handle('write-file', async (_e, { filePath, data }) => {
   return filePath;
 });
 
-ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind }) => {
+ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind, dir }) => {
   const ext = (path.extname(defaultName).slice(1) || 'pdf').toLowerCase();
   const names = { pdf: 'PDF document', png: 'PNG image', jpg: 'JPEG image' };
-  const last = app.getPath('documents');
+  // dir: where the doc came from (Combine from the Explorer menu), else the last folder used
+  const start = typeof dir === 'string' && path.isAbsolute(dir) && await isDir(dir) ? dir : (lastDir || app.getPath('documents'));
   const r = await dialog.showSaveDialog(win, {
     title: kind === 'export' ? 'Export' : 'Save As',
-    defaultPath: path.join(lastDir || last, defaultName),
+    defaultPath: path.join(start, defaultName),
     filters: [{ name: names[ext] || ext.toUpperCase(), extensions: [ext] }]
   });
   if (r.canceled || !r.filePath) return null;

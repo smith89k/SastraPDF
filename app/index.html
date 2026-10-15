@@ -1003,6 +1003,26 @@ async function combine(){
     toast(`Combined ${picks.length} files · ${total} pages`);
   });
 }
+// Combine from the File Explorer menu (main.js sends the paths in name order): one new unsaved tab.
+async function combinePaths(paths){
+  while (state.busy) await new Promise(r => setTimeout(r, 200));
+  await busy(`Combining ${paths.length} files…`, async () => {
+    const out = await PDFDocument.create(), bad = []; let used = 0;
+    for (const p of paths) {
+      const f = await desk.readFile(p);
+      if (f.error) { bad.push(f.name); continue; }
+      try {
+        const src = await PDFDocument.load(new Uint8Array(f.data), { ignoreEncryption:true });
+        if (src.isEncrypted) { bad.push(f.name); continue; }
+        (await out.copyPages(src, src.getPageIndices())).forEach(pg => out.addPage(pg)); used++;
+      } catch { bad.push(f.name); }
+    }
+    const skipped = bad.length ? ` Couldn't read: ${bad.join(', ')}` : '';
+    if (used < 2) { toast(`Combine needs at least two readable PDFs.${skipped}`, true); return; }
+    const d = await openBytes(await out.save(), 'Combined.pdf', { dirty:true });
+    if (d) { d.saveDir = paths[0].replace(/[\\/][^\\/]*$/, ''); toast(`Combined ${used} files · ${d.n} pages.${skipped}`, !!bad.length); }
+  });
+}
 
 /* ---------- split ---------- */
 function parseRanges(str, n){
@@ -1071,7 +1091,7 @@ async function saveAsActive(){
   const d = active(); if (!d) return;
   if (desk) {
     try {
-      const p = await desk.saveDialog(/\.pdf$/i.test(d.name) ? d.name : d.name + '.pdf', d.bytes.slice().buffer, 'save');
+      const p = await desk.saveDialog(/\.pdf$/i.test(d.name) ? d.name : d.name + '.pdf', d.bytes.slice().buffer, 'save', d.saveDir || null);
       if (!p) return;
       d.path = p; d.name = p.split(/[\\/]/).pop(); d.dirty = false; d.sample = false; renderTabs(); toast('Saved ' + d.name);
     } catch(e){ toast(`Couldn't save ${d.name}: ${e.message}`, true); }
@@ -1455,6 +1475,7 @@ if (desk) {
     map[cmd]?.();
   });
   desk.onOpenPaths(openPaths);
+  desk.onCombinePaths(combinePaths);
   desk.onCloseRequest(async () => {
     const dirty = state.docs.filter(d => d.dirty && !d.sample);
     if (!dirty.length || await desk.confirmClose(dirty.map(d => d.name))) desk.closeNow();
