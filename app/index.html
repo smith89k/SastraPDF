@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script>/* saved theme before first paint, so there is no flash */try{const t=localStorage.getItem('sastra-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
 <style>[hidden]{display:none!important}body{margin:0}</style>
@@ -10,8 +10,7 @@
 <body>
 <title>Sastra PDF</title>
 <link rel="icon" type="image/png" href="logo.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Khmer:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="vendor/fonts/fonts.css"><!-- bundled, no network: see scripts/copy-vendor.js -->
 <style>
 /* Layout: desktop document workbench — menu bar, document tabs, view toolbar, then thumbnails | page canvas | organize tools, status bar at the foot. */
 :root{
@@ -495,7 +494,7 @@ const AUTHOR = {
 };
 // open-source code that ships in the app: name, copyright holder, licence, project page
 // [name, version, by, licence, link]. Versions must match package.json; scripts/check-credits.js
-// warns on `npm install` when they don't. Fonts come from Google Fonts, so they carry no version.
+// warns on `npm install` when they don't. Fonts ship in app/vendor/fonts (from @fontsource), listed without a version.
 const CREDITS = [
   ['pdf.js','6.4.299','Mozilla Foundation','Apache-2.0','https://github.com/mozilla/pdf.js'],
   ['pdf-lib','1.17.1','Andrew Dillon','MIT','https://github.com/Hopding/pdf-lib'],
@@ -505,7 +504,7 @@ const CREDITS = [
   ['IBM Plex Sans & Mono','','IBM','SIL OFL 1.1','https://github.com/IBM/plex'],
   ['Noto Sans Khmer','','Google','SIL OFL 1.1','https://github.com/notofonts/khmer']
 ];
-const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib and JSZip: UPNG, tslib, lie, readable-stream and setimmediate (MIT or 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. The installer is made with electron-builder (MIT) and NSIS (zlib).';
+const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib and JSZip: UPNG, tslib, lie, readable-stream and setimmediate (MIT or 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. The installer is made with electron-builder (MIT) and NSIS (zlib). The font files are packaged by Fontsource (MIT).';
 function openAbout(){
   if ($('.modal-bg')) return;
   const back = document.activeElement, A = AUTHOR, out = 'target="_blank" rel="noopener"';   // links open in the normal browser

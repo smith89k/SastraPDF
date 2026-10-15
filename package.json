@@ -5,7 +5,7 @@
   "description": "Sastra PDF (សាស្ត្រា PDF) — combine, split, organize and export PDF pages",
   "main": "main.js",
   "author": "Sunnguon Taing",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "postinstall": "node scripts/ensure-electron.js && node scripts/copy-vendor.js && node scripts/check-credits.js",
@@ -14,6 +14,9 @@
     "dist:portable": "electron-builder --win portable"
   },
   "devDependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@fontsource/noto-sans-khmer": "^5.3.0",
     "electron": "44.7.2",
     "electron-builder": "26.15.3",
     "jszip": "3.10.1",
