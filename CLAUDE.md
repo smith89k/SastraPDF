@@ -51,7 +51,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   decoders, colour profiles), `standardFontDataUrl` and `cMapUrl` as ABSOLUTE URLs: the worker
   resolves relative ones against its own folder. Without `wasmUrl`, JBIG2/JPX images in scans come
   out blank. In Electron the worker runs as a real module Worker from file://.
-- Checked when upgrading from 3.11: Khmer PDFs from Word (PAS financial statements) render
+- Checked when upgrading from 3.11: Khmer PDFs from Word (the user's own work documents) render
   pixel-identical; JBIG2 scans render better; two synthetic JPEG 2000 test files from pdf.js's own
   test set (odd channel counts/subsampling) render differently in every pdf.js since 5.0 — an
   upstream change (OpenJPEG replaced the old JS decoder), not something in this app.

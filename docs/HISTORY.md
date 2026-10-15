@@ -251,7 +251,7 @@ The user added: "mostly khmer pdf save from word file", so those were the files 
   absolute URLs; the web version loads pdf.js from jsDelivr because cdnjs lacks those folders.
   CSP gained 'wasm-unsafe-eval' for the decoders. About > credits name the newly bundled parts
   (all BSD/MIT/Apache, Liberation Sans GPL-2.0 with font exception; no AGPL).
-- Before/after render fingerprints: Khmer Word PDFs (PAS financial statements, 2021/2022/2024, 8
+- Before/after render fingerprints: Khmer Word PDFs (three of the user's own work documents, 8
   pages each checked) are pixel-identical (one non-Word file: 3 pixels of anti-aliasing). A JBIG2
   test file that rendered blank now renders. Two synthetic JPEG 2000 test files render differently,
   same as every pdf.js since 5.0 (upstream switched to OpenJPEG).
