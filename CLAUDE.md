@@ -319,13 +319,22 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   the user on this PC: package install (UAC Yes) → all 4 menu actions worked from the first menu;
   uninstall removed it; UAC No → classic menu under "Show more options" worked (Split, Combine); a DLL
   held by Explorer was moved aside; reinstall didn't ask again; `--silent` → classic, no prompt.
-  Not tested: a real Windows 10 PC, a PC without admin rights, the full NSIS installer run (it would
-  replace the user's installed copy). The local `dist\Sastra PDF Setup 1.0.2.exe` was rebuilt with
-  the menu: it is NOT the released 1.0.2 — bump the version before releasing.
+  Not tested: a real Windows 10 PC, a PC without admin rights. (The local `dist\Sastra PDF Setup
+  1.0.2.exe` was rebuilt with the menu on 2026-10-15, so it is NOT the released 1.0.2.)
   Found on the way and fixed 2026-10-16: pdf.js 6's PDFDocumentProxy has no destroy() (it's on the loading
   task), so `d.pdf.destroy()` threw silently and every edit kept the old copy in memory. Now
   `SastraOps.closePdf(pdf)` (= `pdf.loadingTask.destroy()`) in loadPdf and closeDoc; a closed doc's
   getPage() throws synchronously (not a rejected promise).
+- **Released v1.0.3 on 2026-10-16**: Explorer right-click menu, progress window (frameless, fits its
+  content, PDF file icon, question inside it), no Windows message boxes, close question in the app's style,
+  memory fix. `dist\Sastra PDF Setup 1.0.3.exe` (114 MB, unsigned) passed, packaged: menu 43, folder 23,
+  print 71, pdfops 10, close 12, DLL harness 20; title "Sastra PDF v1.0.3", About "Version 1.0.3". The real
+  installer was run over the user's 1.0.2 (UAC Yes → package mode, Location
+  `%LOCALAPPDATA%\Programs\Sastra PDF`) and the user checked Images, Split (twice: question inside the
+  window), Combine and the close box from the installed copy. The tag's workflow run was again blocked by
+  billing, so it was uploaded with `gh release create v1.0.3 … --notes-from-tag`; asset
+  `Sastra.PDF.Setup.1.0.3.exe` SHA-256 75a716de…072bfb (matches GitHub's digest).
+  Note: someone pushed main from this PC on 2026-10-16 00:22 (probably VS Code sync), before the release.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
