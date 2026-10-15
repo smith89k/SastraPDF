@@ -228,7 +228,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Fixed during first run: Electron binary not unpacked on Node 24; zoomed page pushing the
   Tools panel off-screen (`#app` grid needed `grid-template-columns:minmax(0,1fr)`); stray
   Windows scrollbars on tab row, Pages panel and split inputs (box-sizing).
-- **Print dialog added 2026-10-15** (branch feat/print): a 71-check Playwright run (planner, dialog,
+- **Print dialog added 2026-10-15** (merged to main and pushed, with the lighter .pdf file icon, PR #6): a 71-check Playwright run (planner, dialog,
   print output via `printToPDF` instead of paper, layout widths, light/dark, 800×600 window) plus the
   plain-browser fallback all passed. Not yet tested on real paper (the user's office printers: Canon
   iR-ADV C3830 copier = Windows default, HP Color LaserJet M855): check paper size, both-sides flip and
