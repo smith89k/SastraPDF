@@ -23,7 +23,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
     app/index.html     The whole app UI + PDF logic in one file (HTML/CSS/JS, no build step)
     app/print.js       Printing only (classic script, `window.SastraPrint`): page choice, sheet
                        layouts, sheet drawing, the Print dialog and the print run. See "Printing".
-    app/vendor/        pdf.min.mjs, pdf.worker.min.mjs, pdf-lib.min.js, jszip.min.js, and
+    app/vendor/        pdf.min.mjs, pdf.worker.min.mjs, pdf-lib.min.js, and
                        pdfjs/{wasm,standard_fonts,cmaps}/ (pdf.js support files, ~3.3 MB)
                        — filled by `scripts/copy-vendor.js` on `npm install` (gitignored; the script
                        empties the folder first so stale files never ship)
@@ -63,7 +63,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   test set (odd channel counts/subsampling) render differently in every pdf.js since 5.0 — an
   upstream change (OpenJPEG replaced the old JS decoder), not something in this app.
 - Editing: **pdf-lib 1.17.1** (merge, split, reorder, rotate, delete, insert).
-- ZIP output: **JSZip 3.10.1**.
+- No ZIP files (user's wish, 2026-10-15; JSZip was removed): Split "Save to folder" and Export of
+  2+ pages pick a folder first and write one file each (see "Saving several files").
 - Electron **44.7.2**, electron-builder **26.15.3**, NSIS installer (not one-click, choose dir,
   desktop + Start menu shortcuts), `.pdf` file association. appId `kh.sastra.pdf`.
 - `npm audit`: 0 warnings (2026-10-15). package.json `overrides` pins `global-agent` 4.1.3 (pulled in
@@ -152,6 +153,12 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   as that printer's default for the user — unlike Acrobat's per-job Properties). Without `desk`
   (plain browser) the printer rows are hidden and Print calls `window.print()`.
   Tests never print on paper: they swap main's `print` handler for `printToPDF` (see Status).
+- Saving several files (`saveMany`, Split "Save to folder", Export of 2+ pages): main.js `pick-folder`
+  shows a folder picker (starts in `lastDir`, shared with Save/Export) BEFORE anything is made, keeps
+  base names only, numbers same-name parts within one batch " (2)", and when names already exist asks
+  once: Replace / Keep both (default: clashing names get the first free " (n)") / Cancel. The page then
+  makes each file and writes it at once with `write-file` (nothing big held in memory). One page of
+  Export still uses the Save dialog. Plain browser: one download per file.
 - Brand mark: the logo image (26 px) left of "Sastra PDF | សាស្ត្រា" in the menubar. It is a
   button (`#bAbout`) that opens the About screen.
 - About screen (`openAbout`, data in `AUTHOR` and `CREDITS`): opened by the brand button or
@@ -159,10 +166,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   plain browser it says "Web version"). Shows the app, "Made by" (photo, name + dev name smith89k, title, bio, skills,
   links to smith89k.com / LinkedIn / GitHub smith89k) and open-source credits. The author
   asked to keep it short: no employer, career history, education, town or project list.
-  Credits list every open-source part that ships, with its version: pdf.js, pdf-lib, JSZip, pako,
+  Credits list every open-source part that ships, with its version: pdf.js, pdf-lib, pako,
   Electron, IBM Plex, Noto Sans Khmer (fonts: no version; files packaged by Fontsource), plus
   a note for the parts bundled inside them (pdf.js's OpenJPEG, PDFium JBIG2 + Foxit fonts, qcms,
-  Adobe CMaps, Liberation Sans; pdf-lib/JSZip's small libraries; Electron's Chromium/Node.js/FFmpeg
+  Adobe CMaps, Liberation Sans; pdf-lib's UPNG and tslib; Electron's Chromium/Node.js/FFmpeg
   with LICENSES.chromium.html in the app folder; the installer's electron-builder and NSIS). Rows
   are [name, version, by, licence, link]; `scripts/check-credits.js` (postinstall) warns when a
   version there differs from node_modules. Update it when

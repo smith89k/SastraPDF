@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('sastra', {
   readFile: p => ipcRenderer.invoke('read-file', p),
   writeFile: (filePath, data) => ipcRenderer.invoke('write-file', { filePath, data }),
   saveDialog: (defaultName, data, kind) => ipcRenderer.invoke('save-dialog', { defaultName, data, kind }),
+  pickFolder: (title, names) => ipcRenderer.invoke('pick-folder', { title, names }),
   confirmClose: names => ipcRenderer.invoke('confirm-close', names),
   closeNow: () => ipcRenderer.send('close-now'),
   setTitle: t => ipcRenderer.send('set-title', t),

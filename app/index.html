@@ -406,7 +406,7 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
         <div class="field" id="sEveryF"><label for="sEvery">Pages per file</label><input type="number" id="sEvery" min="1" value="2"></div>
         <div class="field" id="sRangeF" hidden><label for="sRanges">Ranges — each one becomes a file</label><input type="text" id="sRanges" placeholder="1-3, 4, 5-8" value="1-2, 3-4"></div>
         <div class="field"><span class="flabel">Output</span>
-          <div class="seg" id="sOut"><button data-v="tabs" class="on">New tabs</button><button data-v="zip">Save as ZIP</button></div></div>
+          <div class="seg" id="sOut"><button data-v="tabs" class="on">New tabs</button><button data-v="folder">Save to folder</button></div></div>
         <p class="err-msg" id="sErr" hidden></p>
         <button class="btn primary full" id="sGo">Split</button>
       </section>
@@ -433,7 +433,6 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 <input type="file" id="fAdd" accept="application/pdf,.pdf" multiple hidden>
 
 <script src="vendor/pdf-lib.min.js"></script>
-<script src="vendor/jszip.min.js"></script>
 <script src="print.js"></script>
 <script>
 (() => {
@@ -509,6 +508,23 @@ async function saveFile(name, blob){
   toast('Downloading ' + name); return true;
 }
 
+// Several files at once (Split to folder, Export of 2+ pages). Desktop: the folder is chosen first,
+// so nothing is made if that is cancelled, and each file is written as soon as it is made (main.js
+// 'pick-folder' asks about names already there). Plain browser: one download each.
+async function saveMany(names, what, label, make){
+  if (state.busy) { toast('Please wait for the current task to finish'); return; }
+  const pick = desk ? await desk.pickFolder(`Save ${what} to a folder`, names) : { dir:null, names };
+  if (!pick) return;
+  await busy(label, async () => {
+    for (const [k, name] of pick.names.entries()) {
+      const data = await make(k);
+      if (desk) await desk.writeFile(pick.dir.replace(/[\\/]+$/, '') + '\\' + name, data instanceof Blob ? await data.arrayBuffer() : data);
+      else await saveFile(name, data instanceof Blob ? data : new Blob([data], { type:'application/pdf' }));
+    }
+    if (desk) toast(`Saved ${what} in ${pick.dir.split(/[\\/]/).filter(Boolean).pop()}`);
+  });
+}
+
 /* ---------- UI helpers ---------- */
 let toastT;
 function toast(msg, err){
@@ -542,13 +558,12 @@ const AUTHOR = {
 const CREDITS = [
   ['pdf.js','6.4.299','Mozilla Foundation','Apache-2.0','https://github.com/mozilla/pdf.js'],
   ['pdf-lib','1.17.1','Andrew Dillon','MIT','https://github.com/Hopding/pdf-lib'],
-  ['JSZip','3.10.1','Stuart Knightley and contributors','MIT','https://github.com/Stuk/jszip'],
   ['pako','1.0.11','Vitaly Puzrin, Andrei Tuputcyn','MIT, Zlib','https://github.com/nodeca/pako'],
   ['Electron','44.7.2','Electron contributors, GitHub Inc.','MIT','https://www.electronjs.org/'],
   ['IBM Plex Sans & Mono','','IBM','SIL OFL 1.1','https://github.com/IBM/plex'],
   ['Noto Sans Khmer','','Google','SIL OFL 1.1','https://github.com/notofonts/khmer']
 ];
-const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib and JSZip: UPNG, tslib, lie, readable-stream and setimmediate (MIT or 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. The installer is made with electron-builder (MIT) and NSIS (zlib). The font files are packaged by Fontsource (MIT).';
+const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib: UPNG and tslib (MIT and 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. The installer is made with electron-builder (MIT) and NSIS (zlib). The font files are packaged by Fontsource (MIT).';
 function openAbout(){
   if ($('.modal-bg')) return;
   const back = document.activeElement, A = AUTHOR, out = 'target="_blank" rel="noopener"';   // links open in the normal browser
@@ -1014,18 +1029,17 @@ async function split(){
     else groups = [...Array(d.n).keys()].map(i=>[i]);
   } catch(e){ err.textContent = e.message; err.hidden = false; return; }
   if (groups.length < 2 && mode !== 'ranges') { err.textContent = 'That split gives only one file. Use fewer pages per file.'; err.hidden = false; return; }
-  await busy(`Splitting into ${groups.length} files…`, async () => {
-    const src = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
-    const parts = [];
-    for (const g of groups) { const out = await PDFDocument.create(); (await out.copyPages(src, g)).forEach(p=>out.addPage(p)); parts.push({ name:`${baseName(d.name)}-${rangeLabel(g)}.pdf`, bytes: await out.save() }); }
-    if (state.splitOut === 'zip') {
-      const zip = new JSZip(); parts.forEach(p => zip.file(p.name, p.bytes));
-      await saveFile(`${baseName(d.name)}-split.zip`, await zip.generateAsync({ type:'blob' }));
-    } else {
-      const back = d.id;
-      for (const p of parts) await openBytes(p.bytes, p.name, { dirty:true });
-      toast(`Split into ${parts.length} files, opened as new tabs`);
-    }
+  const names = groups.map(g => `${baseName(d.name)}-${rangeLabel(g)}.pdf`), label = `Splitting into ${groups.length} files…`;
+  let src = null;
+  const part = async k => {
+    src ??= await PDFDocument.load(d.bytes, { ignoreEncryption:true });
+    const out = await PDFDocument.create(); (await out.copyPages(src, groups[k])).forEach(p => out.addPage(p));
+    return out.save();
+  };
+  if (state.splitOut === 'folder') { await saveMany(names, `${groups.length} PDF file${groups.length>1?'s':''}`, label, part); return; }
+  await busy(label, async () => {
+    for (const [k, name] of names.entries()) await openBytes(await part(k), name, { dirty:true });
+    toast(`Split into ${names.length} files, opened as new tabs`);
   });
 }
 
@@ -1038,21 +1052,20 @@ async function exportImages(){
   const pages = exportPages(d), fmt = $('#eFmt').value, dpi = +$('#eDpi').value;
   const mime = fmt === 'png' ? 'image/png' : 'image/jpeg';
   const pad = String(d.n).length;
-  await busy(`Exporting ${pages.length} image${pages.length>1?'s':''}…`, async () => {
-    const files = [];
-    for (const [k,i] of pages.entries()) {
-      $('#stBusy').innerHTML = `<span class="busy"><span class="spin"></span>Rendering page ${i+1} (${k+1} of ${pages.length})…</span>`;
-      const page = await d.pdf.getPage(i+1); const vp = page.getViewport({ scale: dpi/72 });
-      const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
-      const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
-      await page.render({ canvasContext:ctx, viewport:vp }).promise;
-      const blob = await new Promise(r => c.toBlob(r, mime, 0.92));
-      files.push({ name:`${baseName(d.name)}_page-${String(i+1).padStart(pad,'0')}.${fmt}`, blob });
-      c.width = c.height = 0;
-    }
-    if (files.length === 1) await saveFile(files[0].name, files[0].blob);
-    else { const zip = new JSZip(); files.forEach(f => zip.file(f.name, f.blob)); await saveFile(`${baseName(d.name)}_images.zip`, await zip.generateAsync({ type:'blob' })); }
-  });
+  const names = pages.map(i => `${baseName(d.name)}_page-${String(i+1).padStart(pad,'0')}.${fmt}`);
+  const render = async k => {
+    const i = pages[k];
+    $('#stBusy').innerHTML = `<span class="busy"><span class="spin"></span>Rendering page ${i+1} (${k+1} of ${pages.length})…</span>`;
+    const page = await d.pdf.getPage(i+1); const vp = page.getViewport({ scale: dpi/72 });
+    const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+    const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+    await page.render({ canvasContext:ctx, viewport:vp }).promise;
+    const blob = await new Promise(r => c.toBlob(r, mime, 0.92));
+    c.width = c.height = 0;
+    return blob;
+  };
+  if (pages.length === 1) { await busy('Exporting 1 image…', async () => saveFile(names[0], await render(0))); return; }
+  await saveMany(names, `${pages.length} images`, `Exporting ${pages.length} images…`, render);
 }
 
 /* ---------- save ---------- */
@@ -1118,7 +1131,7 @@ function updateUI(){
     ? `${d.sel.size} page${d.sel.size>1?'s':''} selected (${rangeLabel(tg).replace(/_/g,', ')}). Actions apply to these pages.`
     : `Nothing selected, so actions apply to the current page (${d.current+1}). Ctrl-click or Shift-click thumbnails to select more.`;
   const ep = exportPages(d);
-  $('#eHint').textContent = `${ep.length} page${ep.length>1?'s':''} → ${ep.length>1 ? 'one ZIP of images' : 'one image'}. Each page is drawn at the chosen resolution.`;
+  $('#eHint').textContent = `${ep.length} page${ep.length>1?'s':''} → ${ep.length>1 ? `${ep.length} image files in a folder you choose` : 'one image'}. Each page is drawn at the chosen resolution.`;
   $('#sEveryF').hidden = $('#sMode').value !== 'every'; $('#sRangeF').hidden = $('#sMode').value !== 'ranges';
 }
 
