@@ -134,16 +134,20 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   links to smith89k.com / LinkedIn / GitHub smith89k) and open-source credits. The author
   asked to keep it short: no employer, career history, education, town or project list.
   Credits list every open-source part that ships, with its version: pdf.js, pdf-lib, JSZip, pako,
-  Electron, IBM Plex, Noto Sans Khmer (fonts: no version, served by Google Fonts), plus
+  Electron, IBM Plex, Noto Sans Khmer (fonts: no version; files packaged by Fontsource), plus
   a note for the parts bundled inside them (pdf.js's OpenJPEG, PDFium JBIG2 + Foxit fonts, qcms,
   Adobe CMaps, Liberation Sans; pdf-lib/JSZip's small libraries; Electron's Chromium/Node.js/FFmpeg
   with LICENSES.chromium.html in the app folder; the installer's electron-builder and NSIS). Rows
   are [name, version, by, licence, link]; `scripts/check-credits.js` (postinstall) warns when a
   version there differs from node_modules. Update it when
   adding a library. Links use target=_blank, which main.js opens in the browser.
-- Design: IBM Plex Sans/Mono (Google Fonts, falls back to Segoe UI offline). Khmer anywhere in the
-  UI (tab and file names, toasts, the brand) uses Noto Sans Khmer 400/500/600: it sits second in the
-  `--ui` and `--mono` stacks, then "Khmer UI" (Windows) for offline. Without it Chromium drew Khmer
+- Design: IBM Plex Sans/Mono. All UI fonts SHIP INSIDE THE APP (no Google Fonts, no network: the
+  README's code signing policy promises the app sends nothing anywhere on its own — keep it that
+  way). copy-vendor.js builds app/vendor/fonts/fonts.css from @fontsource packages: Plex Sans
+  400/500/600, Plex Mono 400/500, Noto Sans Khmer 400/500/600; Latin, Latin-ext and Khmer subsets,
+  woff2 only (~370 KB). Khmer anywhere in the
+  UI (tab and file names, toasts, the brand) uses Noto Sans Khmer: it sits second in the
+  `--ui` and `--mono` stacks, then "Khmer UI" (Windows). Without it Chromium drew Khmer
   with Leelawadee UI (a Thai font) — keep a Khmer font in any new font stack; terracotta accent; light and dark themes via CSS tokens. Both side panels use
   `--chrome` (the grey of the top and status bars); inside the Tools panel `--chrome` is
   redefined to `--panel`, so its buttons/fields/lists become lighter cards on the grey.
