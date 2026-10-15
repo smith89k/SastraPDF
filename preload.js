@@ -8,8 +8,12 @@ contextBridge.exposeInMainWorld('sastra', {
   openDialog: () => ipcRenderer.invoke('open-dialog'),
   readFile: p => ipcRenderer.invoke('read-file', p),
   writeFile: (filePath, data) => ipcRenderer.invoke('write-file', { filePath, data }),
-  saveDialog: (defaultName, data, kind) => ipcRenderer.invoke('save-dialog', { defaultName, data, kind }),
+  saveDialog: (defaultName, data, kind, dir) => ipcRenderer.invoke('save-dialog', { defaultName, data, kind, dir }),
   pickFolder: (title, names) => ipcRenderer.invoke('pick-folder', { title, names }),
+  makeDir: dir => ipcRenderer.invoke('make-dir', dir),
+  resolveNames: groups => ipcRenderer.invoke('resolve-names', groups),
+  taskReady: () => ipcRenderer.send('task-ready'),
+  onTaskBatch: fn => ipcRenderer.on('task-batch', (_e, b) => fn(b)),
   confirmClose: names => ipcRenderer.invoke('confirm-close', names),
   closeNow: () => ipcRenderer.send('close-now'),
   setTitle: t => ipcRenderer.send('set-title', t),
@@ -23,5 +27,6 @@ contextBridge.exposeInMainWorld('sastra', {
   pathForFile: f => { try { return webUtils.getPathForFile(f) || null; } catch { return null; } },
   onMenu: fn => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
   onOpenPaths: fn => ipcRenderer.on('open-paths', (_e, paths) => fn(paths)),
+  onCombinePaths: fn => ipcRenderer.on('combine-paths', (_e, paths) => fn(paths)),
   onCloseRequest: fn => ipcRenderer.on('close-request', () => fn())
 });
