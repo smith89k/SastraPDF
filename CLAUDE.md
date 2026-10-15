@@ -16,10 +16,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 
 ## Project layout
     main.js            Electron main: window (opens maximized), menus, file dialogs,
-                       single-instance lock, "Open with" (.pdf argv), close confirmation
+                       single-instance lock, "Open with" (.pdf argv), close confirmation,
+                       printing (printer list, silent print, printer preferences)
     preload.js         contextBridge API `window.sastra` (open/read/write/save dialog,
                        menu events, close request, setTheme, webUtils.getPathForFile)
     app/index.html     The whole app UI + PDF logic in one file (HTML/CSS/JS, no build step)
+    app/print.js       Printing only (classic script, `window.SastraPrint`): page choice, sheet
+                       layouts, sheet drawing, the Print dialog and the print run. See "Printing".
     app/vendor/        pdf.min.mjs, pdf.worker.min.mjs, pdf-lib.min.js, jszip.min.js, and
                        pdfjs/{wasm,standard_fonts,cmaps}/ (pdf.js support files, ~3.3 MB)
                        — filled by `scripts/copy-vendor.js` on `npm install` (gitignored; the script
@@ -84,9 +87,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   shifts the workspace into an `auto` row. The view toolbar (`.toolbar`) sits inside the logo
   row (menubar) between Undo/Redo and Present; the right end is Present, Maximize, Full screen,
   Theme. As the window narrows the row sheds, in order:
-  button labels (<1536px), Fit width/page (<1300), the Khmer name (<1240), Zoom −/+ (<1180),
-  Prev/Next (<1120); all stay reachable via dropdown, right-click menu or shortcuts. Below
-  ~1020px the tool strip scrolls sideways. Re-measure if a button is added to that row.
+  button labels (<1580px), Fit width/page (<1316), the Khmer name (<1248), Zoom −/+ (<1196),
+  Prev/Next (<1128); all stay reachable via dropdown, right-click menu or shortcuts. Below
+  ~1055px the tool strip scrolls sideways. Re-measure if a button is added to that row
+  (measured 2026-10-15 after adding Print: each step had to move up 4–38 px).
 - Full screen button (`#bFull`): HTML full screen on `document.documentElement`, NOT `#app`. The
   right-click menu, dialogs (About, confirm) and toasts are appended to <body>, and only the
   full-screen element's subtree is drawn — with `#app` they opened invisibly behind the page.
@@ -119,7 +123,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Without it (app/index.html opened in a plain browser) it falls back to file inputs, browser
   downloads and two generated sample PDFs — leftovers from the removed web version, still working.
 - Menu items in main.js use `registerAccelerator: false`; the page's keydown handler owns the
-  shortcuts (Ctrl+O/S/Shift+S/W/Z/Y/=/-/0/1/2/A, Ctrl+Shift+L/R, Delete, H, V, F, Esc,
+  shortcuts (Ctrl+O/S/Shift+S/P/W/Z/Y/=/-/0/1/2/A, Ctrl+Shift+L/R, Delete, H, V, F, Esc,
   PageUp/Down, Home/End, Ctrl+Tab/Ctrl+Shift+Tab and Ctrl+PgDn/PgUp to switch tabs — these
   work even while typing in a field; File > Next/Previous Tab). F11 is handled natively in main.js.
 - Tab row (`#tabs`): ‹ `#tabstrip` › + . The strip scrolls sideways with no scrollbar; the ‹ ›
@@ -130,6 +134,24 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   and Restore/Full screen are centred on its full height, tabs sit on its bottom edge, and the
   tab row's ::before/::after draw dividers next to the logo block and the right-hand buttons.
   `toggleFocus` re-scrolls the active tab into view after moving the row (a move resets scroll).
+- Printing (app/print.js; design in docs/superpowers/specs/2026-10-15-print-dialog-design.md):
+  Print button `#bPrint` (after Save), Ctrl+P, File > Print…, right-click "Print…" → `printCmd` →
+  `SastraPrint.open({ doc, desk, toast, svg, parseRanges })`. Acrobat-like dialog on <body>: printer +
+  Properties, copies, grayscale, pages (all/current/selected/ranges, odd/even, reverse), modes Size /
+  Poster / Multiple / Booklet, orientation, paper (A4 default, A3, A5, Letter, Legal), both sides,
+  preview of each sheet. Settings live in localStorage `sastra-print` (not copies or page choice).
+  `pickPages` and `planSheets` are pure (points, 5 mm margin) and exposed on `window.SastraPrint`, so
+  tests call them directly. Printing draws every sheet with pdf.js (intent 'print') at 300 dpi
+  (150 over 150 sheets) as JPEG into `#printArea`; landscape sheets are turned onto portrait paper
+  (top to the left edge), so the printer always gets portrait pages of the chosen paper; `@media print`
+  shows only `#printArea`. main.js `print` = `webContents.print({ silent:true, margins none,
+  landscape:false, … })` with every option validated; Booklet "both sides" forces short-edge duplex.
+  Electron's printer list has no default flag any more: main.js reads the Windows default printer
+  from HKCU\…\Windows NT\CurrentVersion\Windows "Device". Properties = `rundll32
+  printui.dll,PrintUIEntry /e /n <name>` (Windows printing preferences; what is changed there stays
+  as that printer's default for the user — unlike Acrobat's per-job Properties). Without `desk`
+  (plain browser) the printer rows are hidden and Print calls `window.print()`.
+  Tests never print on paper: they swap main's `print` handler for `printToPDF` (see Status).
 - Brand mark: the logo image (26 px) left of "Sastra PDF | សាស្ត្រា" in the menubar. It is a
   button (`#bAbout`) that opens the About screen.
 - About screen (`openAbout`, data in `AUTHOR` and `CREDITS`): opened by the brand button or
@@ -206,6 +228,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Fixed during first run: Electron binary not unpacked on Node 24; zoomed page pushing the
   Tools panel off-screen (`#app` grid needed `grid-template-columns:minmax(0,1fr)`); stray
   Windows scrollbars on tab row, Pages panel and split inputs (box-sizing).
+- **Print dialog added 2026-10-15** (branch feat/print): a 71-check Playwright run (planner, dialog,
+  print output via `printToPDF` instead of paper, layout widths, light/dark, 800×600 window) plus the
+  plain-browser fallback all passed. Not yet tested on real paper (the user's office printers: Canon
+  iR-ADV C3830 copier = Windows default, HP Color LaserJet M855): check paper size, both-sides flip and
+  that nothing is cut off at the edges.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
