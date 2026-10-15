@@ -16,7 +16,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 
 ## Project layout
     main.js            Electron main: window (opens maximized), menus, file dialogs,
-                       single-instance lock, "Open with" (.pdf argv), close confirmation,
+                       single-instance lock, "Open with" (.pdf argv), close request (the page asks),
                        printing (printer list, silent print, printer preferences)
     preload.js         contextBridge API `window.sastra` (open/read/write/save dialog,
                        menu events, close request, setTheme, webUtils.getPathForFile)
@@ -181,6 +181,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   once: Replace / Keep both (default: clashing names get the first free " (n)") / Cancel. The page then
   makes each file and writes it at once with `write-file` (nothing big held in memory). One page of
   Export still uses the Save dialog. Plain browser: one download per file.
+- Closing with unsaved changes asks in the app's own box (`askConfirm`, the same one as closing a tab),
+  never a Windows message box: main's window `close` restores/focuses the window and sends
+  `close-request`; the page asks ("… Close Sastra PDF anyway?", 2+ files listed), Esc = Cancel, then
+  `close-now`. A second X while it's open is ignored (`closeAsking`). (Changed 2026-10-16: it used to be
+  a native dialog, which looked different from the tab one.)
 - Explorer menu (design: docs/superpowers/specs/2026-10-15-explorer-menu-design.md). Right-click PDFs →
   Sastra PDF ▸ Combine N files (2+ PDFs only) / Split here / Split to "name\" / Images here (JPG) /
   Images to "name\" (JPG). The DLL (CLSID {47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}) gets ALL selected items

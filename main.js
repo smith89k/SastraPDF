@@ -69,6 +69,9 @@ function createWindow() {
   win.on('close', e => {
     if (allowClose) return;
     e.preventDefault();
+    // the page asks in its own dialog (unsaved changes), so it must be visible — e.g. closed from the taskbar
+    if (win.isMinimized()) win.restore();
+    win.focus();
     win.webContents.send('close-request');
   });
   win.on('closed', () => { win = null; });
@@ -278,15 +281,6 @@ ipcMain.handle('make-dir', async (_e, dir) => {
   if (!(await isDir(path.dirname(d)))) return { error: 'its folder is gone' };
   try { await fs.mkdir(d); } catch (e) { if (e.code !== 'EEXIST') return { error: e.code === 'EPERM' || e.code === 'EACCES' ? 'no permission' : e.message }; }
   return (await isDir(d)) ? { dir: d } : { error: 'a file already has that name' };
-});
-
-ipcMain.handle('confirm-close', async (_e, names) => {
-  const r = await dialog.showMessageBox(win, {
-    type: 'warning', buttons: ['Close without saving', 'Cancel'], defaultId: 1, cancelId: 1,
-    title: APP_NAME, message: 'Some files have unsaved changes.',
-    detail: names.join('\n')
-  });
-  return r.response === 0;
 });
 
 ipcMain.on('close-now', () => { allowClose = true; if (win) win.close(); });

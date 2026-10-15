@@ -15,7 +15,6 @@ contextBridge.exposeInMainWorld('sastra', {
   taskReady: () => ipcRenderer.send('task-ready'),
   taskSize: height => ipcRenderer.send('task-size', height),
   onTaskBatch: fn => ipcRenderer.on('task-batch', (_e, b) => fn(b)),
-  confirmClose: names => ipcRenderer.invoke('confirm-close', names),
   closeNow: () => ipcRenderer.send('close-now'),
   setTitle: t => ipcRenderer.send('set-title', t),
   setTheme: t => ipcRenderer.send('set-theme', t),
