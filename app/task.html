@@ -29,6 +29,7 @@ body{margin:0;background:var(--chrome);color:var(--fg);font:14px/1.45 var(--ui);
 .head>div{min-width:0}
 #what{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .muted{color:var(--muted);font-size:13px}
+#step{min-height:1.45em}   /* keeps its line when empty ("Opening …"), so the title doesn't jump */
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;flex:none}
 #fill{height:100%;width:0;background:var(--accent);transition:width .15s}
 #problems{max-height:216px;overflow:auto;margin:0;padding:8px 10px 8px 26px;background:var(--panel);border:1px solid var(--line);border-radius:6px;color:var(--err);font-size:13px;user-select:text}
