@@ -44,6 +44,9 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $v"; exit 1
           fi
 
+      - name: Build the File Explorer menu (C++ DLL + package; needs the runner's Visual Studio + Windows SDK)
+        run: node scripts/build-explorer-menu.js
+
       - name: Build the installer
         run: npx electron-builder --win nsis --publish never
 

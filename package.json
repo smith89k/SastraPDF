@@ -11,8 +11,8 @@
     "postinstall": "node scripts/ensure-electron.js && node scripts/copy-vendor.js && node scripts/check-credits.js",
     "start": "electron .",
     "build:menu": "node scripts/build-explorer-menu.js",
-    "dist": "electron-builder --win nsis",
-    "dist:portable": "electron-builder --win portable"
+    "dist": "node scripts/build-explorer-menu.js && electron-builder --win nsis",
+    "dist:portable": "node scripts/build-explorer-menu.js && electron-builder --win portable"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
@@ -37,9 +37,20 @@
     "files": [
       "main.js",
       "preload.js",
+      "explorer-menu.js",
       "app/**/*",
       "build/icon.png",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "explorer-menu/out",
+        "to": "explorer-menu",
+        "filter": [
+          "SastraMenu.dll",
+          "SastraPDF.ExplorerMenu.msix"
+        ]
+      }
     ],
     "win": {
       "target": [
@@ -55,7 +66,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Sastra PDF",
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "uninstallerIcon": "build/icon.ico",
+      "include": "build/installer.nsh"
     },
     "fileAssociations": [
       {
