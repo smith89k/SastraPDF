@@ -46,7 +46,15 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 #app>.menubar{grid-area:menu}#app>.tabbar{grid-area:tabs}#app>.workspace{grid-area:work}#app>.status{grid-area:status}
 
 /* menu bar */
-.menubar{display:flex;align-items:center;gap:4px;padding:6px max(10px,env(safe-area-inset-left,0px)) 6px max(10px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);min-width:0}
+.menubar{display:flex;align-items:center;gap:4px;padding:6px calc(max(10px,env(safe-area-inset-right,0px)) + 100vw - env(titlebar-area-x,0px) - env(titlebar-area-width,100vw)) 6px max(10px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);min-width:0}
+/* The logo row is the window's title bar (main.js titleBarStyle 'hidden'): drag it to move the window, double-click
+   to maximize. Windows draws minimize / maximize / close over its right end; the padding above keeps clear of them. */
+.menubar{-webkit-app-region:drag}
+.menubar :is(button,select,input,.tab){-webkit-app-region:no-drag}
+.modal-bg,.cmenu,.show{-webkit-app-region:no-drag}   /* a drag area ignores what is drawn over it */
+:root.fullwin .menubar{padding-right:max(10px,env(safe-area-inset-right,0px))}   /* full screen: no caption buttons */
+#bMenu{margin-left:-4px}
+#bMenu+.brand{margin-left:0}
 .brand{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.01em;margin:0 4px 0 -6px;padding:3px 6px;border:0;border-radius:6px;background:transparent;font-size:14px;white-space:nowrap;cursor:pointer}
 .brand:hover{background:var(--hover)}
 .brand-mark{width:26px;height:26px;display:block;flex:none}
@@ -65,11 +73,11 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .menubar .btn .lbl{display:inline}
 /* the logo row holds everything, so it sheds the least-needed bits as the window narrows;
    all stay reachable (tooltips, zoom dropdown, right-click menu, shortcuts) */
-@media (max-width:1579px){#app:not(.focus) .menubar .btn .lbl{display:none}}
-@media (max-width:1315px){#bFitW,#bFitP{display:none}}
-@media (max-width:1247px){.menubar .brand-km{display:none}}
-@media (max-width:1195px){#bZoomOut,#bZoomIn{display:none}}
-@media (max-width:1127px){#bPrev,#bNext{display:none}}
+@media (max-width:1731px){#app:not(.focus) .menubar .btn .lbl{display:none}}
+@media (max-width:1477px){#bFitW,#bFitP{display:none}}
+@media (max-width:1409px){.menubar .brand-km{display:none}}
+@media (max-width:1356px){#bZoomOut,#bZoomIn{display:none}}
+@media (max-width:1288px){#bPrev,#bNext{display:none}}
 
 /* tabs */
 .tabbar{display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);min-width:0}
@@ -287,13 +295,14 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 #app.no-tools .tools{display:none}
 #app.focus .status{display:none}
 #app.focus .thumbs,#app.focus .tools{display:none}
-/* maximized: toggleFocus() moves the tab row up beside the logo; only brand, tabs and Restore/Full screen stay
+/* maximized: toggleFocus() moves the tab row up beside the logo; only ☰, brand, tabs and Restore stay
    (the view tools are then in the right-click menu) */
-#app.focus .menubar{padding-top:0;padding-bottom:0;height:40px;box-sizing:border-box;align-items:stretch}
-#app.focus .menubar>:not(.brand,.tabbar,#bFocus,#bFull){display:none}
+/* 45px = the normal bar (6 + 32px logo + 6 + border), so the bar, logo and Restore don't jump when switching */
+#app.focus .menubar{padding-top:0;padding-bottom:0;height:45px;box-sizing:border-box;align-items:stretch}
+#app.focus .menubar>:not(#bMenu,.brand,.tabbar,#bFocus){display:none}
 #app.focus .menubar>.brand,#app.focus .menubar>.btn{align-self:center}   /* centred on the bar's full height */
 #app.focus .menubar>.tabbar{flex:1;padding:0;border-bottom:0}   /* tabs sit on the bar's bottom edge */
-/* dividers keep the tabs apart from the logo block and from Restore / Full screen */
+/* dividers keep the tabs apart from the logo block and from Restore */
 #app.focus .menubar>.tabbar::before,#app.focus .menubar>.tabbar::after{content:"";width:1px;height:20px;background:var(--line-strong);align-self:center;flex:none}
 #app.focus .menubar>.tabbar::before{margin:0 8px 0 4px}
 #app.focus .menubar>.tabbar::after{margin:0 8px 0 auto}
@@ -314,6 +323,7 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 
 <div id="app">
   <header class="menubar">
+    <button class="btn icon" id="bMenu" title="Menu (Alt)" aria-haspopup="menu" hidden><svg class="i" data-i="menu"></svg></button>
     <button class="brand" id="bAbout" title="About Sastra PDF"><img class="brand-mark" src="logo.png" alt="" width="26" height="26"><span>Sastra PDF</span><span class="brand-km" lang="km">សាស្ត្រា</span></button>
     <button class="btn" id="bOpen" title="Open PDF files (Ctrl+O)"><svg class="i" data-i="open"></svg><span class="lbl">Open</span></button>
     <button class="btn" id="bSave" title="Save PDF (Ctrl+S)"><svg class="i" data-i="save"></svg><span class="lbl">Save</span></button>
@@ -349,7 +359,6 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
     <span class="sep"></span>
     <button class="btn" id="bPresent" title="Present from this page (Shift+F5) · from the start: F5"><svg class="i" data-i="play"></svg><span class="lbl">Present</span></button>
     <button class="btn" id="bFocus" title="Maximize the page area (F)"><svg class="i" data-i="max"></svg><span class="lbl">Maximize</span></button>
-    <button class="btn icon" id="bFull" title="Full screen"><svg class="i" data-i="full"></svg></button>
     <button class="btn icon" id="bTheme" title="Theme"><svg class="i" data-i="sys"></svg></button>
   </header>
 
@@ -441,7 +450,7 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 (() => {
 const ICONS = {
   open:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
-  save:'<path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/>',
+  save:'<path d="M6 4h10l4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M8 4v4h7V4M8 20v-5h8v5"/>',   // floppy disk, as in Acrobat / Office
   print:'<path d="M7 9V4h10v5"/><path d="M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/>',
   undo:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   redo:'<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
@@ -460,7 +469,6 @@ const ICONS = {
   split:'<rect x="5" y="3" width="14" height="7" rx="1.5"/><rect x="5" y="14" width="14" height="7" rx="1.5"/><path d="M2 12h3M8 12h2M14 12h2M19 12h3"/>',
   combine:'<rect x="3" y="3" width="8" height="10" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><path d="M11 8h3.5a2 2 0 0 1 2 2v1"/>',
   image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5L5 20"/>',
-  full:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   max:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9V8h1M16 9V8h-1M8 15v1h1M16 15v1h-1"/>',
   side:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   panel:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
@@ -471,6 +479,7 @@ const ICONS = {
   sys:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
   moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
   play:'<path d="M8 5.5v13l10.5-6.5z"/>', left:'<path d="M15 6l-6 6 6 6"/>', right:'<path d="M9 6l6 6-6 6"/>'
 };
 const svg = n => `<svg class="i" viewBox="0 0 24 24">${ICONS[n]}</svg>`;
@@ -1218,13 +1227,6 @@ function printCmd(){
 }
 $('#bPrint').onclick = printCmd;
 $('#bPresent').onclick = () => presentCmd(false);
-$('#bFull').onclick = async () => {
-  // The whole page, not #app: the right-click menu, dialogs and toasts live on <body>, and only the
-  // full-screen element and what's inside it can be seen.
-  try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); }
-  catch { toggleFocus(true); }
-};
-document.addEventListener('fullscreenchange', () => { $('#bFull').classList.toggle('on', !!document.fullscreenElement); refit(); });
 let refitT; function refit(){ clearTimeout(refitT); refitT = setTimeout(() => { const d=active(); if (d?.fit) setZoom(0, d.fit, true); }, 60); }
 window.addEventListener('resize', refit);
 
@@ -1497,6 +1499,22 @@ if (desk) {
   });
   desk.onOpenPaths(openPaths);
   desk.onCombinePaths(combinePaths);
+  // ☰: the File / Edit / View / Help menu, since the window has no Windows title bar or menu row (main.js).
+  // Alt pressed and let go on its own, or F10, opens it too — as with a menu row.
+  const bMenu = $('#bMenu'), menuBlocked = () => !!($('.modal-bg') || show.el);
+  const openAppMenu = () => { const r = bMenu.getBoundingClientRect(); desk.showMenu(r.left, r.bottom + 2); };
+  bMenu.hidden = false; bMenu.onclick = openAppMenu;
+  // Full screen (F11, Present): Windows draws no caption buttons, though the page is still told
+  // they are there — main says when, so the row uses the whole width.
+  desk.onFullScreen(on => document.documentElement.classList.toggle('fullwin', on));
+  let altAlone = false;
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Alt') altAlone = false; else if (!e.repeat) altAlone = true;
+    if (e.key === 'F10' && !e.shiftKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); if (!menuBlocked()) openAppMenu(); }
+  }, true);
+  document.addEventListener('keyup', e => { if (e.key === 'Alt' && altAlone && !menuBlocked()) { e.preventDefault(); openAppMenu(); } altAlone = false; }, true);
+  document.addEventListener('pointerdown', () => { altAlone = false; }, true);
+  window.addEventListener('blur', () => { altAlone = false; });   // Alt+Tab
   let closeAsking = false;
   desk.onCloseRequest(async () => {
     const dirty = state.docs.filter(d => d.dirty && !d.sample);

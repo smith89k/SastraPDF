@@ -31,8 +31,7 @@ else {
     if (handleTask(argv)) return;
     const files = pdfArgs(argv);
     if (!win) { pendingPaths = files; createWindow(); return; }   // only the task window was open
-    if (win.isMinimized()) win.restore();
-    win.focus();
+    bringUp(win);
     if (files.length) win.webContents.send('open-paths', files);
   });
 }
@@ -41,6 +40,22 @@ function pdfArgs(argv) {
   return argv.slice(1).filter(a => /\.pdf$/i.test(a) && !a.startsWith('--')).map(a => path.resolve(a));
 }
 
+// Windows won't let a program in the background take the front (its taskbar button only flashes) — e.g. when
+// Sastra was already running behind another program, or you clicked elsewhere while it started. A moment
+// "always on top" still puts the window above the other programs.
+function bringUp(w) {
+  if (w.isMinimized()) w.restore();
+  w.setAlwaysOnTop(true); w.show(); w.focus(); w.setAlwaysOnTop(false);
+}
+
+// The logo row is the title bar: Windows' own bar is 8 px shorter when maximized (its edge goes off-screen), so
+// the app would jump. Windows still draws minimize / maximize / close over the row's right end, in the
+// page's colours (--chrome / --fg in app/index.html); the File / Edit / View / Help menu opens from ☰.
+const BAR_H = 44;   // the logo row without its 1 px bottom line (app/index.html .menubar)
+const BAR_COLORS = { light: { color: '#efece8', symbolColor: '#23201c' }, dark: { color: '#1f1d1b', symbolColor: '#ece8e2' } };
+const barColors = () => BAR_COLORS[nativeTheme.shouldUseDarkColors ? 'dark' : 'light'];
+function paintBar() { if (win) win.setTitleBarOverlay(barColors()); }
+
 function createWindow() {
   allowClose = false;   // a window opened again later must ask again
   win = new BrowserWindow({
@@ -48,6 +63,7 @@ function createWindow() {
     title: APP_TITLE,
     icon: path.join(__dirname, 'build', 'icon.png'),
     backgroundColor: '#efece8',
+    titleBarStyle: 'hidden', titleBarOverlay: { ...barColors(), height: BAR_H },
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -58,12 +74,15 @@ function createWindow() {
       additionalArguments: ['--sastra-title=' + APP_TITLE]   // read by preload.js
     }
   });
-  win.once('ready-to-show', () => { win.maximize(); win.show(); });
+  win.once('ready-to-show', () => { win.maximize(); bringUp(win); });
   win.loadFile(path.join(__dirname, 'app', 'index.html'));
 
   // Links in documents open in the normal browser, never inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', e => e.preventDefault());
+  // full screen has no caption buttons: the page stops keeping room for them
+  win.on('enter-full-screen', () => win.webContents.send('full-screen', true));
+  win.on('leave-full-screen', () => win.webContents.send('full-screen', false));
 
   // Ask the page about unsaved changes before closing.
   win.on('close', e => {
@@ -94,10 +113,10 @@ function handleTask(argv) {
 function sendToMain(channel, data) {
   const wc = win.webContents;
   if (wc.isLoading()) wc.once('did-finish-load', () => wc.send(channel, data)); else wc.send(channel, data);
-  if (win.isVisible()) { if (win.isMinimized()) win.restore(); win.focus(); }
+  if (win.isVisible()) bringUp(win);
 }
 function openTaskWindow() {
-  if (taskWin) { if (taskWin.isMinimized()) taskWin.restore(); taskWin.focus(); return; }
+  if (taskWin) { bringUp(taskWin); return; }
   taskReady = false;
   taskWin = new BrowserWindow({
     // no Windows title bar: it looks like the app's own boxes (drag it anywhere; Cancel/Close/Esc close it)
@@ -107,7 +126,7 @@ function openTaskWindow() {
       additionalArguments: ['--sastra-title=' + APP_TITLE] }
   });
   taskWin.setMenu(null);
-  taskWin.once('ready-to-show', () => taskWin.show());
+  taskWin.once('ready-to-show', () => bringUp(taskWin));
   taskWin.loadFile(path.join(__dirname, 'app', 'task.html'));
   taskWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   taskWin.webContents.on('will-navigate', e => e.preventDefault());
@@ -116,7 +135,7 @@ function openTaskWindow() {
 function flushTasks() { if (taskWin && taskReady) for (const b of taskQueue.splice(0)) taskWin.webContents.send('task-batch', b); }
 ipcMain.on('task-ready', e => { if (taskWin && e.sender === taskWin.webContents) { taskReady = true; flushTasks(); } });
 // a question in the task window ("already there"): bring it up so it's seen
-ipcMain.on('task-focus', e => { if (taskWin && e.sender === taskWin.webContents) { if (taskWin.isMinimized()) taskWin.restore(); taskWin.focus(); } });
+ipcMain.on('task-focus', e => { if (taskWin && e.sender === taskWin.webContents) bringUp(taskWin); });
 // The task window is as tall as its contents (task.js measures them): small while working, taller with problems.
 ipcMain.on('task-size', (e, h) => {
   if (taskWin && e.sender === taskWin.webContents && Number.isFinite(h)) taskWin.setContentSize(TASK_W, Math.max(100, Math.min(420, Math.ceil(h))));
@@ -301,6 +320,12 @@ ipcMain.on('set-theme', (_e, t) => {
   nativeTheme.themeSource = t;
   const item = Menu.getApplicationMenu()?.getMenuItemById('theme-' + t);
   if (item) item.checked = true;
+  paintBar();
+});
+// ☰ in the logo row (or Alt / F10): the app menu drops down under it — x, y in the page's pixels
+ipcMain.on('show-menu', (e, x, y) => {
+  if (!win || e.sender !== win.webContents) return;
+  Menu.getApplicationMenu()?.popup({ window: win, x: Math.max(0, Math.round(+x) || 0), y: Math.max(0, Math.round(+y) || 0) });
 });
 ipcMain.on('show-folder', (_e, p) => { if (p) shell.showItemInFolder(p); });
 
@@ -346,6 +371,7 @@ app.whenReady().then(() => {
   // Once, before any window: on Windows setApplicationMenu puts the menu on EVERY open window, so setting it
   // when the main window opens would give the Explorer-menu task window a File/Edit/View bar too.
   buildMenu();
+  nativeTheme.on('updated', paintBar);   // theme "System" and Windows switched light ↔ dark
   if (app.isPackaged) menu.cleanOld(path.dirname(process.execPath));
   if (handleTask(process.argv)) { if (!win && !taskWin) app.quit(); return; }
   pendingPaths = pdfArgs(process.argv);

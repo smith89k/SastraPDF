@@ -15,7 +15,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   (Asia/Phnom_Penh); Khmer support matters.
 
 ## Project layout
-    main.js            Electron main: window (opens maximized), menus, file dialogs,
+    main.js            Electron main: window (opens maximized, own title bar), menus (☰ pop-up), file dialogs,
                        single-instance lock, "Open with" (.pdf argv), close request (the page asks),
                        printing (printer list, silent print, printer preferences)
     preload.js         contextBridge API `window.sastra` (open/read/write/save dialog,
@@ -108,17 +108,33 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Hand tool: pointer drag scrolls `#viewer` (tool H, hold Space, or middle mouse).
 - Layout: `#app` is a grid with named areas (menu/tabs/work/status), so hiding a bar never
   shifts the workspace into an `auto` row. The view toolbar (`.toolbar`) sits inside the logo
-  row (menubar) between Undo/Redo and Present; the right end is Present, Maximize, Full screen,
-  Theme. As the window narrows the row sheds, in order:
-  button labels (<1580px), Fit width/page (<1316), the Khmer name (<1248), Zoom −/+ (<1196),
-  Prev/Next (<1128); all stay reachable via dropdown, right-click menu or shortcuts. Below
-  ~1055px the tool strip scrolls sideways. Re-measure if a button is added to that row
-  (measured 2026-10-15 after adding Print: each step had to move up 4–38 px).
-- Full screen button (`#bFull`): HTML full screen on `document.documentElement`, NOT `#app`. The
-  right-click menu, dialogs (About, confirm) and toasts are appended to <body>, and only the
-  full-screen element's subtree is drawn — with `#app` they opened invisibly behind the page.
-  Anything new that floats over the page must go on <body> (or inside the full-screen element).
-  F11 is different: native window full screen from main.js, no HTML full screen involved.
+  row (menubar) between Undo/Redo and Present; the right end is Present, Maximize, Theme, then
+  Windows' caption buttons. As the window narrows the row sheds, in order:
+  button labels (<1732px), Fit width/page (<1478), the Khmer name (<1410), Zoom −/+ (<1357),
+  Prev/Next (<1289); all stay reachable via dropdown, right-click menu or shortcuts. Below
+  ~1217px the tool strip scrolls sideways. Re-measure if a button is added to or removed from that row
+  (re-measured 2026-10-16 for ☰ + the caption buttons and again without the Full screen button: force each
+  step's hidden items at full width, measure the row's leftover space, threshold = needed width + 3;
+  "/ 9999" pages).
+- Title bar = the logo row (since 2026-10-16; Windows' own bar was 8 px shorter maximized — its edge goes
+  off-screen — so everything jumped). main.js `titleBarStyle: 'hidden'` + `titleBarOverlay` (height
+  `BAR_H` 44 = the 45 px row minus its line; colours `BAR_COLORS` = --chrome / --fg, KEEP IN SYNC with the
+  CSS tokens; `paintBar` on set-theme and nativeTheme 'updated'). Windows still draws minimize / maximize /
+  close (snap layouts too) over the row's right end; `.menubar` padding-right reserves
+  `100vw - env(titlebar-area-x) - env(titlebar-area-width)` (137 px; 0 in a plain browser). The row is
+  `-webkit-app-region: drag` (move, double-click maximizes, right-click = system menu); its buttons,
+  selects, inputs and tabs are no-drag, and so are `.modal-bg`, `.cmenu`, `.show` — a drag area
+  ignores what is drawn over it. Full screen (F11, Present): Windows draws no caption buttons
+  but the page is still told they're there, so main sends `full-screen` → `fullwin` class on <html> →
+  no reserve. No Windows menu row any more: ☰ (`#bMenu`, hidden without `desk`) → `show-menu` →
+  `Menu.getApplicationMenu().popup()` under the button; Alt pressed and let go alone, or F10, opens it
+  too (not over a dialog or Present). Tests: `titlebar-test.js` (MOUSE=1 adds real drag/double-click/click).
+- No Full screen button any more (removed 2026-10-16, the user: "not necessary since Maximize did the same").
+  It was HTML full screen on `document.documentElement` (not `#app`: only the full-screen element's subtree
+  is drawn, and the right-click menu, dialogs and toasts live on <body>) — keep that in mind if it comes
+  back. F11 / View > Full Screen (native window full screen from main.js) is still there.
+- Save icon (`ICONS.save`): a floppy disk, as in Acrobat / Office (2026-10-16; it was a down arrow into a
+  tray, which read as "Download"). Used by the Save button only.
 - Present (`startShow`/`showPage`/`endShow`): one page at a time on black, fitted to the screen,
   in HTML full screen. Button in the logo row (kept when maximized), F5 = from the start,
   Shift+F5 / Ctrl+L = from the current page, View > Present…, right-click > Present from this
@@ -149,12 +165,14 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   shortcuts (Ctrl+O/S/Shift+S/P/W/Z/Y/=/-/0/1/2/A, Ctrl+Shift+L/R, Delete, H, V, F, Esc,
   PageUp/Down, Home/End, Ctrl+Tab/Ctrl+Shift+Tab and Ctrl+PgDn/PgUp to switch tabs — these
   work even while typing in a field; File > Next/Previous Tab). F11 is handled natively in main.js.
+  The menu is never shown as a row: it pops up from ☰ / Alt / F10 (see "Title bar").
 - Tab row (`#tabs`): ‹ `#tabstrip` › + . The strip scrolls sideways with no scrollbar; the ‹ ›
   buttons appear only when tabs overflow (`updateTabArrows`, ResizeObserver) and grey out at the
   ends; the wheel over the strip scrolls it; + (`#bNewTab`) sits outside the strip and shows only
   while maximized (the normal view has Open). Hidden when there are no tabs
-  (`#app>.tabbar:not(:has(.tab))`). Maximized, the bar is 40px with no vertical padding: logo block
-  and Restore/Full screen are centred on its full height, tabs sit on its bottom edge, and the
+  (`#app>.tabbar:not(:has(.tab))`). Maximized, the bar is 45px — the normal bar's height, so the bar, logo and
+  Restore don't jump when switching (it was 40px until 2026-10-16) — with no vertical padding: logo block
+  ☰ and Restore are centred on its full height (☰ stays, so the logo doesn't slide), tabs sit on its bottom edge, and the
   tab row's ::before/::after draw dividers next to the logo block and the right-hand buttons.
   `toggleFocus` re-scrolls the active tab into view after moving the row (a move resets scroll).
 - Printing (app/print.js; design in docs/superpowers/specs/2026-10-15-print-dialog-design.md):
@@ -205,7 +223,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Cancel / Replace / Keep both buttons; same `name-clashes` / `resolve-names` as Split/Export "Save to
   folder"; `task-focus` brings the window up), `make-dir` (only `<folder>\<one name>`), writes
   each file at once; problems are listed and keep the window open, otherwise it closes after 2 s; the app
-  quits when no window is left. body[data-done] counts finished runs (tests wait on it). The window is as
+  quits when no window is left. body[data-done] counts finished runs (tests wait on it).
+  Windows coming up on a request (task window, task-focus, Combine, "Open with", first show) go through
+  main.js `bringUp` (always-on-top for a moment, then off): plain show()/focus() left them BEHIND the program
+  in front (Windows' foreground lock only flashes the taskbar) — every time when Sastra was already running
+  (fixed 2026-10-16; test: a PowerShell form that takes the foreground and calls LockSetForegroundWindow). The window is as
   tall as its content (task.js ResizeObserver → `task-size` → `setContentSize`, 440 wide, 100–420 tall;
   the problem list scrolls past 216 px): 440 × 130 while working, no empty space. No Windows title bar
   (`frame:false`; Windows 11 still rounds the corners and adds the shadow): `.task` is a drag region
@@ -250,12 +272,12 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Theme switch: menubar button cycles System → Light → Dark (`setTheme`), saved in localStorage
   `sastra-theme` and applied by a tiny head script before first paint (`data-theme` on <html>;
   System = no attribute, follows the OS). In Electron the page tells main (`set-theme`), which
-  sets `nativeTheme.themeSource` (title bar) and ticks View > Theme; that menu sends
+  sets `nativeTheme.themeSource`, repaints the caption buttons (`paintBar`) and ticks View > Theme; that menu sends
   themeSystem/themeLight/themeDark back to the page. The page owns the choice.
 - No PDF open: the tab row is hidden (no "+"); everything else stays visible but every control
   in the toolbar and Tools panel, plus Maximize, is disabled (start of `updateUI`; it marks the
-  ones it switched off with `data-nodoc` and re-enables exactly those). Open, theme switch and
-  Full screen stay usable. F and the right-click menu do nothing; closing the last PDF while
+  ones it switched off with `data-nodoc` and re-enables exactly those). ☰, Open and the theme
+  switch stay usable. F and the right-click menu do nothing; closing the last PDF while
   maximized leaves Maximize.
   The Pages panel then shows "Pages 0", a one-line hint and three blank page cards
   (`renderThumbs`, `.thumb.ghost`) instead of an empty strip.
@@ -335,6 +357,17 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   billing, so it was uploaded with `gh release create v1.0.3 … --notes-from-tag`; asset
   `Sastra.PDF.Setup.1.0.3.exe` SHA-256 75a716de…072bfb (matches GitHub's digest).
   Note: someone pushed main from this PC on 2026-10-16 00:22 (probably VS Code sync), before the release.
+- **v1.0.4 built 2026-10-16, not released yet**: `dist\Sastra PDF Setup 1.0.4.exe` (114 226 484 bytes, unsigned,
+  SHA-256 67b7aaeb…8a1443). Version bumped from 1.0.3 so the build wouldn't overwrite the released 1.0.3
+  installer. The packaged `dist\win-unpacked` passed titlebar 43, front 6, combine/open-with front 7, bar 19,
+  menu 43, close 12, folder 23, ops, print 71; title "… — Sastra PDF v1.0.4", About "Version 1.0.4".
+  Not run: the real installer over the user's installed 1.0.3. Changes: app's own title bar (same height maximized or not, ☰ menu), Maximize
+  (F) row 45 px like the normal row, the progress window / Combine / "Open with" come to the front
+  (`bringUp`), floppy-disk Save icon, Full screen button removed. Passed from source: titlebar 43 (+ the
+  MOUSE=1 part, checked once), front 6, combine/open-with front 7, bar 19, menu 43, close 12, folder 23,
+  ops, print 71 (print-test's layout check now 1217 px up and it reads the default printer from the registry
+  — Windows manages it here and it moved from the Canon to the HP M855 on 2026-10-16; menu-test's menu-row
+  check now expects no row on either window).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 

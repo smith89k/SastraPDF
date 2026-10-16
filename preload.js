@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('sastra', {
   closeNow: () => ipcRenderer.send('close-now'),
   setTitle: t => ipcRenderer.send('set-title', t),
   setTheme: t => ipcRenderer.send('set-theme', t),
+  showMenu: (x, y) => ipcRenderer.send('show-menu', x, y),
   showInFolder: p => ipcRenderer.send('show-folder', p),
   initialPaths: () => ipcRenderer.invoke('initial-paths'),
   appVersion: () => ipcRenderer.invoke('app-version'),
@@ -30,5 +31,6 @@ contextBridge.exposeInMainWorld('sastra', {
   onMenu: fn => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
   onOpenPaths: fn => ipcRenderer.on('open-paths', (_e, paths) => fn(paths)),
   onCombinePaths: fn => ipcRenderer.on('combine-paths', (_e, paths) => fn(paths)),
-  onCloseRequest: fn => ipcRenderer.on('close-request', () => fn())
+  onCloseRequest: fn => ipcRenderer.on('close-request', () => fn()),
+  onFullScreen: fn => ipcRenderer.on('full-screen', (_e, on) => fn(!!on))
 });
