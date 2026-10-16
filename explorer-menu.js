@@ -86,6 +86,12 @@ function packageVersion() {
   return r.status === 0 ? (r.stdout || '').trim().split(/\r?\n/)[0] : '';
 }
 function removePackage() { ps(`Get-AppxPackage -Name ${psq(PKG)} | Remove-AppxPackage`); }   // no admin needed
+// Does Windows still start the menu? An update deletes and re-makes the install folder; after that Windows
+// refused the kept package ("access denied", menu gone) until it was added again (2026-10-16, 1.0.3 → 1.0.4).
+function packageWorks(clsid = CLSID) {
+  const r = ps(`try { $null = [Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]${psq(clsid)})); 'ok' } catch { 'failed' }`);
+  return r.status === 0 && (r.stdout || '').trim() === 'ok';
+}
 // Start this exe again as admin (UAC names Sastra PDF) to add the package. 1223 = the user said No / no admin.
 function elevate(exe) {
   const r = ps(`try { $p = Start-Process -FilePath ${psq(exe)} -ArgumentList '--explorer-menu=add-package' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } catch { exit 1223 }`);
@@ -127,13 +133,14 @@ function install(o) {
   const st = readState();
   if (windowsBuild() >= 22000 && fs.existsSync(o.msix)) {
     if (st.mode === 'package' && st.location === o.installDir && st.version === PKG_VERSION && packageVersion() === PKG_VERSION) {
-      unregisterClassic(); log('install: package already set up'); return 0;
+      if (packageWorks()) { unregisterClassic(); log('install: package already set up'); return 0; }
+      log('install: package set up, but Windows no longer starts it; adding it again');   // one UAC prompt below
     }
     if (!o.silent && st.declined !== '1') {
       const code = elevate(o.exe);
       if (packageVersion() === PKG_VERSION) {   // checked as the user: an admin's password may have added it to the admin's account
         unregisterClassic(); writeState({ mode: 'package', location: o.installDir, version: PKG_VERSION, declined: '' });
-        log('install: package added'); return 0;
+        log(`install: package added${packageWorks() ? '' : ' (but Windows does not start it yet)'}`); return 0;
       }
       log(`install: package not added (elevate exit ${code}); using the classic menu`);
       st.declined = '1';
@@ -158,5 +165,5 @@ function runCommand(cmd, o) {
 
 module.exports = {
   CLSID, PKG, PKG_VERSION, TASKS, parseTaskArgs, readTaskList, registerClassic, unregisterClassic, classicRegistered,
-  readState, writeState, clearState, windowsBuild, oldDir, cleanOld, release, runCommand
+  readState, writeState, clearState, windowsBuild, oldDir, cleanOld, release, runCommand, packageWorks
 };

@@ -238,7 +238,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   (Windows 10, No, no admin, silent, failure) classic HKCU keys (`SystemFileAssociations\.pdf\shell\SastraPDF`
   ExplorerCommandHandler + `CLSID\…\InprocServer32`, MultiSelectModel Player). Never both. State in
   `HKCU\Software\Sastra PDF\ExplorerMenu` (Mode, Location, Version, Declined): a set-up package is kept
-  without asking; Declined=1 stops repeat prompts until a full uninstall. `release` (old uninstaller on
+  without asking ONLY if Windows still starts it (`packageWorks`: CoCreateInstance of the CLSID from
+  PowerShell), else it is added again (one UAC prompt). Found 2026-10-16: the 1.0.3 → 1.0.4 update deletes
+  and re-makes the install folder; the kept package then got E_ACCESSDENIED on activation (no dllhost
+  started, menu gone from Explorer, nothing in the event logs; PowerToys' PowerRename, the same kind of
+  sparse package, still activated) until `--explorer-menu=add-package` (elevated) re-added it. Whether
+  every update breaks it (folder re-made vs DLL replaced) is not known. Declined=1 stops repeat prompts
+  until a full uninstall. `release` (old uninstaller on
   update) stops our dllhost and moves a DLL Explorer still holds to `%TEMP%\Sastra PDF\old` (same drive)
   or `<parent of install>\sastra-pdf-old`; `cleanOld` empties those on install and app start.
   Log: `%TEMP%\Sastra PDF\explorer-menu.log`.
@@ -357,8 +363,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   billing, so it was uploaded with `gh release create v1.0.3 … --notes-from-tag`; asset
   `Sastra.PDF.Setup.1.0.3.exe` SHA-256 75a716de…072bfb (matches GitHub's digest).
   Note: someone pushed main from this PC on 2026-10-16 00:22 (probably VS Code sync), before the release.
-- **v1.0.4 built 2026-10-16, not released yet**: `dist\Sastra PDF Setup 1.0.4.exe` (114 226 484 bytes, unsigned,
-  SHA-256 67b7aaeb…8a1443). Version bumped from 1.0.3 so the build wouldn't overwrite the released 1.0.3
+- **v1.0.4 built 2026-10-16, not released yet**: `dist\Sastra PDF Setup 1.0.4.exe` — first build (SHA-256
+  67b7aaeb…8a1443) was installed by the user over 1.0.3 and lost the right-click menu (see Explorer menu:
+  `packageWorks`); the user's PC was repaired by re-adding the package (UAC Yes). Rebuilt 14:52 with the
+  fix (114 226 245 bytes, SHA-256 926b7f46…940513); unit 28, packaged menu 43 passed. Not yet run: this
+  rebuilt installer over the installed 1.0.4 (should keep the menu, asking UAC once if Windows refuses it). Version bumped from 1.0.3 so the build wouldn't overwrite the released 1.0.3
   installer. The packaged `dist\win-unpacked` passed titlebar 43, front 6, combine/open-with front 7, bar 19,
   menu 43, close 12, folder 23, ops, print 71; title "… — Sastra PDF v1.0.4", About "Version 1.0.4".
   Not run: the real installer over the user's installed 1.0.3. Changes: app's own title bar (same height maximized or not, ☰ menu), Maximize
