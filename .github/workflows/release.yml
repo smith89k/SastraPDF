@@ -1,32 +1,47 @@
-# Builds the Windows installer on GitHub and attaches it to a GitHub release.
-# Runs when a version tag (v1.0.1, v1.1.0 …) is pushed. The release notes are the tag's message:
-#   git tag -a v1.0.1 -F notes.md && git push origin v1.0.1
-# "Run workflow" (manual) only builds and keeps the installer as a downloadable artifact.
+# Builds the Windows installer and releases it: into the Cloudflare R2 bucket behind https://sastra-update.smith89k.com/
+# (where installed copies update from, and the download link https://sastra-update.smith89k.com/Sastra-PDF-Setup.exe),
+# and as a GitHub release with the notes from What's new (app/notes.js).
+# Runs only by hand: Actions > Release > Run workflow, type the version (= package.json), or
+#   gh workflow run release.yml -f version=1.2.0
+# Pushing code or tags never releases. Setup (bucket, domain, the four R2 secrets): docs/updates-setup.md.
 name: Release
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, the same as package.json (e.g. 1.2.0)
+        required: true
 
 permissions:
-  contents: write   # create the release and upload the installer
+  contents: write   # create the tag and the GitHub release
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash
+    env:
+      VERSION: ${{ inputs.version }}
+      EXE: Sastra-PDF-Setup-${{ inputs.version }}.exe
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      # R2 doesn't take the checksums newer AWS CLIs add by default
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0   # the annotated tag (release notes) must be present
 
       - uses: pnpm/action-setup@v6   # the pnpm version comes from package.json "packageManager"
 
@@ -35,16 +50,21 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - name: The version matches package.json, is not released yet, and the R2 secrets are set
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          if [ "$v" != "$VERSION" ]; then
+            echo "::error::You typed $VERSION, but package.json says $v. Bump package.json, push main, then run again."; exit 1
+          fi
+          if gh release view "v$VERSION" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::v$VERSION is already released. Bump the version for a new release."; exit 1
+          fi
+          for s in R2_ACCOUNT_ID R2_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+            if [ -z "${!s}" ]; then echo "::error::A GitHub secret is missing ($s): see docs/updates-setup.md"; exit 1; fi
+          done
+
       - name: Install (fetches Electron, copies the PDF libraries, checks About versions)
         run: pnpm install --frozen-lockfile
-
-      - name: Tag must match package.json version
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          v="v$(node -p "require('./package.json').version")"
-          if [ "$v" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $v"; exit 1
-          fi
 
       - name: Check What's new has notes for this version (app/notes.js)
         run: node scripts/check-notes.js
@@ -55,21 +75,52 @@ jobs:
       - name: Build the installer
         run: pnpm exec electron-builder --win nsis --publish never
 
-      - name: Keep the installer as a build artifact
-        uses: actions/upload-artifact@v7
+      - name: The build has the installer, its blockmap and latest.yml naming it
+        run: |
+          for f in "dist/$EXE" "dist/$EXE.blockmap" dist/latest.yml; do
+            if [ ! -f "$f" ]; then echo "::error::The build made no $f"; ls dist; exit 1; fi
+          done
+          if ! grep -q "url: $EXE\$" dist/latest.yml; then echo "::error::latest.yml does not name $EXE"; cat dist/latest.yml; exit 1; fi
+
+      # Kept a few days on the run's page, in case R2 misbehaves.
+      - uses: actions/upload-artifact@v7
         with:
           name: installer
           path: dist/*.exe
-          if-no-files-found: error
+          retention-days: 5
+          compression-level: 0
 
-      - name: Publish the GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # Installer first, latest.yml last: an installed copy never reads a latest.yml whose installer isn't there yet.
+      - name: Upload to R2
         run: |
-          exe=$(ls dist/*.exe | head -1)
-          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
-          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" | sed '/-----BEGIN PGP SIGNATURE-----/,$d' > notes.md
-          printf '\nSHA-256 of the installer: `%s`\n\nBuilt by GitHub Actions from %s.\n' \
-            "$(sha256sum "$exe" | cut -d' ' -f1)" "$GITHUB_SHA" >> notes.md
-          gh release create "$GITHUB_REF_NAME" "$exe" --title "Sastra PDF ${GITHUB_REF_NAME#v}" --notes-file notes.md
+          put() {   # file key [aws options…]: upload, then check the bucket holds all of it
+            local f="$1" key="$2"; shift 2
+            aws s3 cp "$f" "s3://$R2_BUCKET/$key" --endpoint-url "$R2_ENDPOINT" --only-show-errors "$@"
+            local want got
+            want="$(stat -c %s "$f")"
+            got="$(aws s3api head-object --bucket "$R2_BUCKET" --key "$key" --endpoint-url "$R2_ENDPOINT" --query ContentLength --output text | tr -d '\r')"
+            if [ "$got" != "$want" ]; then echo "::error::$key in R2 is $got bytes, not $want"; exit 1; fi
+            echo "Uploaded $key ($got bytes)"
+          }
+          put "dist/$EXE" "$EXE"
+          put "dist/$EXE.blockmap" "$EXE.blockmap"
+          # the download link: always the newest, never cached by Cloudflare, saved under the versioned name
+          put "dist/$EXE" Sastra-PDF-Setup.exe --cache-control no-cache --content-type application/octet-stream \
+            --content-disposition "attachment; filename=\"$EXE\""
+          put dist/latest.yml latest.yml --cache-control no-cache --content-type text/yaml
+
+      - name: Remove older installers from R2 (every .blockmap stays)
+        run: |
+          aws s3api list-objects-v2 --bucket "$R2_BUCKET" --endpoint-url "$R2_ENDPOINT" --query 'Contents[].[Key]' --output text > r2-keys.txt
+          node scripts/r2-prune.js "$EXE" < r2-keys.txt > r2-old.txt
+          while IFS= read -r key; do
+            echo "Removing $key"
+            aws s3 rm "s3://$R2_BUCKET/$key" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+          done < r2-old.txt
+
+      - name: GitHub release (notes from What's new)
+        run: |
+          node scripts/release-notes.js "$VERSION" > notes.md
+          printf '\nDownload: https://sastra-update.smith89k.com/Sastra-PDF-Setup.exe (always the newest version)\n\nSHA-256 of the installer: `%s`\n' \
+            "$(sha256sum "dist/$EXE" | cut -d' ' -f1)" >> notes.md
+          gh release create "v$VERSION" "dist/$EXE" --target "$GITHUB_SHA" --title "Sastra PDF $VERSION" --notes-file notes.md
