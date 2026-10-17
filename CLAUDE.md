@@ -524,7 +524,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `t\notes-skip.js` (fresh profiles see What's new once). Then the Tools panel sections fold (and Combine moved last):
   tools-fold 20, notes-unit 23, whats-new 22, controls 15, colour 11, nozip 23, folders 7, ops 10, images 61,
   titlebar 43 (once 2 failures: print-test had emptied `t\out\`, so no PDF opened — copy ten.pdf back first).
-- **pnpm (2026-10-17) and automatic updates (2026-10-17, on main, not pushed, no release yet).** Tests live in the
+- **pnpm (2026-10-17) and automatic updates (2026-10-17, on main, pushed to GitHub 2026-10-17 with the opening progress box; no release yet — waits for the Cloudflare setup).** Tests live in the
   2026-10-17 session scratchpad `t\` (…\59bf0bdb-…\scratchpad\t; the older 4e4e0838 folder is gone): unit
   (`node --test t\unit\*.test.js`: updater 8, menu-repair 2, release 3), main-wiring (from source; `PACKED=1` uses
   `t\pack` from `pnpm exec electron-builder --win nsis --publish never "-c.directories.output=<t>\pack"` — app-update.yml
