@@ -31,6 +31,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        Make PDF / Combine. Type from the content (magic bytes); JPEG as it is (EXIF orientation
                        applied by the drawing matrix), PNG lossless, BMP/GIF/WebP via createImageBitmap → PNG;
                        page = the picture's own size (dpi from JFIF/EXIF/pHYs/BMP header, else 96; max 14 400 pt)
+    app/notes.js       `window.SastraNotes`: What's new — every version's notes (newest first, kinds new / improved / fixed /
+                       removed, text only) + `noteFor` / `earlierNotes` / `shouldShow`. Written by hand at release time
     app/task.html|.js  The small "task window" for Explorer-menu Split / Images jobs. See "Explorer menu".
     app/pdf-file.png   The task window's header icon: the .pdf file icon's page filling 98 × 128
                        (shown 26 × 34) — a file icon, since the window works on files
@@ -46,6 +48,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        — filled by `scripts/copy-vendor.js` on `npm install` (gitignored; the script
                        empties the folder first so stale files never ship)
     scripts/check-credits.js    postinstall: warns if About's library versions are out of date
+    scripts/check-notes.js  first step of `npm run dist` / `dist:portable` and the release workflow: fails when the
+                       newest What's new entry isn't package.json's version, or an entry is broken (date, kind, text, twice)
     scripts/build-explorer-menu.js  run by `npm run dist` (and CI): finds MSVC with vswhere → vcvars64,
                        compiles SastraMenu.dll (/MT), packs SastraPDF.ExplorerMenu.msix with makeappx;
                        fails if the CLSID / package version differ between menu.cpp, the manifest and
@@ -298,6 +302,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   are [name, version, by, licence, link]; `scripts/check-credits.js` (postinstall) warns when a
   version there differs from node_modules. Update it when
   adding a library. Links use target=_blank, which main.js opens in the browser.
+- What's new (`openNotes`, as in AI Hub; spec docs/superpowers/specs/2026-10-17-whats-new-design.md): the first start of a
+  version this profile hasn't shown (update or new install) opens "What's new in X" by itself, after the start-up files are
+  open; closing it in any way stores the version in localStorage `sastra-notes-seen`. Never over another `.modal-bg` box or
+  Present (then the next start tries again). ☰ › Help › What's New (`whatsNew`) reopens it. Tags New / Improved / Fixed /
+  Removed in that order, "See earlier versions ›" reveals the older entries; 900 px wide (AI Hub's wide window; 560 was
+  too narrow for the user), the list scrolls, Close at the bottom. `<html data-notes="shown|none">` once decided — test
+  launch helpers close it (`t\notes-skip.js`), since fresh test profiles see it once.
 - Design: IBM Plex Sans/Mono. All UI fonts SHIP INSIDE THE APP (no Google Fonts, no network: the
   README's code signing policy promises the app sends nothing anywhere on its own — keep it that
   way). copy-vendor.js builds app/vendor/fonts/fonts.css from @fontsource packages: Plex Sans
@@ -361,7 +372,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Until billing is fixed, release by hand the same way, after running the Playwright checks.
 - Once billing works, releases are built by GitHub Actions (`.github/workflows/release.yml`,
   windows-latest, Node 24). To release: `npm version X.Y.Z --no-git-tag-version` (title, About and installer
-  name follow package.json), run the Playwright checks locally, merge to main, then
+  name follow package.json), write the new version's entry at the top of app/notes.js with the release date (What's new;
+  `npm run dist` and the workflow refuse to build without it — the GitHub release notes can be copied from it), run the
+  Playwright checks locally, merge to main, then
   `git tag -a vX.Y.Z -F notes.md` (the tag message becomes the release notes) and
   `git push origin vX.Y.Z`. The workflow fails if the tag and package.json disagree, builds with
   `--publish never`, and creates the release with the installer + its SHA-256. "Run workflow" by
@@ -442,6 +455,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   in the test; 23/23 on two re-runs), close 12, titlebar 43.
   Tests live in the 2026-10-17 session scratchpad `t\` (…\4e4e0838-…\scratchpad\t; pictures.js makes the test
   pictures; print-test empties `t\out\`, and titlebar-test needs `t\out\ten.pdf` — copy it from `t\pdfs\` first).
+  Then (2026-10-17, on main, no installer built — the user: "not yet build exe"): no red selection frame while maximized
+  (focus-outline 5), and the What's new window (spec/plan 2026-10-17-whats-new*; 900 px after "make it wider"). Passed
+  from source: whats-new 22, notes-unit 23, titlebar 43, controls 15, colour 11, close 12, folders 7, nozip 23,
+  pages-panel 15, print-screen 38, print 71, images 61, menu 51, ops 10. Every suite's launch now calls
+  `t\notes-skip.js` (fresh profiles see What's new once).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
