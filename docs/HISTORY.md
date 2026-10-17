@@ -349,3 +349,12 @@ Decisions (asked one at a time):
   click; problems listed); the main window doesn't open for them.
 Built from a written spec and plan with tests first: C++ harness, Node unit test, Playwright jobs test,
 then the user clicked through the real menu (both the package and the classic fallback).
+
+### 31. Pictures in the Explorer menu (Claude Code, 2026-10-17)
+The user asked for pictures in the right-click menu, to put scans and phone photos into a PDF. Decisions (asked one
+at a time): pictures and PDFs combine together in name order; each picture page is the picture's own size (no A4
+fitting); one picture → "Make PDF"; the result opens as an unsaved tab; JPG, PNG, BMP, GIF and WebP (HEIC and TIFF
+were asked for, then dropped as rare). JPEG goes in without re-compression, phone-photo rotation (EXIF) is applied.
+The menu package version went to 1.1.0.0, so the update asks for admin once. New logo and .pdf file icon on the same branch.
+Built from a written spec and plan with tests first: C++ harness, Node unit test, Playwright (every EXIF orientation
+drawn by pdf.js and compared with how Chromium shows the photo).

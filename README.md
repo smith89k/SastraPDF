@@ -15,7 +15,8 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
   both sides, paper size, and a preview of every sheet
 - Ctrl+S saves back to the original file; Ctrl+Shift+S is Save As
 - "Open with Sastra PDF" for .pdf files in File Explorer; asks before closing with unsaved changes
-- Right-click PDFs in File Explorer → **Sastra PDF**: Combine the selected files, Split (one file per
+- Right-click PDFs or pictures (JPG, PNG, BMP, GIF, WebP) in File Explorer → **Sastra PDF**: Make PDF from
+  one picture, Combine the selected files (PDFs and pictures together, in name order), Split (one file per
   page, here or into a folder named after the PDF), Images (JPG, 300 dpi, here or into a folder).
   On Windows 11 the installer asks once for permission to put it in the first right-click menu;
   without it, the same items are under "Show more options". On Windows 10 they show right away.
@@ -67,6 +68,7 @@ Double-click **run.bat**, or run `npm start`.
     app/index.html     The app itself (UI and all PDF tools)
     app/print.js       Printing: the Print window, sheet layouts and the print run
     app/pdfops.js      PDF helpers shared by the app and the Explorer-menu window
+    app/images.js      Turns pictures into PDF pages (Make PDF / Combine from the Explorer menu)
     app/task.html/.js  The small window that runs Split / Images from the Explorer menu
     app/vendor/        pdf.js and pdf-lib (copied automatically by npm install)
     explorer-menu/     The File Explorer right-click menu: C++ source (menu.cpp) and its

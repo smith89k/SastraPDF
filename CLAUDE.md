@@ -26,10 +26,14 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
     app/pdfops.js      `window.SastraOps`, shared by index.html and task.html so both make the same files:
                        pdf.js loading (`pdfjs()`, `PDFJS_OPTS`), `closePdf`, `baseName`, `rangeLabel`, `imageName`,
                        `renderPage` (white page → JPG/PNG blob; dpi lowered past 16 384 px a side / 64 MP)
+    app/images.js      `window.SastraImages` (main window only): pictures → PDF pages for the Explorer menu's
+                       Make PDF / Combine. Type from the content (magic bytes); JPEG as it is (EXIF orientation
+                       applied by the drawing matrix), PNG lossless, BMP/GIF/WebP via createImageBitmap → PNG;
+                       page = the picture's own size (dpi from JFIF/EXIF/pHYs/BMP header, else 96; max 14 400 pt)
     app/task.html|.js  The small "task window" for Explorer-menu Split / Images jobs. See "Explorer menu".
     app/pdf-file.png   The task window's header icon: the .pdf file icon's page filling 98 × 128
                        (shown 26 × 34) — a file icon, since the window works on files
-    explorer-menu/     File Explorer right-click menu: menu.cpp/.def (C++ IExplorerCommand DLL),
+    explorer-menu/     File Explorer right-click menu for PDFs and pictures: menu.cpp/.def (C++ IExplorerCommand DLL),
                        AppxManifest.xml + Assets/ (unsigned sparse package for the Windows 11 first menu).
                        Built by scripts/build-explorer-menu.js into explorer-menu/out/ (gitignored)
     explorer-menu.js   Main-process module with no Electron in it: registers/unregisters the menu
@@ -218,16 +222,21 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   main's window `close` restores/focuses the window and sends `close-request`; the page asks ("… Close
   Sastra PDF anyway?", 2+ files listed), Esc = Cancel, then `close-now`. A second X while it's open is
   ignored (`closeAsking`).
-- Explorer menu (design: docs/superpowers/specs/2026-10-15-explorer-menu-design.md). Right-click PDFs →
-  Sastra PDF ▸ Combine N files (2+ PDFs only) / Split here / Split to "name\" / Images here (JPG) /
-  Images to "name\" (JPG). The DLL (CLSID {47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}) gets ALL selected items
+- Explorer menu (design: docs/superpowers/specs/2026-10-15-explorer-menu-design.md; pictures:
+  2026-10-17-explorer-images-design.md). Right-click PDFs and/or pictures (.jpg .jpeg .jfif .png .bmp .gif .webp
+  — `EXTS` in explorer-menu.js = the manifest's ItemTypes = menu.cpp's list; the build script checks) →
+  Sastra PDF ▸ Make PDF (exactly 1 picture) / Combine N files (2+ files, any mix) / Split here / Split to
+  "name\" / Images here (JPG) / Images to "name\" (JPG) (Split and Images only for the PDFs in the
+  selection; they act on the PDFs only). Make PDF = task `combine` with the one picture. The DLL (CLSID {47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}) gets ALL selected items
   in one Invoke, writes them to `%TEMP%\Sastra PDF\menu-*.txt` (UTF-8, a line each) and starts
   `Sastra PDF.exe --sastra-task=<combine|split-here|split-folder|images-here|images-folder> --sastra-list=<file>`
   through Explorer (IShellDispatch2, so the app doesn't run inside the package identity). main.js
   `handleTask` (first launch and `second-instance`): `readTaskList` reads only that folder/name pattern,
   deletes the file and sorts by name like Explorer (01, 02, 10). Combine → main window `combine-paths`
-  → `combinePaths` (one unsaved tab "Combined.pdf", `d.saveDir` = the files' folder, Save As starts
-  there). Split/Images → `task-batch` to the task window (one per click, queued; "N more waiting"):
+  → `combinePaths` (one unsaved tab: `<name>.pdf` for one file, else "Combined.pdf"; PDFs copied,
+  pictures through `SastraImages.addImagePage`; unreadable files skipped and named, one readable file is
+  enough, none → "No PDF made" toast; `d.saveDir` = the first file's folder, Save As starts there).
+  Menu package 1.1.0.0 since 2026-10-17 (pictures): installing that update asks UAC once. Split/Images → `task-batch` to the task window (one per click, queued; "N more waiting"):
   per click it opens the PDFs, asks ONE "already there" question INSIDE the task window (`#ask` +
   Cancel / Replace / Keep both buttons; same `name-clashes` / `resolve-names` as Split/Export "Save to
   folder"; `task-focus` brings the window up), `make-dir` (only `<folder>\<one name>`), writes
@@ -386,6 +395,14 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   ops, print 71 (print-test's layout check now 1217 px up and it reads the default printer from the registry
   — Windows manages it here and it moved from the Canon to the HP M855 on 2026-10-16; menu-test's menu-row
   check now expects no row on either window).
+- **Pictures in the Explorer menu (2026-10-17, branch feat/explorer-images; with the new logo + .pdf icon)**:
+  spec + plan in docs/superpowers. Passed from source AND on `dist\win-unpacked` (built with
+  `npx electron-builder --win --dir`, version unchanged): images 61 (all 8 EXIF orientations drawn by pdf.js =
+  what Chromium shows), menu 51 (incl. pictures + PDFs combine, Make PDF, "No PDF made"), unit 38, DLL harness 39,
+  ops 10, folder 23, print 71, close 12, titlebar 43. Tests live in this session's scratchpad `t\` (pictures.js
+  makes the test pictures; print-test empties `t\out\`, and titlebar-test needs `t\out\ten.pdf` — copy it from
+  `t\pdfs\` before running it after print-test). Not yet: an installer build (version number to be chosen by the
+  user), installing over the user's copy, the real right-click menu (package 1.1.0.0 → one UAC prompt).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
