@@ -236,6 +236,20 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .modal .acts{display:flex;justify-content:flex-end;gap:8px}
 .modal p.detail{color:var(--muted);font-size:13px}
 .modal.checking p{display:flex;align-items:center;gap:10px}
+/* the progress box while PDFs open (startProgress): Bohpum's reading box, the look of the right-click window (task.html) */
+.modal.progress{width:min(440px,calc(100vw - 32px));max-width:none;gap:12px;padding:16px 18px 14px;background:var(--chrome);font-size:14px;line-height:1.45;cursor:default}
+.progress .p-head{display:flex;gap:12px;align-items:center}
+.progress .p-head img{flex:none}
+.progress .p-head>div{min-width:0}
+.progress .p-what{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.progress .p-step{min-height:1.45em;color:var(--muted);font-size:13px}   /* keeps its line when empty */
+.progress .p-bar{position:relative;flex:none;height:6px;overflow:hidden;border-radius:3px;background:var(--line)}
+.progress .p-fill{position:absolute;top:0;bottom:0;left:0;width:0;border-radius:3px;background:var(--accent);transition:width .15s}
+.progress .p-fill.moving{width:35%;transition:none;animation:p-slide 1.4s ease-in-out infinite}   /* how far is unknown */
+@keyframes p-slide{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
+.progress.failed .p-fill{width:100%;animation:none}
+.progress .p-lines{max-height:216px;overflow:auto;margin:0;padding:8px 10px 8px 26px;background:var(--panel);border:1px solid var(--line);border-radius:6px;color:var(--err);font-size:13px;user-select:text}
+.progress .p-foot{display:flex;justify-content:flex-end;gap:8px}
 .modal .names{margin:0;padding:8px 10px 8px 26px;max-height:168px;overflow-y:auto;background:var(--chrome);border:1px solid var(--line);border-radius:6px;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
 /* About (Help > About, or click the brand): the app, its author, credits */
 .modal.about{box-sizing:border-box;max-width:480px;max-height:calc(100vh - 32px);overflow-y:auto;gap:16px;padding:22px}
@@ -414,7 +428,7 @@ select.big option{padding:8px 10px}
   .thumbs{left:0}.tools{right:0;width:min(300px,86vw)}
   .page .pg-lbl{display:none}
 }
-@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}.toast,.about .links a,.tsec-head svg.chev{transition:none}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}.progress .p-fill.moving{animation-duration:3s}.toast,.about .links a,.tsec-head svg.chev{transition:none}}
 </style>
 
 <div id="app">
@@ -824,6 +838,99 @@ async function menuRepairAtStart(){
     });
   } catch(e){ console.warn(e); }
 }
+/* ---------- Progress box: opening PDFs and the right-click Combine (Bohpum's reading box) ---------- */
+// Most PDFs open at once, so the box shows only when a job still runs half a second after it started, and then for at
+// least 0.4 s (no flash, no blink). It waits its turn behind other boxes (inTurn) and closes by itself — or, with
+// problems, becomes "Couldn't open …" with the problems listed and Close. Cancel / Esc stop the job.
+const SHOW_AFTER_MS = 500, MIN_SHOWN_MS = 400;
+// → job: update({ title, step, frac }) (frac 0..1, null = unknown: a sliding bar), problem(text), cancelled, onCancel(fn),
+// end() (not awaited by the job: with problems the box stays until Close). failTitle(n) = the title with n problems.
+function startProgress({ title, failTitle }){
+  const view = { title, step:'', frac:null }, problems = [], cancels = [];
+  let el = null, shownAt = 0, ended = false, failed = false, turn = null, closeBox = () => {};
+  const paint = () => {
+    if (!el) return;
+    el.querySelector('.p-what').textContent = view.title; el.querySelector('.p-step').textContent = view.step;
+    const f = el.querySelector('.p-fill'); f.classList.toggle('moving', view.frac == null);
+    f.style.width = view.frac == null ? '' : `${Math.round(Math.min(1, Math.max(0, view.frac)) * 100)}%`;
+  };
+  const showProblems = () => {
+    if (!el || failed) return;
+    failed = true; el.querySelector('.modal').classList.add('failed');
+    const n = problems.length;
+    Object.assign(view, { title: failTitle(n), step: `${n} problem${n > 1 ? 's' : ''} below`, frac: 1 }); paint();
+    const ul = el.querySelector('.p-lines');
+    ul.replaceChildren(...problems.map(t => Object.assign(document.createElement('li'), { textContent: t }))); ul.hidden = false;
+    const b = el.querySelector('.p-foot .btn'); b.textContent = 'Close'; b.classList.add('primary'); b.focus({ preventScroll:true });
+  };
+  const job = {
+    cancelled: false,
+    update(o){ Object.assign(view, o); paint(); },
+    problem(text){ problems.push(text); },
+    onCancel(fn){ cancels.push(fn); },
+    async end(){
+      if (ended) return turn; ended = true; clearTimeout(timer);
+      if (!turn) { if (problems.length) turn = inTurn(show); return turn; }   // never shown: problems still need the box
+      if (el) {
+        if (problems.length) showProblems();
+        else { const left = MIN_SHOWN_MS - (performance.now() - shownAt); if (left > 0) await new Promise(r => setTimeout(r, left)); closeBox(); }
+      }
+      return turn;   // still waiting its turn: show() sees it ended
+    }
+  };
+  const cancel = () => { if (job.cancelled) return; job.cancelled = true; for (const fn of cancels) try { fn(); } catch {} };
+  // the box itself, when it's this job's turn; resolves when it closes
+  const show = () => new Promise(res => {
+    if (ended && !problems.length) return res();
+    const bg = document.createElement('div'); bg.className = 'modal-bg';
+    bg.innerHTML = `<div class="modal progress" role="dialog" aria-modal="true"><div class="p-head"><img src="pdf-file.png" alt="" width="26" height="34" draggable="false"><div><div class="p-what"></div><div class="p-step"></div></div></div><div class="p-bar"><div class="p-fill"></div></div><ul class="p-lines" hidden></ul><div class="p-foot"><button class="btn">Cancel</button></div></div>`;
+    const btn = bg.querySelector('.p-foot .btn');
+    const key = e => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); btn.click(); } };
+    closeBox = () => { if (!el) return; bg.remove(); document.removeEventListener('keydown', key, true); el = null; res(); };
+    btn.onclick = () => { if (failed) return closeBox(); cancel(); if (problems.length) showProblems(); else closeBox(); };
+    document.addEventListener('keydown', key, true);
+    document.body.appendChild(bg); el = bg; shownAt = performance.now(); paint();
+    btn.focus({ preventScroll:true });
+    if (ended) showProblems();
+  });
+  const timer = setTimeout(() => { if (!ended) turn = inTurn(show); }, SHOW_AFTER_MS);
+  return job;
+}
+
+// Opening: every way in (Open, "Open with" / double-click, start-up files, dropped files) feeds one job; files that
+// arrive while it runs join it ("File 6 of 8") instead of being turned away. item = { name, path, read() → { data | error } }
+let openJob = null;
+async function queueOpen(items){
+  if (!items.length) return;
+  if (openJob) { openJob.items.push(...items); return openJob.done; }
+  while (state.busy) await new Promise(r => setTimeout(r, 200));
+  if (openJob) { openJob.items.push(...items); return openJob.done; }   // another call started one meanwhile
+  const j = openJob = { items:[...items], done:null };
+  j.done = busy('Opening…', () => runOpen(j));
+  return j.done;
+}
+async function runOpen(j){
+  const job = startProgress({ title:`Opening ${j.items[0].name}`,
+    failTitle: n => j.items.length === 1 ? `Couldn't open ${j.items[0].name}` : `Couldn't open ${n} file${n > 1 ? 's' : ''}` });
+  const tried = new Set();
+  try {
+    for (let i = 0; i < j.items.length && !job.cancelled; i++) {
+      const it = j.items[i], key = it.path && it.path.toLowerCase();
+      const at = s => j.items.length > 1 ? `File ${i + 1} of ${j.items.length} · ${s}` : s;
+      const open = key && state.docs.find(d => d.path && d.path.toLowerCase() === key);
+      if (open) { activate(open.id); continue; }
+      if (key) { if (tried.has(key)) continue; tried.add(key); }
+      job.update({ title:`Opening ${it.name}`, step: at('Reading the file…'), frac:null });
+      let r; try { r = await it.read(); } catch(e){ r = { error: e?.message || String(e) }; }
+      if (job.cancelled) break;
+      if (r.error) { job.problem(`${it.name} — couldn't be read: ${r.error}`); continue; }
+      job.update({ step: at('Opening…'), frac:null });
+      try { await openDoc(new Uint8Array(r.data), it.name, { path: it.path }); }
+      catch(e){ if (!e.cancelled) job.problem(`${it.name} — ${e.userReason}`); }
+    }
+  } finally { openJob = null; job.end(); }
+}
+
 // Help > Check for Updates: "Checking…" (Esc or a click outside closes it and drops the answer), then the answer.
 async function checkUpdatesCmd(){
   if (!screenFree()) return;
@@ -870,15 +977,28 @@ async function loadPdf(d){
   for (let i=1;i<=d.n;i++){ const v=(await d.pdf.getPage(i)).getViewport({scale:1}); d.sizes.push({w:v.width,h:v.height}); }
   d.thumbCanvas = []; d.viewGen = (d.viewGen||0)+1;
 }
-async function openBytes(bytes, name, opts={}){
+// A new tab from PDF bytes → the doc. Throws an Error with .reason ('engine' | 'password' | 'damaged') and .userReason
+// (the progress box's problem line, after "<name> — ").
+const OPEN_REASONS = { engine:'the PDF engine did not load (reinstall Sastra PDF)', password:"password-protected, so it can't be opened here", damaged:'damaged or not a PDF' };
+async function openDoc(bytes, name, opts={}){
   const d = { id:++uid, name, bytes, sel:new Set(), anchor:null, current:0, zoom:1, fit:'width', history:[], future:[], dirty:!!opts.dirty, sample:!!opts.sample, path:opts.path||null, scroll:0 };
   try { await loadPdf(d); }
   catch(e){
-    const m = !pdfjsLib ? 'The PDF engine did not load. Reinstall Sastra PDF.' : e?.name === 'PasswordException' ? `${name} is password-protected, so it can't be opened here.` : `Couldn't open ${name}. The file may be damaged or not a PDF.`;
-    toast(m, true); return null;
+    const err = new Error(e?.message || String(e));
+    err.reason = !pdfjsLib ? 'engine' : e?.name === 'PasswordException' ? 'password' : 'damaged';
+    err.userReason = OPEN_REASONS[err.reason]; err.cancelled = !!e?.cancelled;
+    throw err;
   }
   state.docs.push(d); state.combine.push({id:d.id, on:true});
   activate(d.id); return d;
+}
+// The same for the app's own results (split parts, Combine, samples): a problem is a toast → null.
+async function openBytes(bytes, name, opts={}){
+  try { return await openDoc(bytes, name, opts); }
+  catch(e){
+    toast(e.reason === 'engine' ? 'The PDF engine did not load. Reinstall Sastra PDF.' : e.reason === 'password' ? `${name} is password-protected, so it can't be opened here.` : `Couldn't open ${name}. The file may be damaged or not a PDF.`, true);
+    return null;
+  }
 }
 async function openFiles(files){
   const list = [...files].filter(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
@@ -1735,25 +1855,15 @@ function updateTitle(){
   const t = d ? `${d.dirty && !d.sample ? '• ' : ''}${d.name} — ${tag}` : tag;
   document.title = t; desk?.setTitle(t);
 }
-async function openResults(list){
-  if (!list?.length) return;
-  await busy(`Opening ${list.length} file${list.length>1?'s':''}…`, async () => {
-    for (const r of list) {
-      const open = state.docs.find(d => d.path && r.path && d.path.toLowerCase() === r.path.toLowerCase());
-      if (open) { activate(open.id); continue; }
-      if (r.error) { toast(`Couldn't open ${r.name}: ${r.error}`, true); continue; }
-      await openBytes(new Uint8Array(r.data), r.name, { path:r.path });
-    }
-  });
-}
+// Files from disk ("Open with", start-up files, Open): read one by one inside the open job, so its box can say which.
+const pathItem = p => ({ name: p.split(/[\\/]/).pop(), path: p, read: () => desk.readFile(p) });
 async function openPaths(paths){
   if (!desk || !paths?.length) return;
-  const list = []; for (const p of paths) list.push(await desk.readFile(p));
-  await openResults(list);
+  await queueOpen(paths.map(pathItem));
 }
 async function openCmd(){
   if (!desk) { $('#fOpen').click(); return; }
-  await openResults(await desk.openDialog());
+  await queueOpen((await desk.openDialog()).map(f => pathItem(f.path)));
 }
 if (desk) {
   desk.onMenu(cmd => {

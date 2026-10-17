@@ -232,9 +232,8 @@ ipcMain.handle('open-dialog', async () => {
   const r = await dialog.showOpenDialog(win, { title: 'Open PDF', defaultPath: await startIn('open'), properties: ['openFile', 'multiSelections'], filters: PDF_FILTER });
   if (r.canceled) return [];
   if (r.filePaths.length) remember('open', path.dirname(r.filePaths[0]));
-  const out = [];
-  for (const p of r.filePaths) { try { out.push(await readPdf(p)); } catch (e) { out.push({ path: p, name: path.basename(p), error: e.message }); } }
-  return out;
+  // only the names: the page reads each file itself (read-file), so its progress box can say which one
+  return r.filePaths.map(p => ({ path: p, name: path.basename(p) }));
 });
 
 ipcMain.handle('read-file', async (_e, p) => {
