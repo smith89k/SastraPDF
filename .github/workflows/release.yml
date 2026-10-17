@@ -1,9 +1,9 @@
-# Builds the Windows installer and releases it: into the Cloudflare R2 bucket behind https://sastra-update.smith89k.com/
-# (where installed copies update from, and the download link https://sastra-update.smith89k.com/Sastra-PDF-Setup.exe),
-# and as a GitHub release with the notes from What's new (app/notes.js).
+# Builds the Windows installer and releases it: into the private Cloudflare R2 bucket behind
+# https://sastra-update.smith89k.com/ (locked with Cloudflare Access: only installed copies, which carry the update key,
+# get in), and as a GitHub release with the notes from What's new (app/notes.js) — the installer to hand out.
 # Runs only by hand: Actions > Release > Run workflow, type the version (= package.json), or
 #   gh workflow run release.yml -f version=1.2.0
-# Pushing code or tags never releases. Setup (bucket, domain, the four R2 secrets): docs/updates-setup.md.
+# Pushing code or tags never releases. Setup (bucket, domain, lock, the six secrets): docs/updates-setup.md.
 name: Release
 
 on:
@@ -53,6 +53,8 @@ jobs:
           R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           GH_TOKEN: ${{ github.token }}
         run: |
           v="$(node -p "require('./package.json').version")"
@@ -62,7 +64,7 @@ jobs:
           if gh release view "v$VERSION" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
             echo "::error::v$VERSION is already released. Bump the version for a new release."; exit 1
           fi
-          for s in R2_ACCOUNT_ID R2_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+          for s in R2_ACCOUNT_ID R2_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
             if [ -z "${!s}" ]; then echo "::error::A GitHub secret is missing ($s): see docs/updates-setup.md"; exit 1; fi
           done
           # An earlier run stopped after uploading but before the GitHub release: building again would put different
@@ -76,6 +78,14 @@ jobs:
 
       - name: Check What's new has notes for this version (app/notes.js)
         run: node scripts/check-notes.js
+
+      # The update address only lets this key in; it goes inside the app, so every copy installed from this release can
+      # update. Never committed (.gitignore). A build without it doesn't check for updates.
+      - name: Put the update key into the app (update-config.json)
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: node -e "require('fs').writeFileSync('update-config.json', JSON.stringify({ clientId:process.env.CF_ACCESS_CLIENT_ID, clientSecret:process.env.CF_ACCESS_CLIENT_SECRET }))"
 
       - name: Build the File Explorer menu (C++ DLL + package; needs the runner's Visual Studio + Windows SDK)
         run: node scripts/build-explorer-menu.js
@@ -117,10 +127,24 @@ jobs:
           }
           put "dist/$EXE" "$EXE"
           put "dist/$EXE.blockmap" "$EXE.blockmap"
-          # the download link: always the newest, never cached by Cloudflare, saved under the versioned name
-          put "dist/$EXE" Sastra-PDF-Setup.exe --cache-control no-cache --content-type application/octet-stream \
-            --content-disposition "attachment; filename=\"$EXE\""
           put dist/latest.yml latest.yml --cache-control no-cache --content-type text/yaml
+
+      # Without the key the address must refuse (no public downloads); with it, installed copies must get this version.
+      - name: The update address is locked, and opens with the key
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          url=https://sastra-update.smith89k.com/latest.yml
+          without="$(curl -s -o /dev/null -w '%{http_code}' "$url")"
+          if [ "$without" = "200" ]; then
+            echo "::error::The update address is NOT locked: anyone can download. Check the Cloudflare Access application for sastra-update.smith89k.com."; exit 1
+          fi
+          if ! body="$(curl -sf -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" "$url")"; then
+            echo "::error::The update key doesn't open the update address. Check the Access policy and the CF_ACCESS_* secrets."; exit 1
+          fi
+          if ! grep -q "^version: $VERSION" <<< "$body"; then echo "::error::latest.yml at the address is not $VERSION:"; echo "$body"; exit 1; fi
+          echo "Locked (without the key: HTTP $without); with the key: version $VERSION"
 
       - name: Remove older installers from R2 (every .blockmap stays)
         env:
@@ -141,6 +165,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/release-notes.js "$VERSION" > notes.md
-          printf '\nDownload: https://sastra-update.smith89k.com/Sastra-PDF-Setup.exe (always the newest version)\n\nSHA-256 of the installer: `%s`\n' \
+          printf '\nGive the installer below to the people who should have Sastra PDF: copies installed from it update themselves.\n\nSHA-256 of the installer: `%s`\n' \
             "$(sha256sum "dist/$EXE" | cut -d' ' -f1)" >> notes.md
           gh release create "v$VERSION" "dist/$EXE" --target "$GITHUB_SHA" --title "Sastra PDF $VERSION" --notes-file notes.md
