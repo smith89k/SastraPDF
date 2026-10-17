@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld('sastra', {
   print: opts => ipcRenderer.invoke('print', opts),
   printerPrefs: name => ipcRenderer.invoke('printer-prefs', name),
   pathForFile: f => { try { return webUtils.getPathForFile(f) || null; } catch { return null; } },
+  // automatic updates (main.js / updater.js) and the right-click menu repair after one
+  checkUpdates: () => ipcRenderer.invoke('check-updates'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  menuRepair: action => ipcRenderer.invoke('menu-repair', action),
+  onUpdateReady: fn => ipcRenderer.on('update-ready', (_e, v) => fn(String(v))),
   onMenu: fn => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
   onOpenPaths: fn => ipcRenderer.on('open-paths', (_e, paths) => fn(paths)),
   onCombinePaths: fn => ipcRenderer.on('combine-paths', (_e, paths) => fn(paths)),

@@ -1,9 +1,12 @@
 // Sastra PDF — Electron main process
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell, nativeTheme } = require('electron');
 const path = require('path');
+const os = require('os');
 const fs = require('fs/promises');
+const fsSync = require('fs');
 const { execFile } = require('child_process');
 const menu = require('./explorer-menu');
+const updates = require('./updater');
 
 const APP_NAME = 'Sastra PDF';
 // Window title: "Sastra PDF v1.0.0", plus " (dev)" when run from source (pnpm start / run.bat).
@@ -11,6 +14,7 @@ const APP_TITLE = `${APP_NAME} v${app.getVersion()}${app.isPackaged ? '' : ' (de
 let win = null;
 let pendingPaths = [];      // PDFs passed before the window was ready
 let allowClose = false;
+let up = null;              // automatic updates (updater.js), only in the installed app
 
 // Installer hooks (build/installer.nsh): "Sastra PDF.exe --explorer-menu=install|uninstall|release|add-package"
 // sets up the File Explorer right-click menu and exits — before the single-instance lock, with no window.
@@ -192,6 +196,7 @@ function buildMenu() {
       { label: 'Developer Tools', accelerator: 'Ctrl+Shift+I', click: () => win && win.webContents.toggleDevTools() }
     ]},
     { label: '&Help', submenu: [
+      { label: 'Check for &Updates…', click: () => send('checkUpdates') },   // answers in the page's own boxes
       { label: "What's &New", click: () => send('whatsNew') },   // the page's What's new window (notes.js)
       { label: '&About Sastra PDF', click: () => send('about') }   // the page shows its own About screen
     ]}
@@ -379,6 +384,35 @@ ipcMain.handle('printer-prefs', async (_e, name) => {
   return true;
 });
 ipcMain.handle('app-version', () => app.getVersion());
+
+/* Automatic updates (updater.js). The page asks about unsaved changes BEFORE install-update: quitAndInstall starts the
+   installer at once and it closes the app by force, so nothing may be left to ask by then. */
+ipcMain.handle('check-updates', () => up ? up.checkNow() : { kind: 'dev' });
+ipcMain.handle('install-update', () => {
+  const block = updates.installBlock({ downloaded: up && up.downloaded(), taskOpen: !!taskWin });
+  if (block) return { ok: false, reason: block };
+  allowClose = true;
+  up.install();
+  return { ok: true };
+});
+// After a silent update the right-click menu may have fallen back to "Show more options" (explorer-menu.js
+// repairNeeded): 'check' → { needed }, 'later' → not again for this version, 'fix' → the installer's own setup step,
+// run as a separate process so the window doesn't freeze while Windows asks for permission.
+ipcMain.handle('menu-repair', async (_e, action) => {
+  if (action === 'check') {
+    return { needed: app.isPackaged && menu.repairNeeded({
+      build: menu.windowsBuild(), msixExists: fsSync.existsSync(path.join(process.resourcesPath, 'explorer-menu', menu.PKG + '.msix')),
+      state: menu.readState(), version: app.getVersion()
+    }) };
+  }
+  if (action === 'later') { menu.writeState({ asked: app.getVersion() }); return {}; }
+  if (action === 'fix') {
+    await new Promise(res => execFile(process.execPath, ['--explorer-menu=install'], { windowsHide: true }, () => res()));
+    const st = menu.readState();
+    return { result: st.mode === 'package' ? 'ok' : st.declined === '1' ? 'declined' : 'failed' };
+  }
+  return {};
+});
 ipcMain.handle('initial-paths', () => { const p = pendingPaths; pendingPaths = []; return p; });
 
 app.whenReady().then(() => {
@@ -392,5 +426,13 @@ app.whenReady().then(() => {
   pendingPaths = pdfArgs(process.argv);
   if (pendingPaths.length) remember('open', path.dirname(pendingPaths[0]));
   createWindow();
+  // a right-click job alone (above) never checks; electron-updater is loaded only here
+  if (updates.updatesRunHere({ packaged: app.isPackaged, platform: process.platform, portable: !!process.env.PORTABLE_EXECUTABLE_DIR })) {
+    up = updates.createUpdater({
+      updater: require('electron-updater').autoUpdater, current: app.getVersion(),
+      send: (channel, v) => { if (win) win.webContents.send(channel, v); },
+      log: updates.logTo(path.join(os.tmpdir(), 'Sastra PDF', 'update.log'))
+    });
+  }
 });
 app.on('window-all-closed', () => app.quit());
