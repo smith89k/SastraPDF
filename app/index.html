@@ -1034,24 +1034,34 @@ async function combine(){
     toast(`Combined ${picks.length} files · ${total} pages`);
   });
 }
-// Combine from the File Explorer menu (main.js sends the paths in name order): one new unsaved tab.
+// Combine / Make PDF from the File Explorer menu (main.js sends the paths in name order): PDFs and pictures
+// (app/images.js) become one new unsaved tab — "<name>.pdf" for one file, else "Combined.pdf". Files that can't be
+// read are skipped and named; one readable file is enough.
 async function combinePaths(paths){
   while (state.busy) await new Promise(r => setTimeout(r, 200));
-  await busy(`Combining ${paths.length} files…`, async () => {
+  const one = paths.length === 1, name = one ? paths[0].split(/[\\/]/).pop().replace(/\.[^.]*$/, '') + '.pdf' : 'Combined.pdf';
+  await busy(one ? `Making ${name}…` : `Combining ${paths.length} files…`, async () => {
     const out = await PDFDocument.create(), bad = []; let used = 0;
     for (const p of paths) {
       const f = await desk.readFile(p);
       if (f.error) { bad.push(f.name); continue; }
+      const bytes = new Uint8Array(f.data);
       try {
-        const src = await PDFDocument.load(new Uint8Array(f.data), { ignoreEncryption:true });
-        if (src.isEncrypted) { bad.push(f.name); continue; }
-        (await out.copyPages(src, src.getPageIndices())).forEach(pg => out.addPage(pg)); used++;
+        if (SastraImages.kind(bytes) === 'pdf') {
+          const src = await PDFDocument.load(bytes, { ignoreEncryption:true });
+          if (src.isEncrypted) { bad.push(f.name); continue; }
+          (await out.copyPages(src, src.getPageIndices())).forEach(pg => out.addPage(pg));
+        } else await SastraImages.addImagePage(out, bytes);
+        used++;
       } catch { bad.push(f.name); }
     }
-    const skipped = bad.length ? ` Couldn't read: ${bad.join(', ')}` : '';
-    if (used < 2) { toast(`Combine needs at least two readable PDFs.${skipped}`, true); return; }
-    const d = await openBytes(await out.save(), 'Combined.pdf', { dirty:true });
-    if (d) { d.saveDir = paths[0].replace(/[\\/][^\\/]*$/, ''); toast(`Combined ${used} files · ${d.n} pages.${skipped}`, !!bad.length); }
+    const skipped = bad.length ? `. Couldn't read: ${bad.join(', ')}` : '';
+    if (!used) { toast(`No PDF made${skipped}`, true); return; }
+    const d = await openBytes(await out.save(), name, { dirty:true });
+    if (!d) return;
+    d.saveDir = paths[0].replace(/[\\/][^\\/]*$/, '');
+    const pages = `${d.n} page${d.n > 1 ? 's' : ''}`;
+    toast(one ? `Made ${name} · ${pages}${skipped}` : `Combined ${used} file${used > 1 ? 's' : ''} · ${pages}${skipped}`, !!bad.length);
   });
 }
 
