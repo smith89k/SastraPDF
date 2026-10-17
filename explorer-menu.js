@@ -1,4 +1,4 @@
-// Sastra PDF — File Explorer right-click menu: registering it (installer hooks, see build/installer.nsh) and
+// Sastra PDF — File Explorer right-click menu for PDFs and pictures: registering it (installer hooks, see build/installer.nsh) and
 // reading what a menu click asked for (--sastra-task / --sastra-list). No Electron here: plain-Node testable.
 // Windows 11: the unsigned sparse package SastraPDF.ExplorerMenu (first menu; adding it needs admin once).
 // Windows 10, silent installs and any failure: classic HKCU keys (Windows 11: under "Show more options").
@@ -11,6 +11,8 @@ const CLSID = '{47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}';
 const CLASSES = 'HKCU\\Software\\Classes';
 const STATE_KEY = 'HKCU\\Software\\Sastra PDF\\ExplorerMenu';
 const TASKS = ['combine', 'split-here', 'split-folder', 'images-here', 'images-folder'];
+// The file types the menu is shown for: = the ItemTypes in AppxManifest.xml and the list in menu.cpp (the build script checks)
+const EXTS = ['.pdf', '.jpg', '.jpeg', '.jfif', '.png', '.bmp', '.gif', '.webp'];
 const LIST_DIR = () => path.join(os.tmpdir(), 'Sastra PDF');
 
 /* ---------- what a menu click asked for ---------- */
@@ -23,8 +25,8 @@ function parseTaskArgs(argv) {
 const real = p => { try { return fs.realpathSync.native(p).toLowerCase(); } catch { return null; } };
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 // The list file written by SastraMenu.dll: UTF-8, one path per line. Only %TEMP%\Sastra PDF\menu-*.txt is read
-// (and then deleted), so the switch can't be used to delete other files. Returns existing .pdf files in name
-// order — 01, 02, 10, like Explorer (the menu hands them over in its own order).
+// (and then deleted), so the switch can't be used to delete other files. Returns existing PDFs and pictures
+// (EXTS) in name order — 01, 02, 10, like Explorer (the menu hands them over in its own order).
 function readTaskList(file, tempDir = LIST_DIR()) {
   const f = path.resolve(String(file));
   if (!/^menu-[\w-]+\.txt$/i.test(path.basename(f))) return [];
@@ -34,7 +36,7 @@ function readTaskList(file, tempDir = LIST_DIR()) {
   try { fs.unlinkSync(f); } catch {}
   const seen = new Set();
   return text.replace(/^﻿/, '').split(/\r?\n/).map(s => s.trim()).filter(p => {
-    if (!p || !/\.pdf$/i.test(p) || !path.isAbsolute(p)) return false;
+    if (!p || !EXTS.includes(path.extname(p).toLowerCase()) || !path.isAbsolute(p)) return false;
     const k = p.toLowerCase(); if (seen.has(k)) return false; seen.add(k);
     try { return fs.statSync(p).isFile(); } catch { return false; }
   }).sort((a, b) => collator.compare(path.basename(a), path.basename(b)) || collator.compare(a, b));
@@ -51,21 +53,24 @@ function log(msg) {
 function windowsBuild() { const m = /^10\.0\.(\d+)/.exec(os.release()); return m ? +m[1] : 0; }
 
 /* ---------- classic menu (HKCU) ---------- */
-const verbKey = classes => `${classes}\\SystemFileAssociations\\.pdf\\shell\\SastraPDF`;
+const verbKey = (classes, ext) => `${classes}\\SystemFileAssociations\\${ext}\\shell\\SastraPDF`;
 const clsidKey = classes => `${classes}\\CLSID\\${CLSID}`;
 function registerClassic(dll, classes = CLASSES) {
   const steps = [
     [clsidKey(classes), '/ve', '/d', 'Sastra PDF Explorer menu'],
     [clsidKey(classes) + '\\InprocServer32', '/ve', '/d', dll],
     [clsidKey(classes) + '\\InprocServer32', '/v', 'ThreadingModel', '/d', 'Apartment'],
-    [verbKey(classes), '/v', 'ExplorerCommandHandler', '/d', CLSID],
-    [verbKey(classes), '/v', 'MultiSelectModel', '/d', 'Player']   // shown for more than 15 files too
+    ...EXTS.flatMap(ext => [
+      [verbKey(classes, ext), '/v', 'ExplorerCommandHandler', '/d', CLSID],
+      [verbKey(classes, ext), '/v', 'MultiSelectModel', '/d', 'Player']   // shown for more than 15 files too
+    ])
   ];
   for (const [key, ...rest] of steps) if (reg('add', key, ...rest, '/f').status !== 0) return false;
   return true;
 }
-function unregisterClassic(classes = CLASSES) { reg('delete', verbKey(classes), '/f'); reg('delete', clsidKey(classes), '/f'); }
-function classicRegistered(classes = CLASSES) { return reg('query', verbKey(classes), '/v', 'ExplorerCommandHandler').status === 0; }
+function unregisterClassic(classes = CLASSES) { for (const ext of EXTS) reg('delete', verbKey(classes, ext), '/f'); reg('delete', clsidKey(classes), '/f'); }
+// every type: a 1.0.x install registered only .pdf
+function classicRegistered(classes = CLASSES) { return EXTS.every(ext => reg('query', verbKey(classes, ext), '/v', 'ExplorerCommandHandler').status === 0); }
 
 /* ---------- what was set up last time (so updates don't ask for admin again) ---------- */
 const FIELDS = { Mode: 'mode', Location: 'location', Version: 'version', Declined: 'declined' };
@@ -164,6 +169,6 @@ function runCommand(cmd, o) {
 }
 
 module.exports = {
-  CLSID, PKG, PKG_VERSION, TASKS, parseTaskArgs, readTaskList, registerClassic, unregisterClassic, classicRegistered,
+  CLSID, PKG, PKG_VERSION, TASKS, EXTS, parseTaskArgs, readTaskList, registerClassic, unregisterClassic, classicRegistered,
   readState, writeState, clearState, windowsBuild, oldDir, cleanOld, release, runCommand, packageWorks
 };
