@@ -405,14 +405,19 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   ops, print 71 (print-test's layout check now 1217 px up and it reads the default printer from the registry
   — Windows manages it here and it moved from the Canon to the HP M855 on 2026-10-16; menu-test's menu-row
   check now expects no row on either window).
-- **Pictures in the Explorer menu (2026-10-17, branch feat/explorer-images; with the new logo + .pdf icon)**:
-  spec + plan in docs/superpowers. Passed from source AND on `dist\win-unpacked` (built with
-  `npx electron-builder --win --dir`, version unchanged): images 61 (all 8 EXIF orientations drawn by pdf.js =
-  what Chromium shows), menu 51 (incl. pictures + PDFs combine, Make PDF, "No PDF made"), unit 38, DLL harness 39,
-  ops 10, folder 23, print 71, close 12, titlebar 43. Tests live in this session's scratchpad `t\` (pictures.js
-  makes the test pictures; print-test empties `t\out\`, and titlebar-test needs `t\out\ten.pdf` — copy it from
-  `t\pdfs\` before running it after print-test). Not yet: an installer build (version number to be chosen by the
-  user), installing over the user's copy, the real right-click menu (package 1.1.0.0 → one UAC prompt).
+- **v1.1.0 built and installed 2026-10-17, not released yet** (branch feat/explorer-images, not merged): new logo +
+  .pdf icon, pictures in the Explorer menu (Make PDF / Combine any mix; menu package 1.1.0.0), accent = the logo's red,
+  Bohpum-style dropdowns / tick boxes, installer refreshes Windows' icon cache. Specs + plans in docs/superpowers
+  (2026-10-17-*). Version 1.1.0 chosen by the user (1.0.4 was never released, so it was skipped).
+  `dist\Sastra PDF Setup 1.1.0.exe` (113 958 331 bytes, SHA-256 0f730535…f4aacd). Passed from source AND packaged:
+  colour 11, controls 15, images 61 (all 8 EXIF orientations drawn by pdf.js = what Chromium shows), menu 51,
+  unit 38, DLL harness 39, ops 10, folder 23, print 71, close 12 (packaged: once the test lost the window as the
+  app closed — a test race; 12/12 on two re-runs), titlebar 43. Installed over the user's 1.0.3 (UAC Yes →
+  `install: package added`, package 1.1.0.0 starts). The user checked on the real menu: Make PDF on one photo
+  (upright), Combine 3 files right-clicking a picture and right-clicking the PDF of the same mixed selection, the red
+  look, the new controls and the new icons (shortcut, Start, taskbar) — "all pass".
+  Tests live in the 2026-10-17 session scratchpad `t\` (…\4e4e0838-…\scratchpad\t; pictures.js makes the test
+  pictures; print-test empties `t\out\`, and titlebar-test needs `t\out\ten.pdf` — copy it from `t\pdfs\` first).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
