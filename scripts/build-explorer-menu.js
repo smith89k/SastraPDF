@@ -1,7 +1,7 @@
 // Builds the File Explorer right-click menu: SastraMenu.dll (C++, MSVC) and the unsigned sparse package
 // SastraPDF.ExplorerMenu.msix, into explorer-menu/out/ (gitignored; electron-builder copies them to
 // resources/explorer-menu). Needs Visual Studio Build Tools ("Desktop development with C++", x64) and the
-// Windows 10/11 SDK. Run by `npm run dist`; alone: `npm run build:menu`.
+// Windows 10/11 SDK. Run by `pnpm run dist`; alone: `pnpm run build:menu`.
 const { spawnSync } = require('child_process');
 const fs = require('fs'), path = require('path');
 

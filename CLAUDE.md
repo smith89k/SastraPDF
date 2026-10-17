@@ -45,15 +45,15 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        `Sastra PDF.exe --explorer-menu=install|uninstall|release`
     app/vendor/        pdf.min.mjs, pdf.worker.min.mjs, pdf-lib.min.js, and
                        pdfjs/{wasm,standard_fonts,cmaps}/ (pdf.js support files, ~3.3 MB)
-                       — filled by `scripts/copy-vendor.js` on `npm install` (gitignored; the script
+                       — filled by `scripts/copy-vendor.js` on `pnpm install` (gitignored; the script
                        empties the folder first so stale files never ship)
     scripts/check-credits.js    postinstall: warns if About's library versions are out of date
-    scripts/check-notes.js  first step of `npm run dist` / `dist:portable` and the release workflow: fails when the
+    scripts/check-notes.js  first step of `pnpm run dist` / `dist:portable` and the release workflow: fails when the
                        newest What's new entry isn't package.json's version, or an entry is broken (date, kind, text, twice)
-    scripts/build-explorer-menu.js  run by `npm run dist` (and CI): finds MSVC with vswhere → vcvars64,
+    scripts/build-explorer-menu.js  run by `pnpm run dist` (and CI): finds MSVC with vswhere → vcvars64,
                        compiles SastraMenu.dll (/MT), packs SastraPDF.ExplorerMenu.msix with makeappx;
                        fails if the CLSID / package version differ between menu.cpp, the manifest and
-                       explorer-menu.js. Alone: `npm run build:menu`
+                       explorer-menu.js. Alone: `pnpm run build:menu`
     scripts/ensure-electron.js  postinstall: downloads electron.exe and unpacks it with Windows
                        tar.exe (Electron 42+ no longer downloads itself on install; see gotchas)
     build/logo.png     Logo master, 1024 px (since 2026-10-17): red rounded tile (corner radius ≈ 25 %),
@@ -86,8 +86,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        for the About screen
     .github/workflows/release.yml  GitHub Actions: on a vX.Y.Z tag, builds the installer on
                        Windows and publishes the GitHub release (see Status)
-    build.bat          npm install + npm run dist, then opens dist\  (CRLF line endings)
-    run.bat            npm install if needed, then npm start  (CRLF line endings)
+    build.bat          pnpm install + pnpm run dist, then opens dist\  (CRLF line endings)
+    run.bat            pnpm install if needed, then pnpm start  (CRLF line endings)
+                       (both stop with "run npm install -g pnpm" when pnpm is missing)
+    pnpm-workspace.yaml  pnpm settings (pnpm reads them here, not from package.json or .npmrc):
+                       `overrides` and `allowBuilds`. pnpm-lock.yaml is the lock file (no package-lock.json)
     (no web version: web/index.html, a browser-only copy, was removed on 2026-10-15 at the
      user's request — "no need web version". It is in git history if ever wanted again.)
 
@@ -107,8 +110,14 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   2+ pages pick a folder first and write one file each (see "Saving several files").
 - Electron **44.7.2**, electron-builder **26.15.3**, NSIS installer (not one-click, choose dir,
   desktop + Start menu shortcuts), `.pdf` file association. appId `kh.sastra.pdf`.
-- `npm audit`: 0 warnings (2026-10-15). package.json `overrides` pins `global-agent` 4.1.3 (pulled in
-  by electron-builder's @electron/get, build-time only; it cleared the sprintf-js warnings).
+- Package manager: **pnpm 12.4.1** (since 2026-10-17, the user's wish — one shared copy of each package
+  on disk; was npm). package.json `packageManager` pins it (CI's pnpm/action-setup reads it). pnpm-lock.yaml
+  was made with `pnpm import` from the npm lock: same 283 package versions. pnpm 12 stops an install when a
+  dependency wants to run an install script nobody approved: `allowBuilds` in pnpm-workspace.yaml says
+  `electron-winstaller: false` (its script only picks 7-Zip for Squirrel installers; we build NSIS).
+- `pnpm audit`: no known vulnerabilities (2026-10-17). pnpm-workspace.yaml `overrides` pins `global-agent`
+  4.1.3 (pulled in by electron-builder's @electron/get, build-time only; it cleared the sprintf-js warnings).
+  pnpm ignores npm's package.json `overrides` (it silently installed 3.0.0).
 - Security: contextIsolation on, nodeIntegration off, sandbox on, CSP meta in app/index.html. The CSP
   allows 'wasm-unsafe-eval' (WebAssembly only, for pdf.js's image decoders) but not 'unsafe-eval'.
 - Licensing: all libraries are permissive. Avoid AGPL libraries (PyMuPDF, iText) unless a
@@ -181,7 +190,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - `const desk = window.sastra || null` — when present (Electron), Open/Save/Save As/export use
   native dialogs, Ctrl+S writes to `d.path`; window title is "name — Sastra PDF v1.0.0" ("• name …"
   when dirty, just the tag with no PDF). The tag comes from main.js `APP_TITLE` (package.json
-  version, + " (dev)" when `!app.isPackaged`, i.e. npm start / run.bat), passed to the renderer as
+  version, + " (dev)" when `!app.isPackaged`, i.e. pnpm start / run.bat), passed to the renderer as
   `--sastra-title=` in `additionalArguments` and exposed by preload as `desk.appTitle`.
   Without it (app/index.html opened in a plain browser) it falls back to file inputs, browser
   downloads and two generated sample PDFs — leftovers from the removed web version, still working.
@@ -375,11 +384,12 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   be increased" (the user must fix it under GitHub Settings > Billing & plans). So v1.0.0 and v1.0.1
   were built locally (`npm run dist`) and uploaded with `gh release create`; the v1.0.1 tag's
   workflow run failed for that reason (re-running it would now fail anyway: the release exists).
-  Until billing is fixed, release by hand the same way, after running the Playwright checks.
+  Until billing is fixed, release by hand the same way (now `pnpm run dist`), after running the Playwright checks.
 - Once billing works, releases are built by GitHub Actions (`.github/workflows/release.yml`,
-  windows-latest, Node 24). To release: `npm version X.Y.Z --no-git-tag-version` (title, About and installer
+  windows-latest, Node 24). To release: `pnpm version X.Y.Z --no-git-tag-version --no-git-checks` (unlike npm, pnpm
+  refuses a dirty working tree without `--no-git-checks`; it only edits package.json) (title, About and installer
   name follow package.json), write the new version's entry at the top of app/notes.js with the release date (What's new;
-  `npm run dist` and the workflow refuse to build without it — the GitHub release notes can be copied from it), run the
+  `pnpm run dist` and the workflow refuse to build without it — the GitHub release notes can be copied from it), run the
   Playwright checks locally, merge to main, then
   `git tag -a vX.Y.Z -F notes.md` (the tag message becomes the release notes) and
   `git push origin vX.Y.Z`. The workflow fails if the tag and package.json disagree, builds with
@@ -480,10 +490,17 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   (no UAC prompt) — sign the .msix too and drop the OID from its Publisher.
 
 ## Known build gotchas
-- `npm run dist` can fail with "EPERM: operation not permitted, rename dist\win-unpacked.tmp" right
+- pnpm layout (since 2026-10-17): node_modules holds only our own packages, each a LINK to its real folder
+  in node_modules/.pnpm; everything else sits next to the package that needs it there. So a script that looks
+  for a package we don't list (pako, @electron/get) must start from `fs.realpathSync` of the one that pulls it
+  in (check-credits.js, ensure-electron.js), and Windows tar won't unpack through the link
+  ("Cannot extract through symlink"), so ensure-electron.js works in electron's real folder.
+- pnpm skips our postinstall when node_modules is already up to date: to refresh app/vendor run
+  `pnpm run postinstall` (or delete node_modules and `pnpm install`).
+- `pnpm run dist` can fail with "EPERM: operation not permitted, rename dist\win-unpacked.tmp" right
   after the old build was run or tested (antivirus/indexer still holding files). Delete
   `dist\win-unpacked.tmp` and run it again; the retry worked.
-- Electron binary: Electron 42+ doesn't download electron.exe on `npm install` (only on first run),
+- Electron binary: Electron 42+ doesn't download electron.exe on install (only on first run),
   and Electron 33's installer stalled on Node 24. `scripts/ensure-electron.js` (postinstall) fetches
   the checksummed zip via `@electron/get` and unpacks it with `C:\Windows\System32\tar.exe`
   (Git Bash's GNU tar can't read .zip).
@@ -508,7 +525,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Test windows come to the front: keys the user types meanwhile can land in them (2026-10-17: a Backspace typed
   in another app deleted a page in controls-test's window). A one-off "page count dropped / dirty" failure while
   the user was typing is that, not a bug — re-run it.
-- `npm run dist` needs Visual Studio Build Tools (C++ x64) + the Windows SDK for the Explorer menu
+- `pnpm run dist` needs Visual Studio Build Tools (C++ x64) + the Windows SDK for the Explorer menu
   (this PC: Build Tools 2026 / MSVC 14.51, SDK 10.0.26100). vcvars prints "'vswhere.exe' is not
   recognized" — harmless.
 - Explorer menu package: change `PKG_VERSION` (explorer-menu.js) and the manifest's Version together,

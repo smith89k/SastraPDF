@@ -1,4 +1,4 @@
-// Makes sure node_modules/electron/dist/electron.exe really exists after "npm install".
+// Makes sure node_modules/electron/dist/electron.exe really exists after "pnpm install".
 // Since Electron 42 the package no longer downloads its binary on install (only on first run), and
 // Electron 33's installer stalled on Node 24 anyway. Here we fetch the same checksummed download
 // and unzip it with Windows' built-in tar.exe, so the binary is ready right after install.
@@ -7,7 +7,9 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
-const pkgDir = path.join(root, 'node_modules', 'electron');
+// pnpm's node_modules/electron is a link to the real folder. Work in the real one: Windows tar won't
+// unpack through a link, and @electron/get sits next to it there, not in our node_modules.
+const pkgDir = fs.realpathSync(path.join(root, 'node_modules', 'electron'));
 const dist = path.join(pkgDir, 'dist');
 const exeName = process.platform === 'win32' ? 'electron.exe' : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron' : 'electron';
 
@@ -39,6 +41,6 @@ function installed(version) {
   const dts = path.join(dist, 'electron.d.ts');
   if (fs.existsSync(dts)) fs.renameSync(dts, path.join(pkgDir, 'electron.d.ts'));
   fs.writeFileSync(path.join(pkgDir, 'path.txt'), exeName);
-  if (!installed(version)) { console.error('electron: unpacking failed — delete node_modules and run "npm install" again.'); process.exit(1); }
+  if (!installed(version)) { console.error('electron: unpacking failed — delete node_modules and run "pnpm install" again.'); process.exit(1); }
   console.log('electron: ' + version + ' unpacked');
 })().catch(e => { console.error('electron: ' + (e && e.stack || e)); process.exit(1); });

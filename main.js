@@ -6,7 +6,7 @@ const { execFile } = require('child_process');
 const menu = require('./explorer-menu');
 
 const APP_NAME = 'Sastra PDF';
-// Window title: "Sastra PDF v1.0.0", plus " (dev)" when run from source (npm start / run.bat).
+// Window title: "Sastra PDF v1.0.0", plus " (dev)" when run from source (pnpm start / run.bat).
 const APP_TITLE = `${APP_NAME} v${app.getVersion()}${app.isPackaged ? '' : ' (dev)'}`;
 let win = null;
 let pendingPaths = [];      // PDFs passed before the window was ready

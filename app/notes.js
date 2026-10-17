@@ -1,6 +1,6 @@
 // Sastra PDF — What's new: what changed in each version, newest first, and when the window shows by itself
 // (as in AI Hub). Written by hand at release time, in plain words: what someone can now do. Text only.
-// The newest entry must be package.json's version: scripts/check-notes.js stops `npm run dist` otherwise,
+// The newest entry must be package.json's version: scripts/check-notes.js stops `pnpm run dist` otherwise,
 // because a release with no notes would show nothing and nobody would notice.
 // Loaded by index.html before its main script; the window is openNotes there.
 (() => {

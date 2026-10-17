@@ -18,7 +18,7 @@ const files = [
 const dirs = ['wasm', 'standard_fonts', 'cmaps'];
 const skip = f => /^quickjs-eval\./.test(f);
 
-const need = src => { if (!fs.existsSync(src)) { console.error('Missing ' + src + ' — run "npm install" again.'); process.exit(1); } };
+const need = src => { if (!fs.existsSync(src)) { console.error('Missing ' + src + ' — run "pnpm install" again.'); process.exit(1); } };
 for (const f of files) {
   const src = path.join(root, 'node_modules', f); need(src);
   fs.copyFileSync(src, path.join(out, path.basename(f)));

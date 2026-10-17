@@ -9,11 +9,17 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+where pnpm >nul 2>nul
+if errorlevel 1 (
+  echo pnpm is not installed. Run "npm install -g pnpm" in a terminal and run this again.
+  pause
+  exit /b 1
+)
 echo [1/2] Installing packages (first time takes a few minutes)...
-call npm install
+call pnpm install
 if errorlevel 1 goto fail
 echo [2/2] Building the Windows installer...
-call npm run dist
+call pnpm run dist
 if errorlevel 1 goto fail
 echo.
 echo Done. The installer is in the dist folder.

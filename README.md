@@ -48,20 +48,21 @@ the app's About screen).
 
 ## Requirements (to build it yourself)
 - Node.js 22.13 or newer (LTS) from https://nodejs.org — Electron 44 and pdf.js 6 need it
-- For the File Explorer menu (built by `npm run dist`): Visual Studio Build Tools with
+- pnpm (`npm install -g pnpm`) — the project uses pnpm, not npm
+- For the File Explorer menu (built by `pnpm run dist`): Visual Studio Build Tools with
   "Desktop development with C++" (x64) and the Windows 10/11 SDK
 
 ## Build the installer
 Double-click **build.bat**, or in a terminal in this folder:
 
-    npm install
-    npm run dist
+    pnpm install
+    pnpm run dist
 
 The installer is written to `dist\Sastra PDF Setup <version>.exe` (the version comes from package.json).
-For a single .exe without installing, run `npm run dist:portable`.
+For a single .exe without installing, run `pnpm run dist:portable`.
 
 ## Run without installing (for development)
-Double-click **run.bat**, or run `npm start`.
+Double-click **run.bat**, or run `pnpm start`.
 
 ## Project layout
     main.js            Window, menus, file dialogs, "Open with" handling
@@ -71,19 +72,21 @@ Double-click **run.bat**, or run `npm start`.
     app/pdfops.js      PDF helpers shared by the app and the Explorer-menu window
     app/images.js      Turns pictures into PDF pages (Make PDF / Combine from the Explorer menu)
     app/task.html/.js  The small window that runs Split / Images from the Explorer menu
-    app/vendor/        pdf.js and pdf-lib (copied automatically by npm install)
+    app/vendor/        pdf.js and pdf-lib (copied automatically by pnpm install)
     explorer-menu/     The File Explorer right-click menu: C++ source (menu.cpp) and its
                        Windows 11 package manifest; built into explorer-menu/out/
     explorer-menu.js   Adds/removes that menu (run by the installer) and reads what it asked for
     build/installer.nsh  Installer steps for the Explorer menu
     build/icon.ico     App and installer icon (made from build/logo.png)
     build/logo.png     The Sastra logo, 1024 px master
-    scripts/           Run by npm install: fetch Electron, copy the libraries into app/vendor,
-                       check the About screen's library versions; build-explorer-menu.js (npm run dist)
+    scripts/           Run by pnpm install: fetch Electron, copy the libraries into app/vendor,
+                       check the About screen's library versions; build-explorer-menu.js (pnpm run dist)
+    pnpm-workspace.yaml  pnpm settings: a pinned build-tool version, which packages may run install scripts
 
 ## Troubleshooting
-- **"Cannot create symbolic link" during `npm run dist`**: run build.bat once as Administrator,
+- **"Cannot create symbolic link" during `pnpm run dist`**: run build.bat once as Administrator,
   or turn on Windows Settings > System > For developers > Developer Mode, then build again.
 - **Windows SmartScreen warns about the installer**: the app is not code-signed. Click
   "More info" > "Run anyway". Signing needs a code-signing certificate.
-- **Behind a proxy**: set `npm config set proxy http://host:port` and `https-proxy` before building.
+- **Behind a proxy**: run `pnpm config set --global https-proxy http://host:port` (and `http-proxy`)
+  before building.

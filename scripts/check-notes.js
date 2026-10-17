@@ -1,4 +1,4 @@
-// Run first by `npm run dist` and the release workflow: stops the build when app/notes.js has no What's new
+// Run first by `pnpm run dist` and the release workflow: stops the build when app/notes.js has no What's new
 // entry for package.json's version, or an entry is broken — a release would otherwise ship an empty What's new
 // and nobody would notice. `node scripts/check-notes.js [file]` checks another copy (tests).
 const fs = require('fs'), path = require('path'), vm = require('vm');
