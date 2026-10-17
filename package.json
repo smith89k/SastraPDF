@@ -12,8 +12,8 @@
     "postinstall": "node scripts/ensure-electron.js && node scripts/copy-vendor.js && node scripts/check-credits.js",
     "start": "electron .",
     "build:menu": "node scripts/build-explorer-menu.js",
-    "dist": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win nsis",
-    "dist:portable": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win portable"
+    "dist": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win nsis --publish never",
+    "dist:portable": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win portable --publish never"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
@@ -36,6 +36,7 @@
       "main.js",
       "preload.js",
       "explorer-menu.js",
+      "updater.js",
       "app/**/*",
       "build/icon.png",
       "package.json"
@@ -50,6 +51,10 @@
         ]
       }
     ],
+    "publish": {
+      "provider": "generic",
+      "url": "https://sastra-update.smith89k.com/"
+    },
     "win": {
       "target": [
         "nsis"
@@ -57,6 +62,7 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
+      "artifactName": "Sastra-PDF-Setup-${version}.${ext}",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
@@ -76,5 +82,8 @@
         "icon": "build/pdf-file.ico"
       }
     ]
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
   }
 }

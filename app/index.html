@@ -689,10 +689,11 @@ const CREDITS = [
   ['pdf-lib','1.17.1','Andrew Dillon','MIT','https://github.com/Hopding/pdf-lib'],
   ['pako','1.0.11','Vitaly Puzrin, Andrei Tuputcyn','MIT, Zlib','https://github.com/nodeca/pako'],
   ['Electron','44.7.2','Electron contributors, GitHub Inc.','MIT','https://www.electronjs.org/'],
+  ['electron-updater','6.8.9','electron-builder contributors','MIT','https://github.com/electron-userland/electron-builder'],
   ['IBM Plex Sans & Mono','','IBM','SIL OFL 1.1','https://github.com/IBM/plex'],
   ['Noto Sans Khmer','','Google','SIL OFL 1.1','https://github.com/notofonts/khmer']
 ];
-const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib: UPNG and tslib (MIT and 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. The installer is made with electron-builder (MIT) and NSIS (zlib). The font files are packaged by Fontsource (MIT).';
+const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib: UPNG and tslib (MIT and 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. electron-updater (automatic updates) comes with builder-util-runtime, fs-extra, jsonfile, universalify, js-yaml, lazy-val, lodash.escaperegexp, lodash.isequal, tiny-typed-emitter, debug and ms (MIT), graceful-fs and semver (ISC), argparse (Python-2.0) and sax (Blue Oak 1.0.0). The installer is made with electron-builder (MIT) and NSIS (zlib). The font files are packaged by Fontsource (MIT).';
 function openAbout(){
   if ($('.modal-bg')) return;
   const back = document.activeElement, A = AUTHOR, out = 'target="_blank" rel="noopener"';   // links open in the normal browser

@@ -10,7 +10,7 @@ const from = { 'pako': 'pdf-lib' };
 const installed = pkg => require(from[pkg]
   ? require.resolve(pkg + '/package.json', { paths: [fs.realpathSync(path.join(root, 'node_modules', from[pkg]))] })
   : path.join(root, 'node_modules', pkg, 'package.json')).version;
-const libs = { 'pdf.js': 'pdfjs-dist', 'pdf-lib': 'pdf-lib', 'pako': 'pako', 'Electron': 'electron' };
+const libs = { 'pdf.js': 'pdfjs-dist', 'pdf-lib': 'pdf-lib', 'pako': 'pako', 'Electron': 'electron', 'electron-updater': 'electron-updater' };
 
 const html = fs.readFileSync(path.join(root, 'app', 'index.html'), 'utf8');
 const start = html.indexOf('const CREDITS = [');
