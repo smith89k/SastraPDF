@@ -805,6 +805,22 @@ async function restartForUpdate(){
       { detail:'Wait for the small progress window to finish, then use ☰ › Help › Check for Updates. Or close Sastra PDF later: the update installs then.' });
   }
 }
+// After an update installed silently, the right-click menu may sit under "Show more options" (main.js menu-repair):
+// offer once per version to put it back; Windows then asks for permission. Not now (or Esc) = not again this version.
+async function menuRepairAtStart(){
+  try {
+    if (!(await desk.menuRepair('check')).needed) return;
+    await inTurn(async () => {
+      const r = await askChoice('The right-click menu needs to be set up again.', [['Not now','outline'],['Set up','primary']],
+        { detail:'Windows will ask for permission once. Without it, Sastra PDF\'s items stay under "Show more options".' });
+      if (r !== 1) { await desk.menuRepair('later'); return; }
+      const { result } = await desk.menuRepair('fix');
+      if (result === 'ok') toast('The right-click menu is back');
+      else if (result === 'declined') toast('The right-click menu stays under "Show more options"');
+      else toast("Couldn't set up the right-click menu", true);
+    });
+  } catch(e){ console.warn(e); }
+}
 // Help > Check for Updates: "Checking…" (Esc or a click outside closes it and drops the answer), then the answer.
 async function checkUpdatesCmd(){
   if (!screenFree()) return;
@@ -1842,7 +1858,8 @@ async function makeAppendix(){
 (async () => {
   if (isNarrow()) app.classList.add('no-thumbs','no-tools');
   syncPanelBtns(); setTool('select'); renderTabs(); renderThumbs(); renderViewer(); updateUI();
-  if (desk) { await openPaths(await desk.initialPaths()); notesAtStart(); return; }   // the files first, then What's new over them
+  // the files first, then What's new over them, then (after it) the right-click menu repair if needed
+  if (desk) { await openPaths(await desk.initialPaths()); notesAtStart().then(menuRepairAtStart); return; }
   try {
     await openBytes(await makeAppendix(), 'Sample-Cost-Schedule.pdf', { sample:true });
     await openBytes(await makeReport(), 'Sample-Inspection-Report.pdf', { sample:true });
