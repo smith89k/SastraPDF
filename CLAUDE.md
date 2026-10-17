@@ -27,7 +27,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        pdf.js loading (`pdfjs()`, `PDFJS_OPTS`), `closePdf`, `baseName`, `rangeLabel`, `imageName`,
                        `renderPage` (white page → JPG/PNG blob; dpi lowered past 16 384 px a side / 64 MP)
     app/task.html|.js  The small "task window" for Explorer-menu Split / Images jobs. See "Explorer menu".
-    app/pdf-file.png   The task window's header icon: build/pdf-file.png cropped to the page, 98 × 128
+    app/pdf-file.png   The task window's header icon: the .pdf file icon's page filling 98 × 128
                        (shown 26 × 34) — a file icon, since the window works on files
     explorer-menu/     File Explorer right-click menu: menu.cpp/.def (C++ IExplorerCommand DLL),
                        AppxManifest.xml + Assets/ (unsigned sparse package for the Windows 11 first menu).
@@ -47,23 +47,32 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        explorer-menu.js. Alone: `npm run build:menu`
     scripts/ensure-electron.js  postinstall: downloads electron.exe and unpacks it with Windows
                        tar.exe (Electron 42+ no longer downloads itself on install; see gotchas)
-    build/logo.png     Logo master, 1024 px: red rounded tile, bound palm leaves (sastra)
-                       turning into a white page marked "PDF" (Inter Black), សាស្ត្រា below.
-                       Made from the user's root logo.png: stray red pixels cleared, cropped,
-                       and its Adobe-Acrobat-like red swirl "A" replaced by "PDF" (trademark).
-                       Use build/logo.png, not the root original, for any new icon sizes.
-    build/icon.ico|png App/installer icon made from logo.png (.ico: 16–256 px, PNG entries;
-                       .png: 512 px window icon)
-    build/pdf-file.ico|png  Icon of .pdf files in Explorer (package.json fileAssociations), from
-                       the user's root file-icon.png (2026-10-15): a portrait document — white page
-                       with a folded corner, red "PDF", red band with សាស្ត្រា. The original is
-                       nearly square, so it was made portrait (page 990 × 1289, ≈ 0.77) by
-                       stretching ONLY the plain white rows above "PDF" (+80 px) and below it
-                       (+110 px); text, corner and band keep their shape. Faint specks (alpha ≤ 6)
-                       outside the shape were cleared. .png = 1024 px master (page 96 % of the
-                       height, centred); .ico = 16–256 px PNG entries made from it. It replaced an
-                       earlier lightened copy of icon.ico. The app/taskbar/shortcut icon stays icon.ico.
-    app/logo.png       64 px logo for the menubar brand mark and favicon
+    build/logo.png     Logo master, 1024 px (since 2026-10-17): red rounded tile (corner radius ≈ 25 %),
+                       a white page with a red "S" in front of a pink page with four red lines.
+                       From the user's root logo.png (728 px). Like "file icon.png", the original is
+                       OPAQUE with a painted checkerboard "transparent" background, so it was cut out
+                       by shape, not by colour: the tile was measured (715 × 700 px, corner radius
+                       180 — a circle-cornered rounded rect fits to ~1 px rms), made square (2 %
+                       taller), drawn with an anti-aliased mask, and the edge pixels take the colour
+                       from 1.5 px inside (no checker fringe or white halo on dark backgrounds).
+                       Margin 2.25 % of the size, snapped to whole pixels so small sizes stay sharp.
+                       All logo files below come straight from the root original that way (one resample
+                       each), not from this master. The old palm-leaf logo is in git history.
+    build/icon.ico|png App/installer icon from the same logo (.ico: 16, 20, 24, 32, 40, 48, 64, 128, 256 px,
+                       PNG entries; .png: 512 px window icon). The Explorer menu's "Sastra PDF" entry
+                       shows the exe's icon (menu.cpp GetIcon = exe,0), so it follows this one.
+    build/pdf-file.ico|png  Icon of .pdf files in Explorer (package.json fileAssociations), from the
+                       user's root "file icon.png" (2026-10-17, 420 × 552): a white page with a pink
+                       outline, rounded corners (radius 45), the top-right corner folded (red flap,
+                       fold line x = 1.0291·y + 290.5 in the original's pixels), the logo's "S" + lined
+                       page, and a red band with ".pdf". Already portrait (page 416.5 × 548, ≈ 0.76),
+                       so nothing was stretched; cut out the same way as the logo. .png = 1024 px
+                       master (page 96 % of the height, centred); .ico = the same 9 sizes. The
+                       app/taskbar/shortcut icon stays icon.ico.
+    app/logo.png       64 px logo (tile fills the whole square) for the menubar brand mark, About and favicon
+    explorer-menu/Assets/  Square150x150Logo (1 px margin), Square44x44Logo, StoreLogo (50) — the same logo.
+                       Package version NOT bumped for them: add-package removes the old package before
+                       adding, and AppListEntry="none" means they show almost nowhere.
     app/author.jpg     200 px photo of the author (Sunnguon Taing), from their LinkedIn profile,
                        for the About screen
     .github/workflows/release.yml  GitHub Actions: on a vX.Y.Z tag, builds the installer on
