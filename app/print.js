@@ -12,6 +12,7 @@ const M = 5 * MM;            // margin round the printable area (most printers c
 const GAP = 3 * MM;          // between pages in Multiple
 const MARK_M = 10 * MM;      // Poster margin when labels or cut marks need room
 const GRIDS = { 2:[1,2], 4:[2,2], 6:[2,3], 9:[3,3], 16:[4,4] };   // [columns, rows] on a portrait sheet
+const PICKED = '<button><selectedcontent></selectedcontent></button>';   // the printer box: a long name ends in "…"
 const clamp = (v, a, b, d) => { v = +v; return Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
 
 function paperPt(name, land){
@@ -199,7 +200,7 @@ const DIALOG = `
   <h2 id="prTitle">Print</h2>
   <div class="pr-grp" data-desk>
     <div class="row">
-      <div class="field"><label for="prPrinter">Printer</label><select id="prPrinter"><option>Finding printers…</option></select></div>
+      <div class="field"><label for="prPrinter">Printer</label><select id="prPrinter">${PICKED}<option>Finding printers…</option></select></div>
       <button class="btn outline" id="prProps" type="button" title="Windows' printing preferences for this printer: paper tray, quality… What you change there stays as the printer's default.">Properties</button>
     </div>
     <div class="row">
@@ -379,9 +380,9 @@ function open({ doc, desk, toast, svg, parseRanges }){
   if (desk) desk.printers().then(list => {
     if (!bg.isConnected) return;   // closed before the list came
     printers = list || []; const s = q('#prPrinter');
-    if (!printers.length) { s.innerHTML = '<option value="">No printers installed</option>'; s.disabled = true; q('#prProps').disabled = true; }
+    if (!printers.length) { s.innerHTML = PICKED + '<option value="">No printers installed</option>'; s.disabled = true; q('#prProps').disabled = true; }
     else {
-      s.innerHTML = printers.map(p => `<option></option>`).join('');
+      s.innerHTML = PICKED + printers.map(p => `<option></option>`).join('');
       printers.forEach((p, k) => { s.options[k].value = p.name; s.options[k].textContent = p.displayName; });
       s.value = (printers.find(p => p.name === S.printer) || printers.find(p => p.isDefault) || printers[0]).name;
     }
@@ -403,6 +404,7 @@ function open({ doc, desk, toast, svg, parseRanges }){
   q('#prGo').onclick = () => go();
   bg.addEventListener('click', e => { if (e.target === bg && !running) close(); });
   const keys = e => {
+    if (e.target.closest?.('select')?.matches(':open')) return;   // an open dropdown list handles its own Esc / Enter
     if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); if (running) cancelled = true; else close(); }
     else if (e.key === 'Enter' && !e.target.closest('button, select') && !q('#prGo').disabled) { e.preventDefault(); go(); }
   };
