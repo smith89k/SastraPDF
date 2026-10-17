@@ -867,7 +867,7 @@ function startProgress({ title, failTitle }){
     cancelled: false,
     update(o){ Object.assign(view, o); paint(); },
     problem(text){ problems.push(text); },
-    onCancel(fn){ cancels.push(fn); },
+    onCancel(fn){ cancels.push(fn); return () => { const k = cancels.indexOf(fn); if (k >= 0) cancels.splice(k, 1); }; },   // → stop listening
     async end(){
       if (ended) return turn; ended = true; clearTimeout(timer);
       if (!turn) { if (problems.length) turn = inTurn(show); return turn; }   // never shown: problems still need the box
@@ -925,8 +925,12 @@ async function runOpen(j){
       if (job.cancelled) break;
       if (r.error) { job.problem(`${it.name} — couldn't be read: ${r.error}`); continue; }
       job.update({ step: at('Opening…'), frac:null });
-      try { await openDoc(new Uint8Array(r.data), it.name, { path: it.path }); }
+      // page by page, the box drawn at most once a frame; Cancel destroys only THIS file's loading task
+      let off = null, frame = 0, last = null;
+      const onPage = (p, n) => { last = [p, n]; frame ||= requestAnimationFrame(() => { frame = 0; job.update({ step: at(`Reading page ${last[0]} of ${last[1]}`), frac: last[0] / last[1] }); }); };
+      try { await openDoc(new Uint8Array(r.data), it.name, { path: it.path }, { onPage, onTask: t => { off = job.onCancel(() => t.destroy()); }, isCancelled: () => job.cancelled }); }
       catch(e){ if (!e.cancelled) job.problem(`${it.name} — ${e.userReason}`); }
+      finally { off?.(); cancelAnimationFrame(frame); }
     }
   } finally { openJob = null; job.end(); }
 }
@@ -969,20 +973,31 @@ const isInput = el => el && (el.tagName==='INPUT' || el.tagName==='SELECT' || el
 const targets = d => d.sel.size ? [...d.sel].sort((a,b)=>a-b) : [d.current];
 
 /* ---------- documents ---------- */
-async function loadPdf(d){
+// Opening (the progress box) passes hooks: onTask(loadingTask) to cancel it, onPage(i, n) while every page's size is
+// read, isCancelled() — then it throws an Error with .cancelled (the half-read document is freed).
+async function loadPdf(d, { onTask, onPage, isCancelled } = {}){
   if (d.pdf) SastraOps.closePdf(d.pdf);   // free the previous copy (each edit re-opens the document)
   await pdfReady;
-  d.pdf = await pdfjsLib.getDocument({ data: d.bytes.slice(), ...PDFJS_OPTS }).promise;
-  d.n = d.pdf.numPages; d.sizes = [];
-  for (let i=1;i<=d.n;i++){ const v=(await d.pdf.getPage(i)).getViewport({scale:1}); d.sizes.push({w:v.width,h:v.height}); }
+  const task = pdfjsLib.getDocument({ data: d.bytes.slice(), ...PDFJS_OPTS });
+  onTask?.(task);
+  const stopped = () => isCancelled?.() ? Object.assign(new Error('cancelled'), { cancelled:true }) : null;
+  try {
+    d.pdf = await task.promise;
+    d.n = d.pdf.numPages; d.sizes = [];
+    for (let i=1;i<=d.n;i++){
+      if (stopped()) throw stopped();
+      const v=(await d.pdf.getPage(i)).getViewport({scale:1}); d.sizes.push({w:v.width,h:v.height});
+      onPage?.(i, d.n);
+    }
+  } catch(e){ const s = stopped(); if (s) { task.destroy(); throw s; } throw e; }   // a destroyed task rejects: still a cancel
   d.thumbCanvas = []; d.viewGen = (d.viewGen||0)+1;
 }
 // A new tab from PDF bytes → the doc. Throws an Error with .reason ('engine' | 'password' | 'damaged') and .userReason
 // (the progress box's problem line, after "<name> — ").
 const OPEN_REASONS = { engine:'the PDF engine did not load (reinstall Sastra PDF)', password:"password-protected, so it can't be opened here", damaged:'damaged or not a PDF' };
-async function openDoc(bytes, name, opts={}){
+async function openDoc(bytes, name, opts={}, hooks={}){
   const d = { id:++uid, name, bytes, sel:new Set(), anchor:null, current:0, zoom:1, fit:'width', history:[], future:[], dirty:!!opts.dirty, sample:!!opts.sample, path:opts.path||null, scroll:0 };
-  try { await loadPdf(d); }
+  try { await loadPdf(d, hooks); }
   catch(e){
     const err = new Error(e?.message || String(e));
     err.reason = !pdfjsLib ? 'engine' : e?.name === 'PasswordException' ? 'password' : 'damaged';
