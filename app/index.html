@@ -1398,28 +1398,37 @@ async function combine(){
 async function combinePaths(paths){
   while (state.busy) await new Promise(r => setTimeout(r, 200));
   const one = paths.length === 1, name = one ? paths[0].split(/[\\/]/).pop().replace(/\.[^.]*$/, '') + '.pdf' : 'Combined.pdf';
-  await busy(one ? `Making ${name}…` : `Combining ${paths.length} files…`, async () => {
-    const out = await PDFDocument.create(), bad = []; let used = 0;
-    for (const p of paths) {
-      const f = await desk.readFile(p);
-      if (f.error) { bad.push(f.name); continue; }
-      const bytes = new Uint8Array(f.data);
-      try {
-        if (SastraImages.kind(bytes) === 'pdf') {
-          const src = await PDFDocument.load(bytes, { ignoreEncryption:true });
-          if (src.isEncrypted) { bad.push(f.name); continue; }
-          (await out.copyPages(src, src.getPageIndices())).forEach(pg => out.addPage(pg));
-        } else await SastraImages.addImagePage(out, bytes);
-        used++;
-      } catch { bad.push(f.name); }
-    }
-    const skipped = bad.length ? `. Couldn't read: ${bad.join(', ')}` : '';
-    if (!used) { toast(`No PDF made${skipped}`, true); return; }
-    const d = await openBytes(await out.save(), name, { dirty:true });
-    if (!d) return;
-    d.saveDir = paths[0].replace(/[\\/][^\\/]*$/, '');
-    const pages = `${d.n} page${d.n > 1 ? 's' : ''}`;
-    toast(one ? `Made ${name} · ${pages}${skipped}` : `Combined ${used} file${used > 1 ? 's' : ''} · ${pages}${skipped}`, !!bad.length);
+  // the opening progress box: Combining 3 files · Adding file 2 of 3; unreadable files are listed in it, Cancel makes no tab
+  const title = one ? `Making ${name}` : `Combining ${paths.length} files`;
+  let used = 0;
+  const job = startProgress({ title, failTitle: () => used && !job.cancelled ? title : 'No PDF made' });
+  await busy(`${title}…`, async () => {
+    try {
+      const out = await PDFDocument.create();
+      for (const [i, p] of paths.entries()) {
+        if (job.cancelled) return;
+        job.update({ step:`Adding file ${i + 1} of ${paths.length}`, frac: i / paths.length });
+        const f = await desk.readFile(p);
+        if (job.cancelled) return;
+        if (f.error) { job.problem(`${f.name} — couldn't be read: ${f.error}`); continue; }
+        const bytes = new Uint8Array(f.data);
+        try {
+          if (SastraImages.kind(bytes) === 'pdf') {
+            const src = await PDFDocument.load(bytes, { ignoreEncryption:true });
+            if (src.isEncrypted) { job.problem(`${f.name} — ${OPEN_REASONS.password}`); continue; }
+            (await out.copyPages(src, src.getPageIndices())).forEach(pg => out.addPage(pg));
+          } else await SastraImages.addImagePage(out, bytes);
+          used++;
+        } catch { job.problem(`${f.name} — ${/\.pdf$/i.test(f.name) ? OPEN_REASONS.damaged : 'damaged or not a picture'}`); }
+      }
+      if (job.cancelled || !used) return;
+      job.update({ step:'Opening…', frac:1 });
+      const d = await openBytes(await out.save(), name, { dirty:true });
+      if (!d) return;
+      d.saveDir = paths[0].replace(/[\\/][^\\/]*$/, '');
+      const pages = `${d.n} page${d.n > 1 ? 's' : ''}`;
+      toast(one ? `Made ${name} · ${pages}` : `Combined ${used} file${used > 1 ? 's' : ''} · ${pages}`);
+    } finally { job.end(); }
   });
 }
 
