@@ -11,6 +11,7 @@ const N = (version, date, notes) => Object.freeze({ version, date, notes: Object
 
 const NOTES = Object.freeze([
   N('1.1.0', '2026-10-17', [
+    ['new', 'Sastra PDF now updates itself. When a new version is ready it asks to restart, or installs it when you close the app. Check by hand from ☰ › Help › Check for Updates.'],
     ['new', 'Right-click pictures (JPG, PNG, BMP, GIF, WebP) in File Explorer → Sastra PDF. Make PDF turns one picture into a PDF. Combine joins any mix of pictures and PDFs into one PDF.'],
     ['new', 'A new Print screen. Choose the printer, pages, layout (Poster, Multiple, Booklet), paper, sides and colour on the left, and see every sheet on the right. Zoom in with Ctrl and the mouse wheel.'],
     ['new', 'Save as PDF on the Print screen saves exactly what would be printed.'],

@@ -21,11 +21,15 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
   page, here or into a folder named after the PDF), Images (JPG, 300 dpi, here or into a folder).
   On Windows 11 the installer asks once for permission to put it in the first right-click menu;
   without it, the same items are under "Show more options". On Windows 10 they show right away.
-- Works fully offline; files never leave the computer
+- Works fully offline; files never leave the computer (only updates need the internet)
+- Updates itself: a new version downloads quietly, then it asks to restart (or installs when you close it);
+  ☰ › Help › Check for Updates checks by hand
 
 ## Download
-Get the installer from [Releases](https://github.com/smith89k/SastraPDF/releases) (Windows 10 or 11,
-64-bit). Each release is built by GitHub Actions from the code in this repository.
+**https://sastra-update.smith89k.com/Sastra-PDF-Setup.exe** — always the newest version (Windows 10 or 11, 64-bit).
+Each release is built by GitHub Actions from the code in this repository and is also on
+[Releases](https://github.com/smith89k/SastraPDF/releases). Releasing and the update setup:
+[docs/updates-setup.md](docs/updates-setup.md).
 
 ## Code signing policy
 Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
@@ -39,8 +43,10 @@ Only releases built by this repository's GitHub Actions workflow are signed, and
 request is approved by hand.
 
 **Privacy policy:** this program will not transfer any information to other networked systems
-unless specifically requested by the user or the person installing or operating it. Your PDFs
-stay on your computer; the app has no telemetry, no update checks and no online fonts.
+unless specifically requested by the user or the person installing or operating it, with one exception: the
+installed app checks https://sastra-update.smith89k.com/ for a newer version when it starts and every 6 hours, and
+downloads it from there. Those requests carry nothing about you or your files. Your PDFs stay on your computer; the app
+has no telemetry and no online fonts.
 
 ## Licence
 MIT — see [LICENSE](LICENSE). The libraries and fonts it ships keep their own licences (listed on
@@ -76,11 +82,13 @@ Double-click **run.bat**, or run `pnpm start`.
     explorer-menu/     The File Explorer right-click menu: C++ source (menu.cpp) and its
                        Windows 11 package manifest; built into explorer-menu/out/
     explorer-menu.js   Adds/removes that menu (run by the installer) and reads what it asked for
+    updater.js         Automatic updates: when to check, what to tell the app (uses electron-updater)
     build/installer.nsh  Installer steps for the Explorer menu
     build/icon.ico     App and installer icon (made from build/logo.png)
     build/logo.png     The Sastra logo, 1024 px master
     scripts/           Run by pnpm install: fetch Electron, copy the libraries into app/vendor,
-                       check the About screen's library versions; build-explorer-menu.js (pnpm run dist)
+                       check the About screen's library versions; build-explorer-menu.js (pnpm run dist);
+                       release-notes.js and r2-prune.js (the release workflow)
     pnpm-workspace.yaml  pnpm settings: a pinned build-tool version, which packages may run install scripts
 
 ## Troubleshooting

@@ -84,8 +84,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        adding, and AppListEntry="none" means they show almost nowhere.
     app/author.jpg     200 px photo of the author (Sunnguon Taing), from their LinkedIn profile,
                        for the About screen
-    .github/workflows/release.yml  GitHub Actions: on a vX.Y.Z tag, builds the installer on
-                       Windows and publishes the GitHub release (see Status)
+    .github/workflows/release.yml  GitHub Actions, by hand only (Run workflow + version): builds the installer,
+                       uploads it to Cloudflare R2 (sastra-update.smith89k.com) and makes the GitHub release (see Status)
+    updater.js         Automatic updates, no Electron inside (main.js hands in electron-updater's autoUpdater):
+                       `updatesRunHere`, `checkAnswer`, `installBlock`, `logTo`, `createUpdater` (10 s, then every 6 h)
+    scripts/release-notes.js  the release workflow: GitHub release notes from a version's What's new entry
+    scripts/r2-prune.js  the release workflow: which old installers to delete from R2 (refuses when the new one is missing)
+    docs/updates-setup.md  Cloudflare + GitHub setup click by click, and how to release
     build.bat          pnpm install + pnpm run dist, then opens dist\  (CRLF line endings)
     run.bat            pnpm install if needed, then pnpm start  (CRLF line endings)
                        (both stop with "run npm install -g pnpm" when pnpm is missing)
@@ -304,8 +309,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   links to smith89k.com / LinkedIn / GitHub smith89k) and open-source credits. The author
   asked to keep it short: no employer, career history, education, town or project list.
   Credits list every open-source part that ships, with its version: pdf.js, pdf-lib, pako,
-  Electron, IBM Plex, Noto Sans Khmer (fonts: no version; files packaged by Fontsource), plus
-  a note for the parts bundled inside them (pdf.js's OpenJPEG, PDFium JBIG2 + Foxit fonts, qcms,
+  Electron, electron-updater, IBM Plex, Noto Sans Khmer (fonts: no version; files packaged by Fontsource), plus
+  a note for the parts bundled inside them (electron-updater's 15 helpers with their licences — MIT, ISC, Python-2.0,
+  Blue Oak; pdf.js's OpenJPEG, PDFium JBIG2 + Foxit fonts, qcms,
   Adobe CMaps, Liberation Sans; pdf-lib's UPNG and tslib; Electron's Chromium/Node.js/FFmpeg
   with LICENSES.chromium.html in the app folder; the installer's electron-builder and NSIS). Rows
   are [name, version, by, licence, link]; `scripts/check-credits.js` (postinstall) warns when a
@@ -318,8 +324,23 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Removed in that order, "See earlier versions ›" reveals the older entries; 900 px wide (AI Hub's wide window; 560 was
   too narrow for the user), the list scrolls, Close at the bottom. `<html data-notes="shown|none">` once decided — test
   launch helpers close it (`t\notes-skip.js`), since fresh test profiles see it once.
+- Automatic updates (since 2026-10-17; spec/plan docs/superpowers/*/2026-10-17-auto-update*): electron-updater 6.8.9
+  (the app's only runtime dependency), generic provider = package.json `build.publish.url`
+  **https://sastra-update.smith89k.com/** (a public R2 bucket's custom domain; NEVER change it — installed copies have it
+  built in). Only when packaged, on Windows, not portable. Checks 10 s after start and every 6 h, downloads quietly;
+  failures only go to `%TEMP%\Sastra PDF\update.log`. Then the page's own box (`updateReady` → `readyBox`): "Sastra PDF
+  X is ready to install." Later / Restart now, once per version per run, queued with `inTurn`/`whenFree` (never over a
+  `.modal-bg` or Present, one at a time). Restart now asks `askUnsaved('Restart', 'Restart without saving')` FIRST
+  (shared with the close question), then `install-update` → main sets `allowClose` and `quitAndInstall(true, true)`
+  (silent, start again) — the installer starts at once and closes the app by force, so nothing may ask after it. While
+  the task window is open it refuses (`installBlock` 'task'). Later + close = electron-updater installs on quit.
+  ☰ › Help › Check for Updates (`checkUpdatesCmd`): "Checking for updates…" (Esc drops the answer), then latest /
+  downloading / couldn't check / only in the installed app / the ready box. Right-click menu after a silent update:
+  explorer-menu.js `repairNeeded` (Windows 11, .msix present, Mode=classic, not Declined, `Asked` ≠ this version) → after
+  What's new, "The right-click menu needs to be set up again." Not now (records `Asked`) / Set up (main runs
+  `Sastra PDF.exe --explorer-menu=install` as a child, UAC, then reads the state) → toast.
 - Design: IBM Plex Sans/Mono. All UI fonts SHIP INSIDE THE APP (no Google Fonts, no network: the
-  README's code signing policy promises the app sends nothing anywhere on its own — keep it that
+  README's privacy policy promises the app sends nothing anywhere on its own except the update check — keep it that
   way). copy-vendor.js builds app/vendor/fonts/fonts.css from @fontsource packages: Plex Sans
   400/500/600, Plex Mono 400/500, Noto Sans Khmer 400/500/600; Latin, Latin-ext and Khmer subsets,
   woff2 only (~370 KB). Khmer anywhere in the
@@ -385,16 +406,19 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   were built locally (`npm run dist`) and uploaded with `gh release create`; the v1.0.1 tag's
   workflow run failed for that reason (re-running it would now fail anyway: the release exists).
   Until billing is fixed, release by hand the same way (now `pnpm run dist`), after running the Playwright checks.
-- Once billing works, releases are built by GitHub Actions (`.github/workflows/release.yml`,
-  windows-latest, Node 24). To release: `pnpm version X.Y.Z --no-git-tag-version --no-git-checks` (unlike npm, pnpm
-  refuses a dirty working tree without `--no-git-checks`; it only edits package.json) (title, About and installer
-  name follow package.json), write the new version's entry at the top of app/notes.js with the release date (What's new;
-  `pnpm run dist` and the workflow refuse to build without it — the GitHub release notes can be copied from it), run the
-  Playwright checks locally, merge to main, then
-  `git tag -a vX.Y.Z -F notes.md` (the tag message becomes the release notes) and
-  `git push origin vX.Y.Z`. The workflow fails if the tag and package.json disagree, builds with
-  `--publish never`, and creates the release with the installer + its SHA-256. "Run workflow" by
-  hand only builds (installer kept as an artifact).
+- **Releasing since 2026-10-17** (the user upgraded GitHub to Pro that day to clear the billing block): to Cloudflare R2
+  through GitHub Actions, by hand only (docs/updates-setup.md). `pnpm version X.Y.Z --no-git-tag-version
+  --no-git-checks` (unlike npm, pnpm refuses a dirty working tree without `--no-git-checks`; it only edits package.json)
+  (title, About and installer name follow package.json), write the new version's entry at the top of app/notes.js with
+  the release date (What's new; `pnpm run dist` and the workflow refuse to build without it, and it becomes the GitHub
+  release notes via scripts/release-notes.js), run the Playwright checks locally, push main, then Actions → Release →
+  Run workflow → the version (`gh workflow run release.yml -f version=X.Y.Z`). The job stops if the version ≠
+  package.json, is already released, or an R2 secret is missing; builds with `--publish never`; uploads installer +
+  blockmap, then the fixed-name copy `Sastra-PDF-Setup.exe` (no-cache, Content-Disposition = the versioned name),
+  then `latest.yml` (no-cache) LAST, checking each stored size; removes older `Sastra-PDF-Setup-*.exe` (never a
+  .blockmap); creates tag + GitHub release (installer + SHA-256 + the download link). Secrets: R2_ACCOUNT_ID,
+  R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET. The installer is named `Sastra-PDF-Setup-<version>.exe` (dashes:
+  latest.yml names it so). Download link: https://sastra-update.smith89k.com/Sastra-PDF-Setup.exe.
 - Fixed during first run: Electron binary not unpacked on Node 24; zoomed page pushing the
   Tools panel off-screen (`#app` grid needed `grid-template-columns:minmax(0,1fr)`); stray
   Windows scrollbars on tab row, Pages panel and split inputs (box-sizing).
@@ -478,6 +502,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `t\notes-skip.js` (fresh profiles see What's new once). Then the Tools panel sections fold (and Combine moved last):
   tools-fold 20, notes-unit 23, whats-new 22, controls 15, colour 11, nozip 23, folders 7, ops 10, images 61,
   titlebar 43 (once 2 failures: print-test had emptied `t\out\`, so no PDF opened — copy ten.pdf back first).
+- **pnpm (2026-10-17) and automatic updates (2026-10-17, on main, not pushed, no release yet).** Tests live in the
+  2026-10-17 session scratchpad `t\` (…\59bf0bdb-…\scratchpad\t; the older 4e4e0838 folder is gone): unit
+  (`node --test t\unit\*.test.js`: updater 8, menu-repair 2, release 3), main-wiring (from source; `PACKED=1` uses
+  `t\pack` from `pnpm exec electron-builder --win nsis --publish never "-c.directories.output=<t>\pack"` — app-update.yml
+  is only written for nsis, not `--win dir`), update-ui 24, menu-repair-ui 11, close-check 3, packcheck (what app.asar
+  holds), wfcheck (workflow YAML + `bash -n`), and `t\e2e\run.js`: a REAL update with a separate test app (see gotchas).
+  `t\launch.js` (playwright-core 1.64.1) closes What's new on fresh profiles.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
@@ -495,6 +526,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   for a package we don't list (pako, @electron/get) must start from `fs.realpathSync` of the one that pulls it
   in (check-credits.js, ensure-electron.js), and Windows tar won't unpack through the link
   ("Cannot extract through symlink"), so ensure-electron.js works in electron's real folder.
+- Testing a real update without touching the user's install: `t\e2e\make-config.js <version> <outDir> <url>` turns the
+  build config into "Sastra PDF E2E" (own appId, productName, `extraMetadata.name` → own userData, lock and
+  `<name>-updater` cache; no shortcuts, no fileAssociations, no extraResources, no nsis.include so the menu is never
+  touched); build 9.0.0 and 9.0.1 with `--config`, serve 9.0.1 with `t\e2e\serve.js`, `t\e2e\run.js` installs/updates/
+  uninstalls it. `asar.extractFile` needs Windows `\` paths.
 - pnpm skips our postinstall when node_modules is already up to date: to refresh app/vendor run
   `pnpm run postinstall` (or delete node_modules and `pnpm install`).
 - `pnpm run dist` can fail with "EPERM: operation not permitted, rename dist\win-unpacked.tmp" right
