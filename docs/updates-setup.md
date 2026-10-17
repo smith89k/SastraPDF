@@ -12,6 +12,11 @@ can download; only the release job can upload or delete.
 > **Never change the address** after the first release: every installed copy has it built in (package.json
 > `build.publish.url`), and copies would stop updating.
 
+**Set up on 2026-10-17** (the author's Cloudflare account): bucket `sastra-pdf-updates` (Asia-Pacific,
+Standard, r2.dev off), custom domain `sastra-update.smith89k.com` (CNAME added by Cloudflare), Account API token
+`sastra-pdf-release` (Object Read & Write, `sastra-pdf-updates` only, no expiry), and the four GitHub secrets. The
+sections below are how it was done, for doing it again.
+
 ## 1. The bucket (Cloudflare R2) — once
 
 1. Cloudflare dashboard → **R2 Object Storage** → **Create bucket**. Name it, for example, `sastra-pdf`
