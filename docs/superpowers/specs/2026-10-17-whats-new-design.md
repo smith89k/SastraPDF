@@ -16,7 +16,7 @@ packages/web/shared/release-notes.mjs (the window, `.notes-kind-*` tags, "See ea
   order of kinds, in written order within a kind.
 - Under the list, **See earlier versions ›** reveals every older version in the same window, each under "1.0.3 · 2026-10-16".
   Hidden when there are none.
-- The window is the app's own `.modal` (as About and the questions), 560 px wide, never taller than the window: the title
+- The window is the app's own `.modal` (as About and the questions), 900 px wide like AI Hub's wide work window (560 px at first; the user: "make it wider"), never taller than the window: the title
   (+ release date under it) stays at the top, the list scrolls, **Close** (primary) stays at the bottom with the focus.
 - It never stands in the way: the automatic showing is skipped (and NOT recorded, so the next start tries again) when any
   `.modal-bg` box is already open (a question, the close question, the print screen, About) or a Present show is running. The
