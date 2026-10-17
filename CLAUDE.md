@@ -427,8 +427,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `install: package added`, package 1.1.0.0 starts). The user checked on the real menu: Make PDF on one photo
   (upright), Combine 3 files right-clicking a picture and right-clicking the PDF of the same mixed selection, the red
   look, the new controls and the new icons (shortcut, Start, taskbar) — "all pass".
-  Merged to main locally (not pushed). Then, on branch **feat/print-screen** (not merged): the Bohpum-style print
-  screen (spec/plan 2026-10-17-print-screen-*; the spec commit itself landed on main by mistake — docs only, local).
+  Merged to main locally (not pushed). Then the Bohpum-style print screen (spec/plan 2026-10-17-print-screen-*), built
+  on branch feat/print-screen and merged to main locally the same day (not pushed). Since then: **work on main only**
+  (the user's rule, 2026-10-17 — no feature branches; still ask before pushing or releasing).
   `dist\Sastra PDF Setup 1.1.0.exe` rebuilt 13:41 with it (113 963 322 bytes, SHA-256 0b1ea3de…77ef70), NOT
   installed yet (the user said "Not now"); passed from source and packaged: print-screen 38, print 71, controls 15,
   colour 11, images 61, menu 51, unit 38, ops 10, folder 23 (packaged: once "current page" was 2, not 1 — scroll timing
@@ -468,6 +469,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Testing while the user has Sastra PDF open (run.bat): the single-instance lock makes a test launch
   hand its files to the USER's window and quit. Launch test copies with
   `--user-data-dir=<scratch folder>` (a separate profile = a separate lock).
+- Test windows come to the front: keys the user types meanwhile can land in them (2026-10-17: a Backspace typed
+  in another app deleted a page in controls-test's window). A one-off "page count dropped / dirty" failure while
+  the user was typing is that, not a bug — re-run it.
 - `npm run dist` needs Visual Studio Build Tools (C++ x64) + the Windows SDK for the Explorer menu
   (this PC: Build Tools 2026 / MSVC 14.51, SDK 10.0.26100). vcvars prints "'vswhere.exe' is not
   recognized" — harmless.
