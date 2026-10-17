@@ -2,3 +2,4 @@ node_modules/
 dist/
 app/vendor/
 explorer-menu/out/
+update-config.json

@@ -959,7 +959,7 @@ async function checkUpdatesCmd(){
   const [msg, detail] = {
     current: ['You have the latest version.', `Sastra PDF ${a.version} is the newest version.`],
     downloading: [`Version ${a.version} is downloading. You'll be asked to restart when it's ready.`, ''],
-    dev: ['Updates work only in the installed app.', ''],
+    dev: ["This copy doesn't update itself. Copies installed from a Sastra PDF release do.", ''],   // pnpm start, portable, built without the update key
     failed
   }[a.kind] || failed;
   await askChoice(msg, [['OK','primary']], { detail });

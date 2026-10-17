@@ -37,6 +37,7 @@
       "preload.js",
       "explorer-menu.js",
       "updater.js",
+      "update-config.json",
       "app/**/*",
       "build/icon.png",
       "package.json"

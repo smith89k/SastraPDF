@@ -426,12 +426,15 @@ app.whenReady().then(() => {
   pendingPaths = pdfArgs(process.argv);
   if (pendingPaths.length) remember('open', path.dirname(pendingPaths[0]));
   createWindow();
-  // a right-click job alone (above) never checks; electron-updater is loaded only here
+  // a right-click job alone (above) never checks; electron-updater is loaded only here. The update address is locked:
+  // only a copy built by the release job carries the key (update-config.json), so a copy without it doesn't check.
   if (updates.updatesRunHere({ packaged: app.isPackaged, platform: process.platform, portable: !!process.env.PORTABLE_EXECUTABLE_DIR })) {
-    up = updates.createUpdater({
-      updater: require('electron-updater').autoUpdater, current: app.getVersion(),
-      send: (channel, v) => { if (win) win.webContents.send(channel, v); },
-      log: updates.logTo(path.join(os.tmpdir(), 'Sastra PDF', 'update.log'))
+    const log = updates.logTo(path.join(os.tmpdir(), 'Sastra PDF', 'update.log'));
+    const key = updates.readUpdateConfig(path.join(__dirname, 'update-config.json'));
+    if (!key) log('no update key (update-config.json): this copy does not check for updates');
+    else up = updates.createUpdater({
+      updater: require('electron-updater').autoUpdater, current: app.getVersion(), key, log,
+      send: (channel, v) => { if (win) win.webContents.send(channel, v); }
     });
   }
 });
