@@ -183,8 +183,16 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .tools{width:286px;flex:none;background:var(--chrome);border-left:1px solid var(--line);overflow-y:auto;padding-bottom:28px}
 .tools>*{--chrome:var(--panel)}   /* side panels are grey like the top/status bars; controls in them are lighter cards */
 .tsec{border-bottom:1px solid var(--line);padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px}
-.tsec h3{margin:0;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
-.tsec h3 svg{width:15px;height:15px;color:var(--accent)}
+.tsec h3{margin:0}
+/* the heading folds its section, as in Acrobat: icon + name on the left, chevron on the right (up = open) */
+.tsec-head{display:flex;align-items:center;gap:8px;width:calc(100% + 16px);margin:-6px -8px;padding:6px 8px;border:0;border-radius:6px;background:transparent;color:var(--muted);font:inherit;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;text-align:left;cursor:pointer}
+.tsec-head:hover{background:var(--hover)}
+.tsec-head:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tsec-head svg{width:15px;height:15px;flex:none;color:var(--accent)}
+.tsec-head svg.chev{margin-left:auto;width:14px;height:14px;color:inherit;transition:transform .15s}
+.tsec.folded{padding-bottom:14px}
+.tsec.folded>:not(h3){display:none}
+.tsec.folded .chev{transform:rotate(180deg)}
 .tsec .hint{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .tbtn{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border:1px solid var(--line);background:var(--chrome);border-radius:7px;cursor:pointer;text-align:left;min-width:0}
@@ -405,7 +413,7 @@ select.big option{padding:8px 10px}
   .thumbs{left:0}.tools{right:0;width:min(300px,86vw)}
   .page .pg-lbl{display:none}
 }
-@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}.toast,.about .links a{transition:none}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}.toast,.about .links a,.tsec-head svg.chev{transition:none}}
 </style>
 
 <div id="app">
@@ -471,8 +479,8 @@ select.big option{padding:8px 10px}
       </div>
     </main>
     <aside class="tools" id="tools" aria-label="Organize tools">
-      <section class="tsec">
-        <h3><svg class="i" data-i="pages"></svg>Organize pages</h3>
+      <section class="tsec" data-sec="organize">
+        <h3><button class="tsec-head" aria-expanded="true"><svg class="i" data-i="pages"></svg><span>Organize pages</span><svg class="i chev" data-i="up"></svg></button></h3>
         <p class="hint" id="selHint">Click thumbnails to select. Ctrl-click adds, Shift-click selects a range. Drag thumbnails to reorder.</p>
         <div class="grid2">
           <button class="tbtn" id="oRotL"><svg class="i" data-i="rotl"></svg><span>Rotate left</span></button>
@@ -484,18 +492,8 @@ select.big option{padding:8px 10px}
         </div>
       </section>
 
-      <section class="tsec">
-        <h3><svg class="i" data-i="combine"></svg>Combine files</h3>
-        <p class="hint">Tick the open files to merge, set their order, then combine into a new tab.</p>
-        <div class="clist" id="clist"></div>
-        <div class="grid2">
-          <button class="tbtn" id="cAdd"><svg class="i" data-i="plus"></svg><span>Add files</span></button>
-          <button class="btn primary full" id="cGo">Combine</button>
-        </div>
-      </section>
-
-      <section class="tsec">
-        <h3><svg class="i" data-i="split"></svg>Split document</h3>
+      <section class="tsec" data-sec="split">
+        <h3><button class="tsec-head" aria-expanded="true"><svg class="i" data-i="split"></svg><span>Split document</span><svg class="i chev" data-i="up"></svg></button></h3>
         <div class="field"><label for="sMode">Split by</label>
           <select id="sMode">
             <option value="every">Every N pages</option>
@@ -510,8 +508,8 @@ select.big option{padding:8px 10px}
         <button class="btn primary full" id="sGo">Split</button>
       </section>
 
-      <section class="tsec">
-        <h3><svg class="i" data-i="image"></svg>Export as images</h3>
+      <section class="tsec" data-sec="export">
+        <h3><button class="tsec-head" aria-expanded="true"><svg class="i" data-i="image"></svg><span>Export as images</span><svg class="i chev" data-i="up"></svg></button></h3>
         <div class="field"><span class="flabel">Pages</span>
           <div class="seg" id="eScope"><button data-v="all" class="on">All</button><button data-v="sel">Selected</button><button data-v="cur">Current</button></div></div>
         <div class="row">
@@ -521,7 +519,18 @@ select.big option{padding:8px 10px}
         <p class="hint" id="eHint"></p>
         <button class="btn primary full" id="eGo">Export images</button>
       </section>
+
+      <section class="tsec" data-sec="combine">
+        <h3><button class="tsec-head" aria-expanded="true"><svg class="i" data-i="combine"></svg><span>Combine files</span><svg class="i chev" data-i="up"></svg></button></h3>
+        <p class="hint">Tick the open files to merge, set their order, then combine into a new tab.</p>
+        <div class="clist" id="clist"></div>
+        <div class="grid2">
+          <button class="tbtn" id="cAdd"><svg class="i" data-i="plus"></svg><span>Add files</span></button>
+          <button class="btn primary full" id="cGo">Combine</button>
+        </div>
+      </section>
     </aside>
+    <script>/* folded Tools sections before first paint (sastra-tools-folded) */try{const f=JSON.parse(localStorage.getItem('sastra-tools-folded')||'[]');for(const s of document.querySelectorAll('#tools .tsec'))if(f.includes(s.dataset.sec)){s.classList.add('folded');s.querySelector('.tsec-head').setAttribute('aria-expanded','false')}}catch{}</script>
   </div>
 
   <footer class="status" id="status"><span id="stDoc">No document</span><span id="stSel"></span><span class="spacer"></span><span id="stBusy"></span><span id="stTool">Select tool</span></footer>
@@ -1295,7 +1304,7 @@ function updateUI(){
   const d = active(), has = !!d, b = state.busy;
   // No PDF: every control in the toolbar and Tools panel (and Maximize) is disabled. Only the ones
   // switched off here are marked, so exactly those come back; the lines below set the rest.
-  for (const el of document.querySelectorAll('.toolbar :is(button,select,input), .tools :is(button,select,input), #bFocus, #bPresent')) {
+  for (const el of document.querySelectorAll('.toolbar :is(button,select,input), .tools :is(button:not(.tsec-head),select,input), #bFocus, #bPresent')) {
     if (!has && !el.disabled) { el.disabled = true; el.dataset.nodoc = ''; }
     else if (has && 'nodoc' in el.dataset) { el.disabled = false; delete el.dataset.nodoc; }
   }
@@ -1339,6 +1348,13 @@ $('#bDel').onclick = $('#oDel').onclick = deletePages;
 $('#oExtract').onclick = extractPages;
 $('#oAll').onclick = () => { const d=active(); if (!d) return; d.sel = new Set([...Array(d.n).keys()]); updateSel(); };
 $('#cGo').onclick = combine; $('#sGo').onclick = split; $('#eGo').onclick = exportImages;
+// Tools sections fold on their own, as in Acrobat; the folded ones are remembered (restored before first paint, after </aside>)
+for (const head of document.querySelectorAll('.tsec-head')) head.onclick = () => {
+  const folded = head.closest('.tsec').classList.toggle('folded');
+  head.setAttribute('aria-expanded', String(!folded));
+  const keys = [...document.querySelectorAll('#tools .tsec.folded')].map(s => s.dataset.sec);
+  try { keys.length ? localStorage.setItem('sastra-tools-folded', JSON.stringify(keys)) : localStorage.removeItem('sastra-tools-folded'); } catch {}
+};
 $('#sMode').onchange = () => { $('#sErr').hidden = true; updateUI(); };
 const seg = (id, key) => $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state[key] = b.dataset.v; $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x===b)); updateUI(); });
 seg('#sOut','splitOut'); seg('#eScope','exportScope');

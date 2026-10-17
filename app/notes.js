@@ -20,6 +20,7 @@ const NOTES = Object.freeze([
     ['improved', 'The app\'s colour is now the logo\'s red, in both light and dark themes.'],
     ['improved', 'Dropdowns, tick boxes and round options have the app\'s own look.'],
     ['improved', 'The logo row is now the window\'s title bar and keeps the same height when maximized. The menu opens from ☰, or with Alt or F10.'],
+    ['improved', 'Each section of the Tools panel folds and opens from its heading, as in Acrobat, and stays that way after a restart. Combine files is now the last section.'],
     ['improved', 'Maximize shows the page without the red selection frame.'],
     ['improved', 'Open and Save start in the last folder you used, even after a restart.'],
     ['improved', 'The progress window, Combine and Open with now come to the front instead of opening behind other programs.'],

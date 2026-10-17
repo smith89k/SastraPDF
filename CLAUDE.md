@@ -322,6 +322,12 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `--accent-fg` (index.html and task.html — keep both in step). Light and dark themes via CSS tokens. Both side panels use
   `--chrome` (the grey of the top and status bars); inside the Tools panel `--chrome` is
   redefined to `--panel`, so its buttons/fields/lists become lighter cards on the grey.
+- Tools panel sections (since 2026-10-17, "like acrobat"; spec 2026-10-17-tools-fold-design.md): Organize pages, Split
+  document, Export as images, Combine files (moved last at the user's wish). Each `<h3>` holds a `.tsec-head` button
+  (icon + name left, `up` chevron right, turned 180° when folded, `aria-expanded`) that folds only its section
+  (`.tsec.folded`: all but the heading hidden). Folded keys (`data-sec`) in localStorage `sastra-tools-folded`, restored
+  by a tiny inline script right after `</aside>` (no flash). The no-PDF switch-off in `updateUI` skips `.tsec-head`, so
+  headings fold with no PDF open.
 - Dropdowns, tick boxes, round options: the app's own look, as in Bohpum (E:\_httdocs\Bohpum src/app.css) — since
   2026-10-17. `select, ::picker(select){appearance:base-select}` (Chromium customizable select): the box keeps
   `.field select` / `.zoomsel`, plus a chevron (`::picker-icon`), a floating `--panel` list, `::checkmark` in red.
@@ -459,7 +465,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   (focus-outline 5), and the What's new window (spec/plan 2026-10-17-whats-new*; 900 px after "make it wider"). Passed
   from source: whats-new 22, notes-unit 23, titlebar 43, controls 15, colour 11, close 12, folders 7, nozip 23,
   pages-panel 15, print-screen 38, print 71, images 61, menu 51, ops 10. Every suite's launch now calls
-  `t\notes-skip.js` (fresh profiles see What's new once).
+  `t\notes-skip.js` (fresh profiles see What's new once). Then the Tools panel sections fold (and Combine moved last):
+  tools-fold 20, notes-unit 23, whats-new 22, controls 15, colour 11, nozip 23, folders 7, ops 10, images 61,
+  titlebar 43 (once 2 failures: print-test had emptied `t\out\`, so no PDF opened — copy ten.pdf back first).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
