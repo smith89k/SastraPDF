@@ -427,6 +427,12 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `install: package added`, package 1.1.0.0 starts). The user checked on the real menu: Make PDF on one photo
   (upright), Combine 3 files right-clicking a picture and right-clicking the PDF of the same mixed selection, the red
   look, the new controls and the new icons (shortcut, Start, taskbar) — "all pass".
+  Merged to main locally (not pushed). Then, on branch **feat/print-screen** (not merged): the Bohpum-style print
+  screen (spec/plan 2026-10-17-print-screen-*; the spec commit itself landed on main by mistake — docs only, local).
+  `dist\Sastra PDF Setup 1.1.0.exe` rebuilt 13:41 with it (113 963 322 bytes, SHA-256 0b1ea3de…77ef70), NOT
+  installed yet (the user said "Not now"); passed from source and packaged: print-screen 38, print 71, controls 15,
+  colour 11, images 61, menu 51, unit 38, ops 10, folder 23 (packaged: once "current page" was 2, not 1 — scroll timing
+  in the test; 23/23 on two re-runs), close 12, titlebar 43.
   Tests live in the 2026-10-17 session scratchpad `t\` (…\4e4e0838-…\scratchpad\t; pictures.js makes the test
   pictures; print-test empties `t\out\`, and titlebar-test needs `t\out\ten.pdf` — copy it from `t\pdfs\` first).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
