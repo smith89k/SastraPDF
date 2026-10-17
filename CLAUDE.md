@@ -227,7 +227,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   names })` in index.html (class `.modal.ask`; first button = Cancel = Esc/click outside; last has focus;
   returns the index); `askConfirm` is Cancel | ok on top of it. Only the system file pickers remain native.
 - Saving several files (`saveMany`, Split "Save to folder", Export of 2+ pages): main.js `pick-folder`
-  shows a folder picker (starts in `lastDir`, shared with Save/Export) BEFORE anything is made and returns
+  shows a folder picker (starts in the remembered save folder, shared with Save/Export) BEFORE anything is made and returns
   `{ dir }`. Then `name-clashes` (groups `[{ dir, names }]` → `{ count, message, detail }`) and, when names
   already exist, ONE `askChoice`: Cancel / Replace / Keep both (default: clashing names get the first free
   " (n)"); `resolve-names(groups, 'replace'|'keep'|null)` returns the final names (base names only,
@@ -461,7 +461,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   the checksummed zip via `@electron/get` and unpacks it with `C:\Windows\System32\tar.exe`
   (Git Bash's GNU tar can't read .zip).
 - Electron 43+: open/save dialogs without `defaultPath` always start in Downloads and the OS no
-  longer remembers the last folder, so main.js keeps `lastOpenDir` (Open) and `lastDir` (Save/Export).
+  longer remembers the last folder, so main.js remembers them itself: `folders` { open, save } in
+  `<userData>\folders.json` (kept across restarts since 2026-10-17 — the user: "open file always to download folder";
+  before that it was memory only, so every fresh start showed Downloads). `startIn(kind)` → that folder if it still
+  exists, else Documents; `remember(kind, dir)` after Open / Save / Export / pick-folder, and for files opened from
+  Explorer ("Open with", argv, second instance). Test: folders-test.js.
 - Before upgrading Electron, read docs/breaking-changes.md in the electron repo for every major
   version crossed.
 - Claude Code / VS Code extension shells set `ELECTRON_RUN_AS_NODE=1`, which makes electron.exe

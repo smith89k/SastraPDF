@@ -30,6 +30,7 @@ else {
   app.on('second-instance', (_e, argv) => {
     if (handleTask(argv)) return;
     const files = pdfArgs(argv);
+    if (files.length) remember('open', path.dirname(files[0]));   // opened from Explorer: the next Open starts there
     if (!win) { pendingPaths = files; createWindow(); return; }   // only the task window was open
     bringUp(win);
     if (files.length) win.webContents.send('open-paths', files);
@@ -205,12 +206,26 @@ async function readPdf(p) {
   return { path: p, name: path.basename(p), data: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) };
 }
 
-// Since Electron 43 a dialog without defaultPath always starts in Downloads, so remember the folder here.
-let lastOpenDir = null;
+// The folders Open and Save used last, kept across restarts: since Electron 43 a dialog without defaultPath always starts
+// in Downloads. <userData>\folders.json = { open, save }. A file opened from Explorer counts for Open; a folder that is
+// gone (or nothing yet) → Documents.
+const folders = { open: null, save: null };
+let foldersRead = null;
+const readFolders = () => foldersRead ??= fs.readFile(path.join(app.getPath('userData'), 'folders.json'), 'utf8').then(t => {
+  const o = JSON.parse(t); for (const k of ['open', 'save']) if (typeof o[k] === 'string' && path.isAbsolute(o[k])) folders[k] = o[k];
+}, () => {}).catch(() => {});
+async function remember(kind, dir){
+  await readFolders();
+  if (!dir || folders[kind] === dir) return;
+  folders[kind] = dir;
+  await fs.writeFile(path.join(app.getPath('userData'), 'folders.json'), JSON.stringify(folders)).catch(() => {});
+}
+async function startIn(kind){ await readFolders(); const d = folders[kind]; return d && await isDir(d) ? d : app.getPath('documents'); }
+
 ipcMain.handle('open-dialog', async () => {
-  const r = await dialog.showOpenDialog(win, { title: 'Open PDF', defaultPath: lastOpenDir || undefined, properties: ['openFile', 'multiSelections'], filters: PDF_FILTER });
+  const r = await dialog.showOpenDialog(win, { title: 'Open PDF', defaultPath: await startIn('open'), properties: ['openFile', 'multiSelections'], filters: PDF_FILTER });
   if (r.canceled) return [];
-  if (r.filePaths.length) lastOpenDir = path.dirname(r.filePaths[0]);
+  if (r.filePaths.length) remember('open', path.dirname(r.filePaths[0]));
   const out = [];
   for (const p of r.filePaths) { try { out.push(await readPdf(p)); } catch (e) { out.push({ path: p, name: path.basename(p), error: e.message }); } }
   return out;
@@ -229,18 +244,17 @@ ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind, dir }) => {
   const ext = (path.extname(defaultName).slice(1) || 'pdf').toLowerCase();
   const names = { pdf: 'PDF document', png: 'PNG image', jpg: 'JPEG image' };
   // dir: where the doc came from (Combine from the Explorer menu), else the last folder used
-  const start = typeof dir === 'string' && path.isAbsolute(dir) && await isDir(dir) ? dir : (lastDir || app.getPath('documents'));
+  const start = typeof dir === 'string' && path.isAbsolute(dir) && await isDir(dir) ? dir : await startIn('save');
   const r = await dialog.showSaveDialog(win, {
     title: kind === 'export' ? 'Export' : kind === 'pdf' ? 'Save as PDF' : 'Save As',
     defaultPath: path.join(start, defaultName),
     filters: [{ name: names[ext] || ext.toUpperCase(), extensions: [ext] }]
   });
   if (r.canceled || !r.filePath) return null;
-  lastDir = path.dirname(r.filePath);
+  remember('save', path.dirname(r.filePath));
   await fs.writeFile(r.filePath, Buffer.from(data));
   return r.filePath;
 });
-let lastDir = null;
 
 // Saving several files (Split / Export "Save to folder", Explorer-menu jobs): the page picks the folder(s),
 // asks `name-clashes`, shows the Replace / Keep both / Cancel question in its OWN box (never a Windows box,
@@ -297,11 +311,11 @@ ipcMain.handle('resolve-names', async (_e, groups, choice) => {
 ipcMain.handle('pick-folder', async (_e, { title } = {}) => {
   const r = await dialog.showOpenDialog(win, {
     title: String(title || 'Choose a folder'), buttonLabel: 'Save here',
-    defaultPath: lastDir || app.getPath('documents'), properties: ['openDirectory', 'createDirectory']
+    defaultPath: await startIn('save'), properties: ['openDirectory', 'createDirectory']
   });
   if (r.canceled || !r.filePaths.length) return null;
-  lastDir = r.filePaths[0];
-  return { dir: lastDir };
+  remember('save', r.filePaths[0]);
+  return { dir: r.filePaths[0] };
 });
 const isDir = p => fs.stat(p).then(s => s.isDirectory(), () => false);
 // Explorer-menu "… to folder": only "<existing folder>\<one name>" is ever made.
@@ -375,6 +389,7 @@ app.whenReady().then(() => {
   if (app.isPackaged) menu.cleanOld(path.dirname(process.execPath));
   if (handleTask(process.argv)) { if (!win && !taskWin) app.quit(); return; }
   pendingPaths = pdfArgs(process.argv);
+  if (pendingPaths.length) remember('open', path.dirname(pendingPaths[0]));
   createWindow();
 });
 app.on('window-all-closed', () => app.quit());
