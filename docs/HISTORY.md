@@ -358,3 +358,12 @@ were asked for, then dropped as rare). JPEG goes in without re-compression, phon
 The menu package version went to 1.1.0.0, so the update asks for admin once. New logo and .pdf file icon on the same branch.
 Built from a written spec and plan with tests first: C++ harness, Node unit test, Playwright (every EXIF orientation
 drawn by pdf.js and compared with how Chromium shows the photo).
+
+### 32. Red accent, Bohpum-style controls and print screen (Claude Code, 2026-10-17)
+After the new logo the user said the colours didn't match it: the accent became the logo's red (#cc2229 light, a step
+deeper than the logo so white button text stays readable; #ff5c61 dark). Then "use custom dropdown select and tick/radio
+the same Bohpum app" (their sister app): every dropdown, tick box and round option got Bohpum's look, and keys pressed
+inside an open list no longer reach the page (Delete had deleted a page while choosing). Then "printing window should be
+the same bohpum app": the Print dialog became a print screen filling the window, with Publisher-style big dropdowns, a
+zoomable preview and Save as PDF ("exactly what prints", chosen over sharp-text PDFs). The installer now also refreshes
+Windows' icon cache so an update shows the new icons at once.

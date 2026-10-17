@@ -22,7 +22,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        menu events, close request, setTheme, webUtils.getPathForFile)
     app/index.html     The whole app UI + PDF logic in one file (HTML/CSS/JS, no build step)
     app/print.js       Printing only (classic script, `window.SastraPrint`): page choice, sheet
-                       layouts, sheet drawing, the Print dialog and the print run. See "Printing".
+                       layouts, sheet drawing, the print screen (laid out like Bohpum's), the print run and
+                       Save as PDF. See "Printing".
     app/pdfops.js      `window.SastraOps`, shared by index.html and task.html so both make the same files:
                        pdf.js loading (`pdfjs()`, `PDFJS_OPTS`), `closePdf`, `baseName`, `rangeLabel`, `imageName`,
                        `renderPage` (white page → JPG/PNG blob; dpi lowered past 16 384 px a side / 64 MP)
@@ -188,12 +189,22 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   ☰ and Restore are centred on its full height (☰ stays, so the logo doesn't slide), tabs sit on its bottom edge, and the
   tab row's ::before/::after draw dividers next to the logo block and the right-hand buttons.
   `toggleFocus` re-scrolls the active tab into view after moving the row (a move resets scroll).
-- Printing (app/print.js; design in docs/superpowers/specs/2026-10-15-print-dialog-design.md):
-  Print button `#bPrint` (after Save), Ctrl+P, File > Print…, right-click "Print…" → `printCmd` →
-  `SastraPrint.open({ doc, desk, toast, svg, parseRanges })`. Acrobat-like dialog on <body>: printer +
-  Properties, copies, grayscale, pages (all/current/selected/ranges, odd/even, reverse), modes Size /
-  Poster / Multiple / Booklet, orientation, paper (A4 default, A3, A5, Letter, Legal), both sides,
-  preview of each sheet. Settings live in localStorage `sastra-print` (not copies or page choice).
+- Printing (app/print.js; design in docs/superpowers/specs/2026-10-15-print-dialog-design.md, look since 2026-10-17:
+  2026-10-17-print-screen-design.md): Print button `#bPrint` (after Save), Ctrl+P, File > Print…, right-click
+  "Print…" → `printCmd` → `SastraPrint.open({ doc, desk, toast, svg, parseRanges, savePdf })`. The **print screen**
+  is laid out like Bohpum's: `.modal-bg.print-screen` fills the window under the logo row (`top:45px`), the row is
+  `inert` + greyed meanwhile (☰/Alt/F10 already blocked by `.modal-bg`). Left column of big dropdowns
+  (`select.big` = `<button><selectedcontent>` + options of picture · bold title · explanation, `bigOptions()`):
+  `#prPrinter` (+ Copies, Printer Properties), `#prScope` (All / Current / Selected / Custom Print → `#prRangeF`;
+  odd/even + reverse under it), `#prMode` Size / Poster / Multiple / Booklet with that layout's settings in `.pr-box`
+  (`#prScale` Fit / Actual / Shrink / Custom %), `#prPaper` (A4 default, A3, A5, Letter, Legal), `#prOrient`,
+  `#prSides` (one / long / short; Booklet sets it and locks it — on a layout change only `S.mode` changes, else the
+  forced value would be read back as the user's), `#prColor` (colour / grayscale). Preview zooms like Bohpum's
+  (`.pv-zoom` bar 10–400 %, Ctrl+wheel at the mouse, Ctrl+0/+/−, Space or middle-drag; the wheel flips sheets only
+  while fitted). Footer: summary · Close · Save as PDF · Print. **Save as PDF** = exactly what prints (same sheets,
+  300/150 dpi JPEG, landscape sheets stay landscape) → `savePdf(name, bytes)` from index.html (`savePrintPdf`:
+  `desk.saveDialog(…, 'pdf', the file's folder)`, title "Save as PDF"; browser: download), name `<name>-<paper>.pdf`.
+  Settings live in localStorage `sastra-print` (not copies or page choice), same shape as before.
   `pickPages` and `planSheets` are pure (points, 5 mm margin) and exposed on `window.SastraPrint`, so
   tests call them directly. Printing draws every sheet with pdf.js (intent 'print') at 300 dpi
   (150 over 150 sheets) as JPEG into `#printArea`; landscape sheets are turned onto portrait paper
