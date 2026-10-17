@@ -142,6 +142,19 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   the head script before first paint. Thumbnail boxes are sized by CSS (`--tw`/`--th` from the width, `--ar` = page
   w / h inline; at 186 px the old 128 × 168 max); after a drag `redrawThumbs()` drops every doc's `thumbCanvas` so they
   redraw sharp (`drawThumb` uses the box's `clientWidth`).
+- Opening PDFs (since 2026-10-17; spec/plan docs/superpowers/*/2026-10-17-open-progress*; Bohpum's reading box, the
+  user: "similar to bohpum"): every way in — Open (main's `open-dialog` now returns only `[{ path, name }]`), "Open
+  with" / start-up files (`openPaths`), dropped files and the Combine panel's Add files (`openFiles`) — goes through
+  `queueOpen(items)` (item = `{ name, path, read() }`): ONE job at a time, files arriving meanwhile join it ("File 6 of
+  8"; no more "Please wait"), already-open paths just switch tabs. `startProgress({ title, failTitle })` owns the box
+  (`.modal.progress`, classes as Bohpum's `p-what/p-step/p-bar/p-fill/p-lines/p-foot`): shown through `inTurn` only if
+  the job still runs `SHOW_AFTER_MS` 500 after it started, then at least `MIN_SHOWN_MS` 400; "Opening <name>" ·
+  "Reading the file…" → "Opening…" → "Reading page 120 of 950" (`loadPdf(d, { onTask, onPage, isCancelled })`, the
+  bar fills by pages, drawn once a frame; a sliding stripe while unknown). Cancel / Esc: `job.cancelled`, this file's
+  loading task destroyed (`onCancel` returns an unsubscribe, so a cancel never closes files already opened), later
+  files skipped. Problems (`openDoc` throws `.reason` / `.userReason`: password / damaged / engine; read errors) are
+  listed and the box turns `.failed` — "Couldn't open <name>" or "Couldn't open N files", "N problems below", Close.
+  `openBytes` (split parts, Combine result, samples) still toasts. Right-click Combine uses the same box.
 - Hand tool: pointer drag scrolls `#viewer` (tool H, hold Space, or middle mouse).
 - Layout: `#app` is a grid with named areas (menu/tabs/work/status), so hiding a bar never
   shifts the workspace into an `auto` row. The view toolbar (`.toolbar`) sits inside the logo
@@ -269,8 +282,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `handleTask` (first launch and `second-instance`): `readTaskList` reads only that folder/name pattern,
   deletes the file and sorts by name like Explorer (01, 02, 10). Combine → main window `combine-paths`
   → `combinePaths` (one unsaved tab: `<name>.pdf` for one file, else "Combined.pdf"; PDFs copied,
-  pictures through `SastraImages.addImagePage`; unreadable files skipped and named, one readable file is
-  enough, none → "No PDF made" toast; `d.saveDir` = the first file's folder, Save As starts there).
+  pictures through `SastraImages.addImagePage`; in the opening progress box: "Combining 3 files · Adding file 2 of 3",
+  unreadable files listed there (one readable file is enough; none → title "No PDF made"), Cancel = no tab;
+  `d.saveDir` = the first file's folder, Save As starts there).
   Menu package 1.1.0.0 since 2026-10-17 (pictures): installing that update asks UAC once. Split/Images → `task-batch` to the task window (one per click, queued; "N more waiting"):
   per click it opens the PDFs, asks ONE "already there" question INSIDE the task window (`#ask` +
   Cancel / Replace / Keep both buttons; same `name-clashes` / `resolve-names` as Split/Export "Save to
@@ -516,7 +530,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `t\pack` from `pnpm exec electron-builder --win nsis --publish never "-c.directories.output=<t>\pack"` — app-update.yml
   is only written for nsis, not `--win dir`), update-ui 24, menu-repair-ui 11, close-check 3, packcheck (what app.asar
   holds), wfcheck (workflow YAML + `bash -n`), and `t\e2e\run.js`: a REAL update with a separate test app (see gotchas).
-  `t\launch.js` (playwright-core 1.64.1) closes What's new on fresh profiles.
+  `t\launch.js` (playwright-core 1.64.1) closes What's new on fresh profiles. Then the opening progress box:
+  `t\open-progress-test.js` (TASKS=1,2,3,4 picks groups; swaps main's read-file for a delayed one; makes `t\pdfs\`
+  p1–p20, q1–q5, big.pdf 3000 pages + copies, bad.pdf) — all pass, with update-ui, menu-repair-ui, close-check, main-wiring.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
