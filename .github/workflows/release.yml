@@ -44,6 +44,9 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $v"; exit 1
           fi
 
+      - name: Check What's new has notes for this version (app/notes.js)
+        run: node scripts/check-notes.js
+
       - name: Build the File Explorer menu (C++ DLL + package; needs the runner's Visual Studio + Windows SDK)
         run: node scripts/build-explorer-menu.js
 

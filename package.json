@@ -11,8 +11,8 @@
     "postinstall": "node scripts/ensure-electron.js && node scripts/copy-vendor.js && node scripts/check-credits.js",
     "start": "electron .",
     "build:menu": "node scripts/build-explorer-menu.js",
-    "dist": "node scripts/build-explorer-menu.js && electron-builder --win nsis",
-    "dist:portable": "node scripts/build-explorer-menu.js && electron-builder --win portable"
+    "dist": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win nsis",
+    "dist:portable": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win portable"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
