@@ -231,7 +231,7 @@ ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind, dir }) => {
   // dir: where the doc came from (Combine from the Explorer menu), else the last folder used
   const start = typeof dir === 'string' && path.isAbsolute(dir) && await isDir(dir) ? dir : (lastDir || app.getPath('documents'));
   const r = await dialog.showSaveDialog(win, {
-    title: kind === 'export' ? 'Export' : 'Save As',
+    title: kind === 'export' ? 'Export' : kind === 'pdf' ? 'Save as PDF' : 'Save As',
     defaultPath: path.join(start, defaultName),
     filters: [{ name: names[ext] || ext.toUpperCase(), extensions: [ext] }]
   });

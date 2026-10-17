@@ -265,38 +265,70 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:defau
 .cmenu hr{border:0;border-top:1px solid var(--line);margin:4px 8px;flex:none}
 .cmenu .cf{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:10px;height:36px;padding:0 6px 0 10px;flex:none}
 .cmenu .cf .zoomsel{min-width:150px}
-/* Print (app/print.js): settings on the left, a preview of each sheet on the right, like Acrobat */
-.modal.print{box-sizing:border-box;max-width:1000px;height:min(720px,calc(100vh - 32px));padding:0;gap:0;display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;overflow:hidden}
-.pr-set{overflow-y:auto;padding:18px 20px 20px;display:flex;flex-direction:column;gap:16px;border-right:1px solid var(--line)}
-.pr-set h2{margin:0;font-size:18px;font-weight:600}
-.pr-grp{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:8px}
-.pr-grp legend{padding:0;margin-bottom:8px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.pr-set .hint{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
-.pr-set .row .btn{height:32px;flex:none}
-.pr-copies{flex:0 0 96px!important}
+/* Print screen (app/print.js), as in Bohpum: fills the window under the logo row (45 px; the row is inert meanwhile),
+   settings in a column of big dropdowns on the left, a zoomable preview of each sheet on the right */
+.modal-bg.print-screen{top:45px;padding:0;background:var(--chrome);place-items:stretch}
+.menubar[inert] :is(.btn,select,input,.brand,.tab){opacity:.45}
+.modal.print{box-sizing:border-box;width:100%;max-width:none;height:100%;padding:0;gap:0;border:0;border-radius:0;box-shadow:none;display:grid;grid-template-columns:360px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}
+.pr-head{grid-column:1/-1;display:flex;align-items:center;padding:14px 24px;border-bottom:1px solid var(--line)}
+.pr-head h2{margin:0;font-size:16px;font-weight:600}
+.pr-set{overflow-y:auto;min-height:0;padding:4px 22px 24px;border-right:1px solid var(--line);background:var(--panel)}
+.pr-set h4{margin:18px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.pr-set .hint{margin:0 0 10px;color:var(--muted);font-size:12px;line-height:1.45}
+.pr-set .err-msg{margin:-4px 0 12px}
+.pr-set :is(input[type=text],input[type=number]),.pr-sub select{height:30px;box-sizing:border-box;border:1px solid var(--line-strong);border-radius:6px;background:var(--chrome);padding:0 8px;min-width:0}
+/* big dropdowns, as in Bohpum: picture · title · one line of explanation */
+select.big{display:flex;width:100%;min-height:52px;box-sizing:border-box;margin:0 0 10px;padding:8px 12px 8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--chrome)}
+select.big selectedcontent,select.big option{display:flex;align-items:center;gap:10px;min-width:0}
+select.big option{padding:8px 10px}
+.big .ic{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:6px;background:var(--accent-soft);color:var(--accent)}
+.big .ic svg{width:18px;height:18px}
+.big option .ic{background:var(--hover);color:var(--muted)}
+.big option:checked .ic{background:var(--chrome);color:var(--accent)}
+.big .t{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.big .t b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.big .t small{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* under the printer: Copies on the left, Printer Properties on the right */
+.pr-copies{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 4px}
+.pr-copies label{display:flex;align-items:center;gap:10px;font-size:12.5px}
+.pr-copies input{width:90px}
+.pr-copies .btn{height:30px;padding:0 12px}
 .chk{display:flex;align-items:center;gap:8px;min-height:24px;cursor:pointer}
 .chk input[type=radio],.chk input[type=checkbox]{margin:0;flex:none}
 .chk:has(input:disabled){opacity:.5;cursor:default}
-.pr-note{color:var(--muted);font-family:var(--mono);font-size:11.5px}
-.pr-range input[type=text],.pr-panel .chk input[type=number]{height:28px;box-sizing:border-box;border:1px solid var(--line-strong);border-radius:6px;background:var(--chrome);padding:0 8px;min-width:0}
-.pr-range input[type=text]{flex:1}
-.pr-panel .chk input[type=number]{width:72px}
-.pr-more{align-items:center;margin-top:2px}
-.pr-more .chk{flex:none;padding-top:18px}
-.pr-panel{display:flex;flex-direction:column;gap:8px;padding-top:4px}
-.pr-inline{display:flex;flex-wrap:wrap;gap:4px 16px}
-.pr-flip{padding-left:22px}
-.pr-view{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--canvas)}
+.pr-range{margin:-2px 0 10px}
+.pr-sub{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.pr-sub select{flex:1}
+/* the chosen layout's own settings, boxed together under the Layout dropdown */
+.pr-box{margin:-2px 0 12px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--chrome)}
+.pr-box :is(select,input[type=number],input[type=text]){background:var(--panel)}
+.pr-panel{display:flex;flex-direction:column;gap:10px}
+.pr-panel .hint{margin:0}
+.pr-sides-note{margin:-6px 0 10px}
+/* the preview: a scroll box once zoomed in; sheet arrows and the zoom bar float at the bottom */
+.pr-view{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--canvas)}
 .pr-info{padding:12px 16px 0;min-height:18px;font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pr-stage{flex:1;min-height:0;display:grid;place-items:center;padding:16px 20px;overflow:hidden}
-.pr-stage canvas{display:block;background:#fff;box-shadow:var(--page-shadow)}
-.pr-none{margin:0;color:var(--muted)}
-.pr-nav{display:flex;align-items:center;justify-content:center;gap:10px;padding:0 0 12px;font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
+.pr-stage{flex:1;min-height:0;display:flex;padding:16px 20px 52px;overflow:hidden}
+.pr-stage.zoomed{overflow:auto}
+.pr-stage canvas{display:block;flex:none;margin:auto;background:#fff;box-shadow:var(--page-shadow)}
+.pr-stage.grab,.pr-stage.grab *{cursor:grab!important}
+.pr-stage.panning,.pr-stage.panning *{cursor:grabbing!important}
+.pr-none{margin:auto;color:var(--muted)}
+.pr-nav{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:2px 6px;border-radius:16px;background:color-mix(in srgb,var(--panel) 90%,transparent);font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
+.pr-nav .btn.icon{width:28px;height:28px}
 .pr-nav span{min-width:120px;text-align:center}
-.pr-foot{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
+.pv-zoom{position:absolute;right:12px;bottom:8px;display:flex;align-items:center;gap:4px;padding:3px 6px;border:1px solid var(--line);border-radius:8px;background:color-mix(in srgb,var(--panel) 92%,transparent);box-shadow:0 2px 8px rgba(0,0,0,.12);font-size:12px}
+.pv-zoom .btn{height:24px;min-width:24px;padding:0 6px;font-size:13px}
+.pv-zoom .btn[data-z="fit"]{font-size:12px}
+.pv-zoom .btn.on{background:var(--accent-soft);color:var(--accent)}
+.pv-zoom input[type=range]{width:120px;accent-color:var(--accent)}
+.pv-zoom .pct{min-width:40px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+/* the bottom row: what will happen · Close · Save as PDF · Print */
+.pr-foot{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 24px;border-top:1px solid var(--line);background:var(--chrome)}
+.pr-foot .btn{height:34px;padding:0 18px}
 .pr-status{margin-right:auto;color:var(--muted);font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .modal.print.running .pr-status{color:var(--accent)}
-@media (max-width:760px){.modal.print{grid-template-columns:minmax(0,1fr) minmax(0,.8fr)}}
+@media (max-width:860px){.modal.print{grid-template-columns:minmax(0,320px) minmax(0,1fr)}.pv-zoom input[type=range]{width:70px}}
 /* the sheets themselves, made by app/print.js; the only thing on paper */
 #printArea{display:none}
 @media print{
@@ -1263,7 +1295,13 @@ $('#bFocus').onclick = () => toggleFocus();
 // Print window (app/print.js): it gets the active document and the few app helpers it needs
 function printCmd(){
   const d = active(); if (!d || state.busy || $('.modal-bg')) return;
-  closeMenu(); SastraPrint.open({ doc:d, desk, toast, svg, parseRanges });
+  closeMenu(); SastraPrint.open({ doc:d, desk, toast, svg, parseRanges, savePdf:(name, bytes) => savePrintPdf(d, name, bytes) });
+}
+// the print screen's "Save as PDF": the Save dialog in the file's folder (desk), else a download → the saved name or null
+async function savePrintPdf(d, name, bytes){
+  if (!desk) return (await saveFile(name, new Blob([bytes], { type:'application/pdf' }))) ? name : null;
+  const p = await desk.saveDialog(name, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), 'pdf', d.saveDir || (d.path ? d.path.replace(/[\\/][^\\/]*$/, '') : null));
+  return p ? p.split(/[\\/]/).pop() : null;
 }
 $('#bPrint').onclick = printCmd;
 $('#bPresent').onclick = () => presentCmd(false);

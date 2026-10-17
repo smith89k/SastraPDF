@@ -1,6 +1,6 @@
-// Sastra PDF — printing, modelled on Acrobat's Print window: which pages, how they sit on the paper
-// (Size / Poster / Multiple / Booklet), drawing each sheet, the dialog and the print run.
-// Loaded by index.html before its main script. The app hands over what the dialog needs through
+// Sastra PDF — printing: which pages, how they sit on the paper (Size / Poster / Multiple / Booklet, as in Acrobat),
+// drawing each sheet, the print screen (laid out like Bohpum's) and the print run / Save as PDF.
+// Loaded by index.html before its main script. The app hands over what the screen needs through
 // SastraPrint.open({ … }); main.js sends the finished sheets to the printer (see 'print' there).
 (() => {
 'use strict';
@@ -180,6 +180,32 @@ async function drawSheet(getPage, sizes, sh, px, ctx, opt = {}){
   }
 }
 
+/* ---------- the print screen's big dropdowns, as in Bohpum: picture · title · one line of explanation ---------- */
+// pictures (24 × 24, drawn in currentColor)
+const ICON = {
+  printer:'<path d="M7 9V3h10v6M7 18H5a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2M7 14h10v7H7z"/>',
+  all:'<path d="M8 3h9l3 3v13H8zM4 7v14h12"/>', current:'<path d="M6 3h9l3 3v15H6z"/><path d="M9 12h6"/>',
+  selected:'<path d="M6 3h9l3 3v15H6z"/><path d="M9 13l2 2 4-4"/>', custom:'<path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6M9 15h4"/>',
+  size:'<path d="M5 3h14v18H5z"/><path d="M8 7h8v10H8z"/>', poster:'<path d="M3 4h18v16H3zM12 4v16M3 12h18"/>',
+  multiple:'<path d="M5 3h14v18H5z"/><path d="M8 6h3v5H8zM13 6h3v5h-3zM8 13h3v5H8zM13 13h3v5h-3z"/>',
+  booklet:'<path d="M12 6.5C10 5 7 4.5 3 5v14c4-.5 7 0 9 1.5 2-1.5 5-2 9-1.5V5c-4-.5-7 0-9 1.5zM12 6.5V20"/>',
+  paper:'<path d="M6 3h12v18H6z"/>', auto:'<path d="M9 3h9v13H9z"/><path d="M4 11h11v10H4z"/>',
+  portrait:'<path d="M7 3h10v18H7z"/><path d="M10 7h4"/>', landscape:'<path d="M3 7h18v10H3z"/><path d="M7 10h4"/>',
+  one:'<path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h3"/>', long:'<path d="M9 3h10v15"/><path d="M5 6h10v15H5z"/>',
+  short:'<path d="M6 5h15v10"/><path d="M3 9h15v10H3z"/>', color:'<circle cx="9" cy="9" r="5"/><circle cx="15" cy="9" r="5"/><circle cx="12" cy="15" r="5"/>',
+  gray:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>'
+};
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
+// a big dropdown's options (it is a real <select>): [value, picture, title, explanation, disabled?] each
+const bigOptions = items => PICKED + items.map(([v, ic, t, sub, off]) =>
+  `<option value="${esc(v)}"${off ? ' disabled' : ''}><span class="ic">${icon(ic)}</span><span class="t"><b>${esc(t)}</b><small>${esc(sub)}</small></span></option>`).join('');
+const MODES = [['size','size','One page per sheet','Fit, actual size or your own scale'], ['poster','poster','Poster','One page tiled over several sheets'],
+  ['multiple','multiple','Multiple pages per sheet','2, 4, 6, 9 or 16 on each sheet'], ['booklet','booklet','Booklet','Folded sheets, pages in reading order']];
+const ORIENTS = [['auto','auto','Auto Orientation','Each sheet turns to suit its pages'], ['portrait','portrait','Portrait Orientation','Tall sheet'], ['landscape','landscape','Landscape Orientation','Wide sheet']];
+const SIDES = [['one','one','Print One Sided','Only print on one side of the paper'], ['long','long','Print on Both Sides','Flip sheets on the long edge'], ['short','short','Print on Both Sides','Flip sheets on the short edge']];
+const COLORS = [['color','color','Colour','Print in colour'], ['gray','gray','Grayscale','Black and white only']];
+
 /* ---------- the Print dialog ---------- */
 const DEFAULTS = { printer:'', paper:'A4', mode:'size', orient:'auto', gray:false, duplex:false, flip:'long',
   size:{ how:'fit', pct:100 }, poster:{ pct:100, overlap:0, labels:false, marks:false },
@@ -196,40 +222,28 @@ const saveSettings = s => { try { localStorage.setItem(STORE, JSON.stringify(s))
 const fmtMm = pt => Math.round(pt / MM);
 
 const DIALOG = `
+<div class="pr-head"><h2 id="prTitle">Print</h2></div>
 <div class="pr-set">
-  <h2 id="prTitle">Print</h2>
-  <div class="pr-grp" data-desk>
-    <div class="row">
-      <div class="field"><label for="prPrinter">Printer</label><select id="prPrinter">${PICKED}<option>Finding printers…</option></select></div>
-      <button class="btn outline" id="prProps" type="button" title="Windows' printing preferences for this printer: paper tray, quality… What you change there stays as the printer's default.">Properties</button>
-    </div>
-    <div class="row">
-      <div class="field pr-copies"><label for="prCopies">Copies</label><input type="number" id="prCopies" min="1" max="999" value="1"></div>
-    </div>
+  <div data-desk>
+    <h4>Printer</h4>
+    <select class="big" id="prPrinter" aria-label="Printer">${bigOptions([['', 'printer', 'Finding printers…', 'Looking for printers on this PC']])}</select>
+    <div class="pr-copies"><label>Copies <input type="number" id="prCopies" min="1" max="999" value="1"></label>
+      <button class="btn outline" id="prProps" type="button" title="Windows' printing preferences for this printer: paper tray, quality… What you change there stays as the printer's default.">Printer Properties</button></div>
   </div>
   <p class="hint" data-web>Your browser asks which printer to use in the next window.</p>
-  <label class="chk"><input type="checkbox" id="prGray">Print in grayscale (black and white)</label>
-
-  <fieldset class="pr-grp"><legend>Pages to print</legend>
-    <label class="chk"><input type="radio" name="prScope" value="all">All</label>
-    <label class="chk"><input type="radio" name="prScope" value="current">Current page <span class="pr-note" id="prCurN"></span></label>
-    <label class="chk"><input type="radio" name="prScope" value="selected">Selected pages <span class="pr-note" id="prSelN"></span></label>
-    <label class="chk pr-range"><input type="radio" name="prScope" value="range">Pages <input type="text" id="prRange" aria-label="Pages to print" placeholder="1-3, 7" spellcheck="false"></label>
-    <div class="row pr-more">
-      <div class="field"><label for="prSubset">More options</label>
-        <select id="prSubset"><option value="all">All pages in range</option><option value="odd">Odd pages only</option><option value="even">Even pages only</option></select></div>
-      <label class="chk"><input type="checkbox" id="prReverse">Reverse pages</label>
-    </div>
-    <p class="err-msg" id="prErr" hidden></p>
-  </fieldset>
-
-  <fieldset class="pr-grp"><legend>Page sizing &amp; handling</legend>
-    <div class="seg" id="prMode"><button type="button" data-v="size">Size</button><button type="button" data-v="poster">Poster</button><button type="button" data-v="multiple">Multiple</button><button type="button" data-v="booklet">Booklet</button></div>
+  <h4>Settings</h4>
+  <select class="big" id="prScope" aria-label="Pages to print"></select>
+  <div class="field pr-range" id="prRangeF" hidden><label for="prRange">Pages</label><input type="text" id="prRange" placeholder="1-3, 7" spellcheck="false"></div>
+  <div class="pr-sub">
+    <select id="prSubset" aria-label="Odd or even pages"><option value="all">All pages in range</option><option value="odd">Odd pages only</option><option value="even">Even pages only</option></select>
+    <label class="chk"><input type="checkbox" id="prReverse">Reverse pages</label>
+  </div>
+  <p class="err-msg" id="prErr" hidden></p>
+  <select class="big" id="prMode" aria-label="Layout">${bigOptions(MODES)}</select>
+  <div class="pr-box">
     <div class="pr-panel" data-mode="size">
-      <label class="chk"><input type="radio" name="prSize" value="fit">Fit</label>
-      <label class="chk"><input type="radio" name="prSize" value="actual">Actual size</label>
-      <label class="chk"><input type="radio" name="prSize" value="shrink">Shrink oversized pages</label>
-      <label class="chk"><input type="radio" name="prSize" value="custom">Custom scale <input type="number" id="prPct" min="1" max="1000" aria-label="Custom scale in percent"> %</label>
+      <div class="field"><label for="prScale">Scale</label><select id="prScale"><option value="fit">Fit to paper</option><option value="actual">Actual size</option><option value="shrink">Shrink oversized pages</option><option value="custom">Custom scale</option></select></div>
+      <div class="field" id="prPctF"><label for="prPct">Custom scale (%)</label><input type="number" id="prPct" min="1" max="1000"></div>
     </div>
     <div class="pr-panel" data-mode="poster">
       <div class="row">
@@ -253,97 +267,100 @@ const DIALOG = `
       </div>
       <p class="hint">Fold the printed stack in half to make the booklet. If the printer can't print on both sides, print <b>Front side only</b>, put the stack back in the tray, then print <b>Back side only</b>.</p>
     </div>
-  </fieldset>
-
-  <fieldset class="pr-grp"><legend>Orientation and paper</legend>
-    <div class="pr-inline">
-      <label class="chk"><input type="radio" name="prOrient" value="auto">Auto</label>
-      <label class="chk"><input type="radio" name="prOrient" value="portrait">Portrait</label>
-      <label class="chk"><input type="radio" name="prOrient" value="landscape">Landscape</label>
-    </div>
-    <div class="field"><label for="prPaper">Paper</label><select id="prPaper">${Object.entries(PAPERS).map(([k, [w, h]]) => `<option value="${k}">${k} (${w} × ${h} mm)</option>`).join('')}</select></div>
-  </fieldset>
-
-  <div class="pr-grp" data-desk>
-    <label class="chk"><input type="checkbox" id="prDuplex">Print on both sides of paper</label>
-    <div class="pr-inline pr-flip">
-      <label class="chk"><input type="radio" name="prFlip" value="long">Flip on long edge</label>
-      <label class="chk"><input type="radio" name="prFlip" value="short">Flip on short edge</label>
-    </div>
   </div>
+  <select class="big" id="prPaper" aria-label="Paper">${bigOptions(Object.entries(PAPERS).map(([k, [w, h]]) => [k, 'paper', k, `${w} × ${h} mm`]))}</select>
+  <select class="big" id="prOrient" aria-label="Orientation">${bigOptions(ORIENTS)}</select>
+  <div data-desk><select class="big" id="prSides" aria-label="Sides">${bigOptions(SIDES)}</select><p class="hint pr-sides-note" id="prSidesNote" hidden>Set by Booklet</p></div>
+  <select class="big" id="prColor" aria-label="Colour">${bigOptions(COLORS)}</select>
 </div>
 <div class="pr-view">
   <div class="pr-info" id="prInfo"></div>
   <div class="pr-stage" id="prStage"><canvas id="prCanvas"></canvas><p class="pr-none" hidden>Nothing to print</p></div>
   <div class="pr-nav"><button class="btn icon" id="prPrev" type="button" title="Previous sheet"></button><span id="prSheet"></span><button class="btn icon" id="prNext" type="button" title="Next sheet"></button></div>
+  <div class="pv-zoom" role="group" aria-label="Zoom"><button class="btn" data-z="out" type="button" title="Zoom out (Ctrl+−)" aria-label="Zoom out">−</button><input type="range" id="prZoom" min="0" max="1000" step="1" aria-label="Zoom"><button class="btn" data-z="in" type="button" title="Zoom in (Ctrl++)" aria-label="Zoom in">+</button><span class="pct" id="prZoomPct"></span><button class="btn" data-z="fit" type="button" title="Fit the whole sheet (Ctrl+0)">Fit sheet</button></div>
 </div>
-<div class="pr-foot"><span class="pr-status" id="prStatus" role="status"></span><button class="btn outline" id="prCancel" type="button">Cancel</button><button class="btn primary" id="prGo" type="button">Print</button></div>`;
+<div class="pr-foot"><span class="pr-status" id="prStatus" role="status"></span><button class="btn outline" id="prCancel" type="button">Close</button><button class="btn outline" id="prPdf" type="button">Save as PDF</button><button class="btn primary" id="prGo" type="button">Print</button></div>`;
+
+// zoom, as in Bohpum: 'fit' = the whole sheet; a number = against real size (1 = 100 %, 96 px per inch)
+const ZMIN = 0.1, ZMAX = 4, PT = 96 / 72;
+const toSlider = z => Math.round((Math.log(z) - Math.log(ZMIN)) / (Math.log(ZMAX) - Math.log(ZMIN)) * 1000);
+const fromSlider = v => Math.exp(Math.log(ZMIN) + v / 1000 * (Math.log(ZMAX) - Math.log(ZMIN)));
 
 let openNow = false;
-function open({ doc, desk, toast, svg, parseRanges }){
+// savePdf(name, bytes) → the saved file's name, or null when not saved (index.html: the Save dialog, or a download)
+function open({ doc, desk, toast, svg, parseRanges, savePdf: savePdfFile }){
   if (openNow) return; openNow = true;
   const S = loadSettings(), back = document.activeElement;
   const getPage = i => doc.pdf.getPage(i + 1);
-  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  // the print screen fills the window under the logo row (as in Bohpum); the row stays but does nothing meanwhile
+  const bg = document.createElement('div'); bg.className = 'modal-bg print-screen';
   bg.innerHTML = `<div class="modal print" role="dialog" aria-modal="true" aria-labelledby="prTitle">${DIALOG}</div>`;
   const dlg = bg.firstElementChild, q = s => dlg.querySelector(s), qa = s => [...dlg.querySelectorAll(s)];
-  const radioVal = n => q(`input[name="${n}"]:checked`)?.value;
-  const setRadio = (n, v) => { const r = q(`input[name="${n}"][value="${v}"]`); if (r) r.checked = true; };
+  const bar = document.querySelector('.menubar'); if (bar) bar.inert = true;
   q('#prPrev').innerHTML = svg('left'); q('#prNext').innerHTML = svg('right');
   qa(desk ? '[data-web]' : '[data-desk]').forEach(el => el.hidden = true);
 
   // page choice belongs to this document and this time only; the rest is remembered
-  const sel = [...doc.sel];
-  q('#prCurN').textContent = `(${doc.current + 1})`;
-  q('#prSelN').textContent = sel.length ? `(${sel.length})` : '';
-  q('input[name="prScope"][value="selected"]').disabled = !sel.length;
-  setRadio('prScope', sel.length >= 2 ? 'selected' : 'all');
+  const sel = [...doc.sel], pl = n => `${n} page${n > 1 ? 's' : ''}`;
+  q('#prScope').innerHTML = bigOptions([['all', 'all', 'Print All Pages', `The whole document (${pl(doc.n)})`], ['current', 'current', 'Print Current Page', `Page ${doc.current + 1}`],
+    ['selected', 'selected', 'Print Selected Pages', sel.length ? `${pl(sel.length)} selected` : 'Select pages in the Pages panel first', !sel.length],
+    ['range', 'custom', 'Custom Print', 'Type which pages to print']]);
+  q('#prScope').value = sel.length >= 2 ? 'selected' : 'all';
   q('#prRange').value = doc.n > 1 ? `1-${doc.n}` : '1';
 
   // settings → controls
   function syncUI(){
-    q('#prGray').checked = S.gray;
-    qa('#prMode button').forEach(b => b.classList.toggle('on', b.dataset.v === S.mode));
+    q('#prColor').value = S.gray ? 'gray' : 'color';
+    q('#prMode').value = S.mode;
     qa('.pr-panel').forEach(p => p.hidden = p.dataset.mode !== S.mode);
-    setRadio('prSize', S.size.how); q('#prPct').value = S.size.pct;
+    q('#prScale').value = S.size.how; q('#prPct').value = S.size.pct; q('#prPctF').hidden = S.size.how !== 'custom';
     q('#prTile').value = S.poster.pct; q('#prOverlap').value = S.poster.overlap;
     q('#prLabels').checked = S.poster.labels; q('#prMarks').checked = S.poster.marks;
     q('#prPer').value = String(S.multi.n); q('#prOrder').value = S.multi.order; q('#prBorder').checked = S.multi.border;
     q('#prSubsetB').value = S.booklet.subset; q('#prBinding').value = S.booklet.binding;
-    setRadio('prOrient', S.orient); q('#prPaper').value = S.paper;
-    const bk = S.mode === 'booklet';   // a booklet decides both-sides printing itself
-    q('#prDuplex').checked = bk ? S.booklet.subset === 'both' : S.duplex; q('#prDuplex').disabled = bk;
-    setRadio('prFlip', bk ? 'short' : S.flip);
-    qa('input[name="prFlip"]').forEach(r => r.disabled = bk || !S.duplex);
+    q('#prOrient').value = S.orient; q('#prPaper').value = S.paper;
+    const bk = S.mode === 'booklet', sides = q('#prSides');   // a booklet decides both-sides printing itself
+    sides.value = bk ? (S.booklet.subset === 'both' ? 'short' : 'one') : S.duplex ? S.flip : 'one';
+    sides.disabled = bk; q('#prSidesNote').hidden = !bk;
     q('#prSubset').disabled = bk;   // odd/even makes no sense in a booklet; Reverse reverses its sheets
+    q('#prRangeF').hidden = q('#prScope').value !== 'range';
   }
   // controls → settings
   function readUI(){
-    S.gray = q('#prGray').checked;
-    S.size = { how: radioVal('prSize') || 'fit', pct: clamp(q('#prPct').value, 1, 1000, 100) };
+    S.gray = q('#prColor').value === 'gray';
+    S.size = { how: q('#prScale').value || 'fit', pct: clamp(q('#prPct').value, 1, 1000, 100) };
     S.poster = { pct: clamp(q('#prTile').value, 10, 1000, 100), overlap: clamp(q('#prOverlap').value, 0, 50, 0), labels: q('#prLabels').checked, marks: q('#prMarks').checked };
     S.multi = { n: +q('#prPer').value, order: q('#prOrder').value, border: q('#prBorder').checked };
     S.booklet = { subset: q('#prSubsetB').value, binding: q('#prBinding').value };
-    S.orient = radioVal('prOrient') || 'auto'; S.paper = q('#prPaper').value;
-    if (S.mode !== 'booklet') { S.duplex = q('#prDuplex').checked; S.flip = radioVal('prFlip') || 'long'; }
+    S.orient = q('#prOrient').value || 'auto'; S.paper = q('#prPaper').value;
+    if (S.mode !== 'booklet') { const v = q('#prSides').value; S.duplex = v === 'long' || v === 'short'; if (S.duplex) S.flip = v; }
     if (desk && q('#prPrinter').value && printers.length) S.printer = q('#prPrinter').value;
   }
 
   // the plan and the preview
   let plan = { sheets:[], duplex:null }, view = 0, drawGen = 0, drawT = 0;
   function recompute(){
-    const r = pickPages(doc.n, { scope: radioVal('prScope'), current: doc.current, sel, range: q('#prRange').value,
+    const r = pickPages(doc.n, { scope: q('#prScope').value, current: doc.current, sel, range: q('#prRange').value,
       subset: S.mode === 'booklet' ? 'all' : q('#prSubset').value, reverse: S.mode !== 'booklet' && q('#prReverse').checked }, parseRanges);
     plan = planSheets(doc.sizes, r.pages, { ...S, reverse: S.mode === 'booklet' && q('#prReverse').checked, name: doc.name });
     view = Math.max(0, Math.min(view, plan.sheets.length - 1));
     const err = q('#prErr'); err.textContent = r.error || ''; err.hidden = !r.error;
     updateView();
   }
+  // the bottom row, when nothing is running: "10 sheets · A4 · both sides · grayscale"
+  function summary(){
+    const n = plan.sheets.length; if (!n) return '';
+    const sides = S.mode === 'booklet' && S.booklet.subset === 'both', out = [`${n} ${sides ? 'side' : 'sheet'}${n > 1 ? 's' : ''}`, S.paper];
+    if (desk) out.push((S.mode === 'booklet' ? sides : S.duplex) ? 'both sides' : 'one side');
+    if (S.gray) out.push('grayscale');
+    return out.join(' · ');
+  }
   function updateView(){
     const n = plan.sheets.length, sh = plan.sheets[view];
     q('#prSheet').textContent = n ? `${S.mode === 'booklet' && S.booklet.subset === 'both' ? 'Side' : 'Sheet'} ${view + 1} of ${n}` : 'Nothing to print';
     q('#prPrev').disabled = view <= 0; q('#prNext').disabled = view >= n - 1;
     q('#prGo').disabled = !n || running || (desk && !printers.length);
+    q('#prPdf').disabled = !n || running;
     q('#prCanvas').hidden = !n; q('.pr-none').hidden = !!n;
     let info = '';
     if (sh) {
@@ -354,6 +371,7 @@ function open({ doc, desk, toast, svg, parseRanges }){
       if (S.mode === 'poster') info += ` · ${plan.sheets.filter(s => s.items[0].i === it.i).length} sheets for page ${it.i + 1}`;
     }
     q('#prInfo').textContent = info;
+    if (!running) q('#prStatus').textContent = summary();
     redraw();
   }
   // the preview follows 120 ms after the last change; .drawing marks it as not yet up to date
@@ -364,26 +382,53 @@ function open({ doc, desk, toast, svg, parseRanges }){
     const stage = q('#prStage'), cs = getComputedStyle(stage);
     const sw = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const shH = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-    const fit = Math.max(0.05, Math.min(sw / sh.w, shH / sh.h)), dpr = Math.min(devicePixelRatio || 1, 2);
+    const fitPx = Math.max(0.05, Math.min(sw / sh.w, shH / sh.h));   // CSS px per point that show the whole sheet
+    fitScale = fitPx / PT;
+    const cssPx = zoom === 'fit' ? fitPx : zoom * PT, dpr = Math.min(devicePixelRatio || 1, 2);
+    // drawn less sharp (and stretched) past what a canvas can hold
+    const px = Math.min(cssPx * dpr, 16384 / Math.max(sh.w, sh.h), Math.sqrt(64e6 / (sh.w * sh.h)));
     const c = document.createElement('canvas'); c.id = 'prCanvas';
-    c.width = Math.round(sh.w * fit * dpr); c.height = Math.round(sh.h * fit * dpr);
-    c.style.width = Math.round(sh.w * fit) + 'px'; c.style.height = Math.round(sh.h * fit) + 'px';
-    try { await drawSheet(getPage, doc.sizes, sh, fit * dpr, c.getContext('2d'), { gray: S.gray, cancelled: () => gen !== drawGen }); }
+    c.width = Math.round(sh.w * px); c.height = Math.round(sh.h * px);
+    c.style.width = Math.round(sh.w * cssPx) + 'px'; c.style.height = Math.round(sh.h * cssPx) + 'px';
+    try { await drawSheet(getPage, doc.sizes, sh, px, c.getContext('2d'), { gray: S.gray, cancelled: () => gen !== drawGen }); }
     catch (e) { console.error(e); }
     if (gen !== drawGen || !bg.isConnected) return;
-    q('#prCanvas').replaceWith(c); dlg.classList.remove('drawing');
+    q('#prCanvas').replaceWith(c); dlg.classList.remove('drawing'); showZoom();
   }
   const changed = () => { readUI(); syncUI(); saveSettings(S); recompute(); };
+
+  // zoom: stays while settings change; Fit when the screen opens
+  let zoom = 'fit', fitScale = 1, space = false, overView = false;
+  const scaleNow = () => zoom === 'fit' ? fitScale : zoom;
+  function showZoom(){
+    q('#prZoomPct').textContent = Math.round(scaleNow() * 100) + '%';
+    if (document.activeElement !== q('#prZoom')) q('#prZoom').value = toSlider(Math.max(ZMIN, scaleNow()));
+    q('.pv-zoom [data-z="fit"]').classList.toggle('on', zoom === 'fit');
+    q('#prStage').classList.toggle('zoomed', zoom !== 'fit');
+  }
+  // z: a scale or 'fit'; at: the screen point that stays put (the mouse), else the middle of the view.
+  // The picture is stretched at once, then drawn sharp again.
+  function setZoom(z, at){
+    const stage = q('#prStage'), c = q('#prCanvas'), sh = plan.sheets[view];
+    if (!sh || c.hidden) return;
+    const before = c.getBoundingClientRect(), b0 = scaleNow();
+    zoom = z === 'fit' ? 'fit' : Math.max(ZMIN, Math.min(ZMAX, z));
+    const after = scaleNow(); showZoom();
+    c.style.width = Math.round(sh.w * after * PT) + 'px'; c.style.height = Math.round(sh.h * after * PT) + 'px';
+    const r = stage.getBoundingClientRect(), ax = at ? at.x : r.left + r.width / 2, ay = at ? at.y : r.top + r.height / 2;
+    const px = (ax - before.left) / b0, py = (ay - before.top) / b0, c1 = c.getBoundingClientRect();
+    stage.scrollLeft += c1.left + px * after - ax; stage.scrollTop += c1.top + py * after - ay;
+    redraw();
+  }
 
   // printers
   let printers = [];
   if (desk) desk.printers().then(list => {
     if (!bg.isConnected) return;   // closed before the list came
     printers = list || []; const s = q('#prPrinter');
-    if (!printers.length) { s.innerHTML = PICKED + '<option value="">No printers installed</option>'; s.disabled = true; q('#prProps').disabled = true; }
+    if (!printers.length) { s.innerHTML = bigOptions([['', 'printer', 'No printers installed', 'Save as PDF still works']]); s.disabled = true; q('#prProps').disabled = true; }
     else {
-      s.innerHTML = PICKED + printers.map(p => `<option></option>`).join('');
-      printers.forEach((p, k) => { s.options[k].value = p.name; s.options[k].textContent = p.displayName; });
+      s.innerHTML = bigOptions(printers.map(p => [p.name, 'printer', p.displayName, p.isDefault ? 'Default printer' : 'Printer']));
       s.value = (printers.find(p => p.name === S.printer) || printers.find(p => p.isDefault) || printers[0]).name;
     }
     updateView();
@@ -392,41 +437,81 @@ function open({ doc, desk, toast, svg, parseRanges }){
 
   // wiring
   dlg.addEventListener('change', e => {
-    if (e.target.matches('#prPrinter')) { readUI(); saveSettings(S); } else changed();
+    if (e.target.matches('#prZoom')) return;
+    if (e.target.matches('#prPrinter')) { readUI(); saveSettings(S); return; }
+    // a new layout: only the mode changes (reading the controls now would keep Booklet's forced "both sides" as the choice)
+    if (e.target.matches('#prMode')) { if (running) return; S.mode = e.target.value; view = 0; syncUI(); saveSettings(S); recompute(); return; }
+    changed();
   });
-  dlg.addEventListener('input', e => { if (e.target.matches('#prRange')) { setRadio('prScope', 'range'); recompute(); } else if (e.target.matches('input[type=number]')) changed(); });
-  q('#prRange').addEventListener('focus', () => { setRadio('prScope', 'range'); recompute(); });
-  q('#prMode').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || running) return; S.mode = b.dataset.v; view = 0; syncUI(); saveSettings(S); recompute(); });
+  dlg.addEventListener('input', e => {
+    if (e.target.matches('#prRange')) recompute();
+    else if (e.target.matches('#prZoom')) setZoom(fromSlider(+e.target.value));
+    else if (e.target.matches('input[type=number]')) changed();
+  });
   q('#prPrev').onclick = () => { view--; updateView(); };
   q('#prNext').onclick = () => { view++; updateView(); };
-  q('#prStage').addEventListener('wheel', e => { e.preventDefault(); const v = Math.max(0, Math.min(plan.sheets.length - 1, view + Math.sign(e.deltaY))); if (v !== view) { view = v; updateView(); } }, { passive:false });
+  const stage = q('#prStage');
+  stage.addEventListener('wheel', e => {
+    if (e.ctrlKey) { e.preventDefault(); setZoom(scaleNow() * (e.deltaY < 0 ? 1.2 : 1 / 1.2), { x: e.clientX, y: e.clientY }); return; }
+    if (zoom !== 'fit') return;   // zoomed in: the wheel scrolls
+    e.preventDefault(); const v = Math.max(0, Math.min(plan.sheets.length - 1, view + Math.sign(e.deltaY))); if (v !== view) { view = v; updateView(); }
+  }, { passive:false });
+  // Space + drag or the middle mouse button moves the view
+  stage.addEventListener('pointerdown', e => {
+    if (!(e.button === 1 || (e.button === 0 && space))) return;
+    e.preventDefault();
+    const sx = e.clientX, sy = e.clientY, l = stage.scrollLeft, t = stage.scrollTop;
+    stage.classList.add('panning'); stage.setPointerCapture(e.pointerId);
+    const move = ev => { stage.scrollLeft = l - (ev.clientX - sx); stage.scrollTop = t - (ev.clientY - sy); };
+    const up = () => { stage.classList.remove('panning'); stage.removeEventListener('pointermove', move); stage.removeEventListener('pointerup', up); };
+    stage.addEventListener('pointermove', move); stage.addEventListener('pointerup', up);
+  });
+  q('.pr-view').addEventListener('pointerenter', () => { overView = true; });
+  q('.pr-view').addEventListener('pointerleave', () => { overView = false; });
+  const setSpace = on => { space = on; stage.classList.toggle('grab', on); };
+  q('.pv-zoom').addEventListener('click', e => { const b = e.target.closest('[data-z]'); if (b) setZoom(b.dataset.z === 'fit' ? 'fit' : scaleNow() * (b.dataset.z === 'in' ? 1.25 : 0.8)); });
   q('#prCancel').onclick = () => running ? (cancelled = true) : close();
   q('#prGo').onclick = () => go();
-  bg.addEventListener('click', e => { if (e.target === bg && !running) close(); });
+  q('#prPdf').onclick = () => savePdf();
+  const typing = el => !!el?.closest?.('input, select, textarea');
   const keys = e => {
     if (e.target.closest?.('select')?.matches(':open')) return;   // an open dropdown list handles its own Esc / Enter
+    const z = (e.ctrlKey || e.metaKey) && !e.altKey && { '0': 'fit', '=': 'in', '+': 'in', '-': 'out' }[e.key];
+    if (z) { e.preventDefault(); e.stopPropagation(); setZoom(z === 'fit' ? 'fit' : scaleNow() * (z === 'in' ? 1.25 : 0.8)); return; }
+    if (e.key === ' ' && overView && !typing(e.target)) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) setSpace(true); return; }
     if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); if (running) cancelled = true; else close(); }
     else if (e.key === 'Enter' && !e.target.closest('button, select') && !q('#prGo').disabled) { e.preventDefault(); go(); }
   };
-  document.addEventListener('keydown', keys, true);
-  const ro = new ResizeObserver(redraw); ro.observe(q('#prStage'));
+  const keysUp = e => { if (e.key === ' ' && space) { e.preventDefault(); setSpace(false); } };
+  document.addEventListener('keydown', keys, true); document.addEventListener('keyup', keysUp, true);
+  const ro = new ResizeObserver(redraw); ro.observe(stage);
   function close(){
     if (!bg.isConnected) return;
-    drawGen++; clearTimeout(drawT); ro.disconnect(); document.removeEventListener('keydown', keys, true);
-    bg.remove(); openNow = false; back?.focus?.({ preventScroll:true });
+    drawGen++; clearTimeout(drawT); ro.disconnect();
+    document.removeEventListener('keydown', keys, true); document.removeEventListener('keyup', keysUp, true);
+    bg.remove(); if (bar) bar.inert = false; openNow = false; back?.focus?.({ preventScroll:true });
+  }
+
+  /* ---------- a run (Print or Save as PDF): the left column and the buttons rest meanwhile ---------- */
+  let running = false, cancelled = false;
+  const status = t => { q('#prStatus').textContent = t; };
+  function begin(){
+    readUI(); saveSettings(S);
+    running = true; cancelled = false; dlg.classList.add('running');
+    qa('.pr-set :is(input, select, button), #prGo, #prPdf').forEach(el => { if (!el.disabled) { el.disabled = true; el.dataset.run = ''; } });
+  }
+  function end(){
+    running = false; dlg.classList.remove('running');
+    qa('[data-run]').forEach(el => { el.disabled = false; delete el.dataset.run; });
   }
 
   /* ---------- printing: draw every sheet at print resolution, then send ---------- */
-  let running = false, cancelled = false;
   async function go(){
     if (running || !plan.sheets.length) return;
-    readUI(); saveSettings(S);
+    begin();
     const sheets = plan.sheets, n = sheets.length, [pw, ph] = PAPERS[S.paper];
     const dpi = n > 150 ? 150 : 300, outW = Math.round(pw / 25.4 * dpi), outH = Math.round(ph / 25.4 * dpi);
-    const printer = desk ? q('#prPrinter').selectedOptions[0]?.textContent || S.printer : '';
-    running = true; cancelled = false; dlg.classList.add('running');
-    qa('.pr-set :is(input, select, button), #prMode button, #prGo').forEach(el => { if (!el.disabled) { el.disabled = true; el.dataset.run = ''; } });
-    const status = t => { q('#prStatus').textContent = t; };
+    const printer = desk ? q('#prPrinter').selectedOptions[0]?.querySelector('b')?.textContent || S.printer : '';
     const area = printArea(); area.textContent = '';
     let pageCss = document.getElementById('printPage');
     if (!pageCss) { pageCss = document.createElement('style'); pageCss.id = 'printPage'; document.head.appendChild(pageCss); }
@@ -453,13 +538,40 @@ function open({ doc, desk, toast, svg, parseRanges }){
       }
     } catch (e) { console.error(e); result = { ok:false, reason: e?.message || String(e) }; }
     area.textContent = ''; urls.forEach(u => URL.revokeObjectURL(u));
-    running = false; dlg.classList.remove('running');
-    qa('[data-run]').forEach(el => { el.disabled = false; delete el.dataset.run; });
-    if (cancelled) { status('Cancelled'); syncUI(); updateView(); return; }
+    end();
+    if (cancelled) { syncUI(); updateView(); status('Cancelled'); return; }
     close();
     if (result?.ok) toast(desk ? `Sent ${n} sheet${n > 1 ? 's' : ''} to ${printer}` : 'Print window closed');
     else if (/cancel/i.test(result?.reason || '')) toast('Printing cancelled');
     else toast(`Couldn't print: ${result?.reason || 'unknown error'}`, true);
+  }
+
+  /* ---------- Save as PDF: exactly what prints — the same sheets at print resolution; a landscape sheet stays landscape ---------- */
+  async function savePdf(){
+    if (running || !plan.sheets.length) return;
+    begin();
+    const sheets = plan.sheets, n = sheets.length, unit = (n > 150 ? 150 : 300) / 72;
+    let bytes = null, err = null;
+    try {
+      const out = await PDFLib.PDFDocument.create();
+      for (let k = 0; k < n && !cancelled; k++) {
+        status(`Preparing sheet ${k + 1} of ${n}…`);
+        const sh = sheets[k], c = document.createElement('canvas');
+        c.width = Math.round(sh.w * unit); c.height = Math.round(sh.h * unit);
+        await drawSheet(getPage, doc.sizes, sh, unit, c.getContext('2d'), { gray: S.gray, cancelled: () => cancelled });
+        const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92)); c.width = c.height = 0;
+        const img = await out.embedJpg(new Uint8Array(await blob.arrayBuffer()));
+        out.addPage([sh.w, sh.h]).drawImage(img, { x:0, y:0, width:sh.w, height:sh.h });
+      }
+      if (!cancelled) { status('Making the PDF…'); bytes = await out.save(); }
+    } catch (e) { console.error(e); err = e?.message || String(e); }
+    end();
+    if (cancelled || err) { syncUI(); updateView(); status(cancelled ? 'Cancelled' : `Couldn't make the PDF: ${err}`); return; }
+    status('Choosing where to save…');
+    const saved = await savePdfFile(`${doc.name.replace(/\.pdf$/i, '')}-${S.paper}.pdf`, bytes);
+    if (!bg.isConnected) return;
+    if (!saved) { updateView(); status('Not saved'); return; }
+    close(); toast(`Saved ${saved} · ${n} sheet${n > 1 ? 's' : ''}`);
   }
 
   document.body.appendChild(bg);
