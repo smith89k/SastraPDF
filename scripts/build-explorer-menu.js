@@ -9,12 +9,16 @@ const ROOT = path.join(__dirname, '..'), SRC = path.join(ROOT, 'explorer-menu'),
 const PF86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
 const fail = msg => { console.error('build-explorer-menu: ' + msg); process.exit(1); };
 
-// CLSID and package version must be the same in the DLL, the manifest and explorer-menu.js
-const { CLSID, PKG, PKG_VERSION } = require('../explorer-menu.js');
+// CLSID, package version and file types must be the same in the DLL, the manifest and explorer-menu.js
+const { CLSID, PKG, PKG_VERSION, EXTS } = require('../explorer-menu.js');
 const cpp = fs.readFileSync(path.join(SRC, 'menu.cpp'), 'utf8'), xml = fs.readFileSync(path.join(SRC, 'AppxManifest.xml'), 'utf8');
 const id = CLSID.slice(1, -1).toLowerCase();
 if (!cpp.toLowerCase().includes(`uuid("${id}")`)) fail(`menu.cpp does not use ${CLSID}`);
-if ((xml.toLowerCase().match(new RegExp(id, 'g')) || []).length !== 2) fail(`AppxManifest.xml must name ${CLSID} twice`);
+const types = [...xml.matchAll(/<desktop5:ItemType Type="([^"]+)">\s*<desktop5:Verb Id="SastraPDF" Clsid="([^"]+)" \/>/g)];
+if (types.map(t => t[1]).join(' ') !== EXTS.join(' ') || types.some(t => t[2].toLowerCase() !== id))
+  fail(`AppxManifest.xml needs one ItemType per file type (${EXTS.join(' ')}), each with ${CLSID}`);
+if (!xml.toLowerCase().includes(`<com:class id="${id}"`)) fail(`AppxManifest.xml's COM class must be ${CLSID}`);
+for (const e of EXTS) if (!cpp.includes(`L"${e}"`)) fail(`menu.cpp does not handle ${e}`);
 if (!xml.includes(`Name="${PKG}"`) || !xml.includes(`Version="${PKG_VERSION}"`)) fail(`AppxManifest.xml must be ${PKG} ${PKG_VERSION}`);
 
 function vcvars() {

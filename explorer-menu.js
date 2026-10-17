@@ -6,7 +6,7 @@ const { spawnSync } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path');
 
 const PKG = 'SastraPDF.ExplorerMenu';
-const PKG_VERSION = '1.0.0.0';        // = explorer-menu/AppxManifest.xml (the build script checks)
+const PKG_VERSION = '1.1.0.0';        // = explorer-menu/AppxManifest.xml (the build script checks)
 const CLSID = '{47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}';
 const CLASSES = 'HKCU\\Software\\Classes';
 const STATE_KEY = 'HKCU\\Software\\Sastra PDF\\ExplorerMenu';

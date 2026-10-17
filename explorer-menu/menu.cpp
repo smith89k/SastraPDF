@@ -1,7 +1,7 @@
-// Sastra PDF — File Explorer right-click menu: "Sastra PDF ▸ Combine / Split / Images".
+// Sastra PDF — File Explorer right-click menu: "Sastra PDF ▸ Make PDF / Combine / Split / Images" for PDFs and pictures.
 // An IExplorerCommand with sub-commands. Windows 11 loads it through the SastraPDF.ExplorerMenu package
 // (first menu, in a dllhost); Windows 10 and the fallback through HKCU\Software\Classes (classic menu, in
-// explorer.exe). A click writes the chosen PDFs to a list file and starts Sastra PDF with
+// explorer.exe). A click writes the chosen files to a list file and starts Sastra PDF with
 // --sastra-task / --sastra-list (main.js + explorer-menu.js read them).
 #include <windows.h>
 #include <shobjidl_core.h>
@@ -25,7 +25,7 @@
 using namespace Microsoft::WRL;
 
 static HMODULE g_module = nullptr;
-enum class Act { Combine, Sep1, SplitHere, SplitFolder, Sep2, ImagesHere, ImagesFolder };
+enum class Act { MakePdf, Combine, Sep1, SplitHere, SplitFolder, Sep2, ImagesHere, ImagesFolder };
 
 static std::string Utf8(const std::wstring& s) {
   if (s.empty()) return {};
@@ -35,19 +35,26 @@ static std::string Utf8(const std::wstring& s) {
   return out;
 }
 
-// The .pdf files in the selection; anything else (folders, other files, virtual items) is ignored.
-static std::vector<std::wstring> PdfPaths(IShellItemArray* items) {
-  std::vector<std::wstring> out; DWORD n = 0;
-  if (!items || FAILED(items->GetCount(&n))) return out;
+// The PDFs and pictures in the selection (by extension, any case); anything else (folders, other files, virtual items)
+// is ignored. Same types as EXTS in explorer-menu.js and the manifest (the build script checks).
+static const wchar_t* const PICTURES[] = { L".jpg", L".jpeg", L".jfif", L".png", L".bmp", L".gif", L".webp" };
+struct Selection { std::vector<std::wstring> all, pdfs; };   // all = PDFs + pictures, in selection order
+static Selection Scan(IShellItemArray* items) {
+  Selection s; DWORD n = 0;
+  if (!items || FAILED(items->GetCount(&n))) return s;
   for (DWORD i = 0; i < n; i++) {
     ComPtr<IShellItem> it; if (FAILED(items->GetItemAt(i, &it))) continue;
     LPWSTR p = nullptr;
     if (SUCCEEDED(it->GetDisplayName(SIGDN_FILESYSPATH, &p)) && p) {
-      if (lstrcmpiW(PathFindExtensionW(p), L".pdf") == 0) out.emplace_back(p);
+      const wchar_t* ext = PathFindExtensionW(p);
+      bool pdf = lstrcmpiW(ext, L".pdf") == 0, picture = false;
+      for (auto e : PICTURES) picture = picture || lstrcmpiW(ext, e) == 0;
+      if (pdf || picture) s.all.emplace_back(p);
+      if (pdf) s.pdfs.emplace_back(p);
       CoTaskMemFree(p);
     }
   }
-  return out;
+  return s;
 }
 
 // "Report" from "C:\x\Report.pdf", cut to 32 characters + "…" for the menu.
@@ -60,20 +67,32 @@ static std::wstring ShortBase(const std::wstring& path) {
   return name;
 }
 
-static std::wstring Title(Act a, const std::vector<std::wstring>& pdfs) {
-  const bool one = pdfs.size() == 1;
+static std::wstring Title(Act a, const Selection& s) {
+  const bool one = s.pdfs.size() == 1;
   switch (a) {
-    case Act::Combine: return L"Combine " + std::to_wstring(pdfs.size()) + L" files";
+    case Act::MakePdf: return L"Make PDF";
+    case Act::Combine: return L"Combine " + std::to_wstring(s.all.size()) + L" files";
     case Act::SplitHere: return L"Split here";
-    case Act::SplitFolder: return one ? L"Split to \"" + ShortBase(pdfs[0]) + L"\\\"" : L"Split to folders";
+    case Act::SplitFolder: return one ? L"Split to \"" + ShortBase(s.pdfs[0]) + L"\\\"" : L"Split to folders";
     case Act::ImagesHere: return L"Images here (JPG)";
-    case Act::ImagesFolder: return one ? L"Images to \"" + ShortBase(pdfs[0]) + L"\\\" (JPG)" : L"Images to folders (JPG)";
+    case Act::ImagesFolder: return one ? L"Images to \"" + ShortBase(s.pdfs[0]) + L"\\\" (JPG)" : L"Images to folders (JPG)";
     default: return L"";
+  }
+}
+
+// Make PDF: exactly one picture. Combine: 2+ files of any kind. Split / Images (and the lines around them): the PDFs only.
+static bool Shown(Act a, const Selection& s) {
+  switch (a) {
+    case Act::MakePdf: return s.all.size() == 1 && s.pdfs.empty();
+    case Act::Combine: return s.all.size() >= 2;
+    case Act::Sep1: return s.all.size() >= 2 && !s.pdfs.empty();
+    default: return !s.pdfs.empty();
   }
 }
 
 static const wchar_t* TaskName(Act a) {
   switch (a) {
+    case Act::MakePdf:
     case Act::Combine: return L"combine";
     case Act::SplitHere: return L"split-here";
     case Act::SplitFolder: return L"split-folder";
@@ -168,12 +187,12 @@ static void Oops() {
   MessageBoxW(nullptr, L"Sastra PDF is missing or damaged. Please reinstall it.", L"Sastra PDF", MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
 }
 
-static HRESULT Launch(Act a, const std::vector<std::wstring>& pdfs) {
-  if (pdfs.empty()) return S_OK;
+static HRESULT Launch(Act a, const std::vector<std::wstring>& paths) {
+  if (paths.empty()) return S_OK;
   const bool test = !EnvVar(L"SASTRA_MENU_EXE").empty();
   std::wstring exe = ExePath();
   if (exe.empty() || GetFileAttributesW(exe.c_str()) == INVALID_FILE_ATTRIBUTES) { Oops(); return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND); }
-  std::wstring list = WriteList(pdfs);
+  std::wstring list = WriteList(paths);
   if (list.empty()) { Oops(); return E_FAIL; }
   std::wstring args = std::wstring(L"--sastra-task=") + TaskName(a) + L" \"--sastra-list=" + list + L"\"";
   std::wstring dir = exe.substr(0, exe.find_last_of(L'\\'));
@@ -189,17 +208,19 @@ class Item : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IExplorerCommand
 public:
   explicit Item(Act a) : act_(a) {}
   IFACEMETHODIMP GetTitle(IShellItemArray* items, LPWSTR* name) override {
-    *name = nullptr; return SHStrDupW(Separator() ? L"" : Title(act_, PdfPaths(items)).c_str(), name);
+    *name = nullptr; return SHStrDupW(Separator() ? L"" : Title(act_, Scan(items)).c_str(), name);
   }
   IFACEMETHODIMP GetIcon(IShellItemArray*, LPWSTR* icon) override { *icon = nullptr; return E_NOTIMPL; }
   IFACEMETHODIMP GetToolTip(IShellItemArray*, LPWSTR* tip) override { *tip = nullptr; return E_NOTIMPL; }
   IFACEMETHODIMP GetCanonicalName(GUID* g) override { *g = GUID_NULL; return S_OK; }
   IFACEMETHODIMP GetState(IShellItemArray* items, BOOL, EXPCMDSTATE* state) override {
-    // Combine (and the line under it) only for 2+ PDFs
-    *state = (act_ == Act::Combine || act_ == Act::Sep1) && PdfPaths(items).size() < 2 ? ECS_HIDDEN : ECS_ENABLED;
-    return S_OK;
+    *state = Shown(act_, Scan(items)) ? ECS_ENABLED : ECS_HIDDEN; return S_OK;
   }
-  IFACEMETHODIMP Invoke(IShellItemArray* items, IBindCtx*) override { return Separator() ? S_OK : Launch(act_, PdfPaths(items)); }
+  IFACEMETHODIMP Invoke(IShellItemArray* items, IBindCtx*) override {
+    if (Separator()) return S_OK;
+    Selection s = Scan(items);
+    return Launch(act_, act_ == Act::MakePdf || act_ == Act::Combine ? s.all : s.pdfs);   // Split / Images: the PDFs only
+  }
   IFACEMETHODIMP GetFlags(EXPCMDFLAGS* flags) override { *flags = Separator() ? ECF_ISSEPARATOR : ECF_DEFAULT; return S_OK; }
   IFACEMETHODIMP EnumSubCommands(IEnumExplorerCommand** e) override { *e = nullptr; return E_NOTIMPL; }
 };
@@ -208,7 +229,7 @@ class Enum : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IEnumExplorerCom
   std::vector<ComPtr<IExplorerCommand>> cmds_; ULONG pos_ = 0;
 public:
   Enum() {
-    for (Act a : { Act::Combine, Act::Sep1, Act::SplitHere, Act::SplitFolder, Act::Sep2, Act::ImagesHere, Act::ImagesFolder })
+    for (Act a : { Act::MakePdf, Act::Combine, Act::Sep1, Act::SplitHere, Act::SplitFolder, Act::Sep2, Act::ImagesHere, Act::ImagesFolder })
       cmds_.push_back(Make<Item>(a));
   }
   IFACEMETHODIMP Next(ULONG celt, IExplorerCommand** out, ULONG* fetched) override {
@@ -232,7 +253,7 @@ public:
   IFACEMETHODIMP GetToolTip(IShellItemArray*, LPWSTR* tip) override { *tip = nullptr; return E_NOTIMPL; }
   IFACEMETHODIMP GetCanonicalName(GUID* g) override { *g = __uuidof(Root); return S_OK; }
   IFACEMETHODIMP GetState(IShellItemArray* items, BOOL, EXPCMDSTATE* state) override {
-    *state = PdfPaths(items).empty() ? ECS_HIDDEN : ECS_ENABLED; return S_OK;
+    *state = Scan(items).all.empty() ? ECS_HIDDEN : ECS_ENABLED; return S_OK;
   }
   IFACEMETHODIMP Invoke(IShellItemArray*, IBindCtx*) override { return E_NOTIMPL; }
   IFACEMETHODIMP GetFlags(EXPCMDFLAGS* flags) override { *flags = ECF_HASSUBCOMMANDS; return S_OK; }

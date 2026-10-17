@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Sastra PDF — sparse package that puts SastraMenu.dll in the first Windows 11 right-click menu.
      Unsigned: the OID in Publisher is what Windows requires for that (added from an elevated session).
-     Keep Version and the CLSID in step with explorer-menu.js and menu.cpp (scripts/build-explorer-menu.js checks). -->
+     Keep Version, the CLSID and the file types in step with explorer-menu.js and menu.cpp (scripts/build-explorer-menu.js checks). -->
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
@@ -11,7 +11,7 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap uap10 desktop4 desktop5 com rescap">
   <Identity Name="SastraPDF.ExplorerMenu" Publisher="CN=Sastra PDF, OID.2.25.311729368913984317654407730594956997722=1"
-    Version="1.0.0.0" ProcessorArchitecture="x64" />
+    Version="1.1.0.0" ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>Sastra PDF Explorer menu</DisplayName>
     <PublisherDisplayName>Sunnguon Taing</PublisherDisplayName>
@@ -28,12 +28,33 @@
   </Capabilities>
   <Applications>
     <Application Id="SastraPDF" Executable="Sastra PDF.exe" uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
-      <uap:VisualElements AppListEntry="none" DisplayName="Sastra PDF Explorer menu" Description="Sastra PDF right-click menu for PDF files"
+      <uap:VisualElements AppListEntry="none" DisplayName="Sastra PDF Explorer menu" Description="Sastra PDF right-click menu for PDF files and pictures"
         BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
       <Extensions>
         <desktop4:Extension Category="windows.fileExplorerContextMenus">
           <desktop4:FileExplorerContextMenus>
             <desktop5:ItemType Type=".pdf">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jpg">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jpeg">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jfif">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".png">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".bmp">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".gif">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".webp">
               <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
             </desktop5:ItemType>
           </desktop4:FileExplorerContextMenus>
