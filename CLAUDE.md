@@ -163,7 +163,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Keeps only the current page and its neighbours rendered. Maximize (F, `toggleFocus`) hides panels,
   view toolbar, status bar and most menubar buttons (Present too), and moves `#tabs` into the
   menubar right after the logo; the Maximize button becomes "Restore". Maximized is a slideshow
-  in the window: only `.page.current` is shown, fitted whole (`focusFit` saves the doc's fit/zoom
+  in the window: only `.page.current` is shown, fitted whole, with no red selection frame (since 2026-10-17, the
+  user's wish; the selection itself stays, so Restore shows it again) (`focusFit` saves the doc's fit/zoom
   in `d.preFocus` and switches to fit page; Restore puts it back). Arrows/PgUp/PgDn only flip
   pages (no scrolling), the wheel flips one page per flick (`wheelFlipper`, shared with Present),
   `goTo` pre-draws the neighbours. The scroll handler doesn't set the current page then. In the
