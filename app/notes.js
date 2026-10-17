@@ -10,6 +10,9 @@ const KINDS = Object.freeze(['new', 'improved', 'fixed', 'removed']);   // the w
 const N = (version, date, notes) => Object.freeze({ version, date, notes: Object.freeze(notes.map(([kind, text]) => Object.freeze({ kind, text }))) });
 
 const NOTES = Object.freeze([
+  N('1.1.1', '2026-10-17', [
+    ['improved', 'Updates now come from a private address: only copies installed from a Sastra PDF installer you were given can update.']
+  ]),
   N('1.1.0', '2026-10-17', [
     ['new', 'Opening a big PDF now shows a progress box with the file, the page it is on and a Cancel button. Problems stay listed in the box until you close it.'],
     ['new', 'Sastra PDF now updates itself. When a new version is ready it asks to restart, or installs it when you close the app. Check by hand from ☰ › Help › Check for Updates.'],

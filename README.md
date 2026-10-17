@@ -26,10 +26,10 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
   ☰ › Help › Check for Updates checks by hand
 
 ## Download
-**https://sastra-update.smith89k.com/Sastra-PDF-Setup.exe** — always the newest version (Windows 10 or 11, 64-bit).
-Each release is built by GitHub Actions from the code in this repository and is also on
-[Releases](https://github.com/smith89k/SastraPDF/releases). Releasing and the update setup:
-[docs/updates-setup.md](docs/updates-setup.md).
+Sastra PDF isn't downloadable by the public: the author gives the installer (Windows 10 or 11, 64-bit) to the people
+who should have it. Copies installed from it update themselves from a private address. Each release is built by GitHub
+Actions from the code in this repository and attached to [Releases](https://github.com/smith89k/SastraPDF/releases).
+Releasing and the update setup: [docs/updates-setup.md](docs/updates-setup.md).
 
 ## Code signing policy
 Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by

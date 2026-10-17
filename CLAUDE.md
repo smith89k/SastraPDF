@@ -340,8 +340,14 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   launch helpers close it (`t\notes-skip.js`), since fresh test profiles see it once.
 - Automatic updates (since 2026-10-17; spec/plan docs/superpowers/*/2026-10-17-auto-update*): electron-updater 6.8.9
   (the app's only runtime dependency), generic provider = package.json `build.publish.url`
-  **https://sastra-update.smith89k.com/** (a public R2 bucket's custom domain; NEVER change it — installed copies have it
-  built in). Only when packaged, on Windows, not portable. Checks 10 s after start and every 6 h, downloads quietly;
+  **https://sastra-update.smith89k.com/** (an R2 bucket's custom domain; NEVER change it — installed copies have it
+  built in). PRIVATE since 1.1.1 (the user: "only people i give the file to can update"): Cloudflare Access lets in only
+  the service token `sastra-pdf-updater`; the release job writes it into `update-config.json` ({ clientId, clientSecret },
+  .gitignore'd, packed via build.files) and `createUpdater({ key })` sends it as `CF-Access-Client-Id/-Secret` on every
+  request (latest.yml, installer, blockmap — proven by t\e2e with a server that refuses without it). No key (pnpm start,
+  portable, local builds, 1.1.0) → no updater; Check for Updates says "This copy doesn't update itself. Copies installed
+  from a Sastra PDF release do." No public download link: the user hands out the installer from the GitHub release.
+  Only when packaged, on Windows, not portable. Checks 10 s after start and every 6 h, downloads quietly;
   failures only go to `%TEMP%\Sastra PDF\update.log`. Then the page's own box (`updateReady` → `readyBox`): "Sastra PDF
   X is ready to install." Later / Restart now, once per version per run, queued with `inTurn`/`whenFree` (never over a
   `.modal-bg` or Present, one at a time). Restart now asks `askUnsaved('Restart', 'Restart without saving')` FIRST
@@ -435,12 +441,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   package.json, is already released, an R2 secret is missing, or that version's installer is already in R2 (an
   earlier run stopped half-way: bump the version — a rebuild would put different bytes under the same name);
   the R2 key and GH_TOKEN live only in the env of the check / upload / prune / release steps (never install or
-  build steps: that key can push an update to every installed copy); builds with `--publish never`; uploads installer +
-  blockmap, then the fixed-name copy `Sastra-PDF-Setup.exe` (no-cache, Content-Disposition = the versioned name),
-  then `latest.yml` (no-cache) LAST, checking each stored size; removes older `Sastra-PDF-Setup-*.exe` (never a
-  .blockmap); creates tag + GitHub release (installer + SHA-256 + the download link). Secrets: R2_ACCOUNT_ID,
-  R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET. The installer is named `Sastra-PDF-Setup-<version>.exe` (dashes:
-  latest.yml names it so). Download link: https://sastra-update.smith89k.com/Sastra-PDF-Setup.exe.
+  build steps: that key can push an update to every installed copy); a step writes the update key (CF_ACCESS_*) into
+  update-config.json before the build; builds with `--publish never`; uploads installer + blockmap, then `latest.yml`
+  (no-cache) LAST, checking each stored size; then checks the address answers non-200 without the key and serves this
+  version's latest.yml with it; removes older `Sastra-PDF-Setup-*.exe` and the old public copy `Sastra-PDF-Setup.exe`
+  (never a .blockmap); creates tag + GitHub release (installer + SHA-256). Secrets: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
+  R2_SECRET_ACCESS_KEY, R2_BUCKET, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET. The installer is named
+  `Sastra-PDF-Setup-<version>.exe` (dashes: latest.yml names it so).
 - Fixed during first run: Electron binary not unpacked on Node 24; zoomed page pushing the
   Tools panel off-screen (`#app` grid needed `grid-template-columns:minmax(0,1fr)`); stray
   Windows scrollbars on tab row, Pages panel and split inputs (box-sizing).
