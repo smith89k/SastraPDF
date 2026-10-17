@@ -899,19 +899,24 @@ function startProgress({ title, failTitle }){
 
 // Opening: every way in (Open, "Open with" / double-click, start-up files, dropped files) feeds one job; files that
 // arrive while it runs join it ("File 6 of 8") instead of being turned away. item = { name, path, read() → { data | error } }
+// → resolves when the job is done AND its box is gone (start-up waits for it before What's new).
 let openJob = null;
 async function queueOpen(items){
   if (!items.length) return;
-  if (openJob) { openJob.items.push(...items); return openJob.done; }
-  while (state.busy) await new Promise(r => setTimeout(r, 200));
-  if (openJob) { openJob.items.push(...items); return openJob.done; }   // another call started one meanwhile
-  const j = openJob = { items:[...items], done:null };
+  for (;;) {
+    if (openJob && !openJob.cancelled()) { openJob.items.push(...items); return openJob.finished; }
+    if (!openJob && !state.busy) break;
+    await new Promise(r => setTimeout(r, 100));   // another task, or a cancelled job still winding down: a new job after it
+  }
+  const j = openJob = { items:[...items], cancelled: () => false, closed:null };
   j.done = busy('Opening…', () => runOpen(j));
-  return j.done;
+  j.finished = j.done.then(() => j.closed);
+  return j.finished;
 }
 async function runOpen(j){
   const job = startProgress({ title:`Opening ${j.items[0].name}`,
     failTitle: n => j.items.length === 1 ? `Couldn't open ${j.items[0].name}` : `Couldn't open ${n} file${n > 1 ? 's' : ''}` });
+  j.cancelled = () => job.cancelled;
   const tried = new Set();
   try {
     for (let i = 0; i < j.items.length && !job.cancelled; i++) {
@@ -932,7 +937,7 @@ async function runOpen(j){
       catch(e){ if (!e.cancelled) job.problem(`${it.name} — ${e.userReason}`); }
       finally { off?.(); cancelAnimationFrame(frame); }
     }
-  } finally { openJob = null; job.end(); }
+  } finally { openJob = null; j.closed = job.end(); }
 }
 
 // Help > Check for Updates: "Checking…" (Esc or a click outside closes it and drops the answer), then the answer.
@@ -1400,8 +1405,8 @@ async function combinePaths(paths){
   const one = paths.length === 1, name = one ? paths[0].split(/[\\/]/).pop().replace(/\.[^.]*$/, '') + '.pdf' : 'Combined.pdf';
   // the opening progress box: Combining 3 files · Adding file 2 of 3; unreadable files are listed in it, Cancel makes no tab
   const title = one ? `Making ${name}` : `Combining ${paths.length} files`;
-  let used = 0;
-  const job = startProgress({ title, failTitle: () => used && !job.cancelled ? title : 'No PDF made' });
+  let used = 0, made = false;
+  const job = startProgress({ title, failTitle: () => made ? title : 'No PDF made' });
   await busy(`${title}…`, async () => {
     try {
       const out = await PDFDocument.create();
@@ -1423,8 +1428,14 @@ async function combinePaths(paths){
       }
       if (job.cancelled || !used) return;
       job.update({ step:'Opening…', frac:1 });
-      const d = await openBytes(await out.save(), name, { dirty:true });
-      if (!d) return;
+      const bytes = await out.save();
+      if (job.cancelled) return;
+      // a big result takes a while to open: Cancel still stops it (no tab)
+      let d, off = null;
+      try { d = await openDoc(bytes, name, { dirty:true }, { onTask: t => { off = job.onCancel(() => t.destroy()); }, isCancelled: () => job.cancelled }); }
+      catch(e){ if (!e.cancelled) job.problem(`${name} — ${e.userReason}`); return; }
+      finally { off?.(); }
+      made = true;
       d.saveDir = paths[0].replace(/[\\/][^\\/]*$/, '');
       const pages = `${d.n} page${d.n > 1 ? 's' : ''}`;
       toast(one ? `Made ${name} · ${pages}` : `Combined ${used} file${used > 1 ? 's' : ''} · ${pages}`);
