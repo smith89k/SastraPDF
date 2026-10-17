@@ -192,6 +192,7 @@ function buildMenu() {
       { label: 'Developer Tools', accelerator: 'Ctrl+Shift+I', click: () => win && win.webContents.toggleDevTools() }
     ]},
     { label: '&Help', submenu: [
+      { label: "What's &New", click: () => send('whatsNew') },   // the page's What's new window (notes.js)
       { label: '&About Sastra PDF', click: () => send('about') }   // the page shows its own About screen
     ]}
   ];

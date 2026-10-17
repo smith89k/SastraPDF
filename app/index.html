@@ -255,6 +255,24 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .about .links small{overflow:hidden;color:var(--muted);font-family:var(--mono);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
 .about .link-web{--ic:var(--accent)} .about .link-linkedin{--ic:var(--linkedin)} .about .link-github{--ic:var(--fg)}
 @media (max-width:480px){.about .links{grid-template-columns:minmax(0,1fr)}}
+/* What's new (openNotes): title + date on top, the list scrolls, Close stays at the bottom */
+.modal.notes{box-sizing:border-box;max-width:560px;max-height:calc(100vh - 32px);padding:0;gap:0}
+.notes-head{padding:20px 22px 12px}
+.notes-head h2{margin:0;font-size:18px;font-weight:600}
+.notes-date{margin-top:3px;color:var(--muted);font-family:var(--mono);font-size:12px}
+.notes-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 22px 18px}
+.notes .acts{padding:12px 22px 16px;border-top:1px solid var(--line)}
+.notes-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.notes-list li{display:flex;align-items:baseline;gap:10px;line-height:1.5}
+.notes-kind{flex:none;box-sizing:border-box;min-width:72px;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600;letter-spacing:.04em;line-height:1.6;text-align:center;text-transform:uppercase}
+.notes-kind-new{background:var(--accent-soft);color:var(--accent)}
+.notes-kind-improved{background:var(--chrome);color:var(--fg)}
+.notes-kind-fixed{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.notes-kind-removed{background:var(--chrome);color:var(--muted)}
+.notes-more{margin-top:14px;padding:0 6px;color:var(--accent);font-weight:500}
+.notes-past{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.notes-past h3{display:flex;align-items:baseline;gap:10px;margin:0 0 10px;font-size:14px;font-weight:600}
+.notes-past h3 span{color:var(--muted);font-family:var(--mono);font-size:12px;font-weight:400}
 .credits{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:5px 12px;margin:0;padding:0;list-style:none;font-size:12px}
 .credits li{display:contents}
 .credits a{color:var(--accent);text-decoration:none;font-weight:500}
@@ -517,6 +535,7 @@ select.big option{padding:8px 10px}
 <script src="print.js"></script>
 <script src="pdfops.js"></script>
 <script src="images.js"></script>
+<script src="notes.js"></script>
 <script>
 (() => {
 const ICONS = {
@@ -694,6 +713,48 @@ function openAbout(){
   document.body.appendChild(bg); bg.querySelector('[data-close]').focus({ preventScroll:true });   // Close sits at the bottom: keep the top in view
 }
 $('#bAbout').onclick = openAbout;
+
+/* ---------- What's new: once per version by itself, and Help > What's New (notes in notes.js, as in AI Hub) ---------- */
+const NOTES_SEEN = 'sastra-notes-seen';   // the last version whose notes were shown
+const KIND_WORDS = { new:'New', improved:'Improved', fixed:'Fixed', removed:'Removed' };
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function notesList(notes){
+  const K = SastraNotes.KINDS, sorted = notes.map((n, i) => [n, i]).sort((a, b) => K.indexOf(a[0].kind) - K.indexOf(b[0].kind) || a[1] - b[1]);
+  return `<ul class="notes-list">${sorted.map(([n]) => `<li><span class="notes-kind notes-kind-${n.kind}">${KIND_WORDS[n.kind]}</span><span>${esc(n.text)}</span></li>`).join('')}</ul>`;
+}
+// false when another box is open (it never goes over one). A version with no entry (a hand-made build) shows every known one.
+function openNotes(version){
+  if ($('.modal-bg')) return false;
+  const cur = SastraNotes.noteFor(version), past = SastraNotes.earlierNotes(version), back = document.activeElement;
+  const bg = document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML = `<div class="modal notes" role="dialog" aria-modal="true" aria-labelledby="notesTitle">
+    <div class="notes-head"><h2 id="notesTitle">${cur ? `What's new in ${esc(version)}` : "What's new"}</h2>${cur ? `<div class="notes-date">${esc(cur.date)}</div>` : ''}</div>
+    <div class="notes-body">${cur ? notesList(cur.notes) : ''}${cur && past.length ? '<button class="btn notes-more" data-more>See earlier versions ›</button>' : ''}${past.length ? `<div class="notes-earlier"${cur ? ' hidden' : ''}>${past.map(e => `<section class="notes-past"><h3>${esc(e.version)}<span>${esc(e.date)}</span></h3>${notesList(e.notes)}</section>`).join('')}</div>` : ''}</div>
+    <div class="acts"><button class="btn primary" data-close>Close</button></div>
+  </div>`;
+  // closing it in any way counts as seen; a blocked storage only means it may show once more
+  const done = () => { bg.remove(); document.removeEventListener('keydown', k, true); try { localStorage.setItem(NOTES_SEEN, version); } catch {} back?.focus?.(); };
+  const k = e => { if (e.key==='Escape'){ e.stopPropagation(); done(); } };
+  bg.addEventListener('click', e => {
+    const more = e.target.closest('[data-more]');
+    if (more) { more.hidden = true; const list = bg.querySelector('.notes-earlier'); list.hidden = false; list.scrollIntoView({ block:'start' }); bg.querySelector('[data-close]').focus({ preventScroll:true }); return; }
+    if (e.target===bg || e.target.closest('[data-close]')) done();
+  });
+  document.addEventListener('keydown', k, true);
+  document.body.appendChild(bg); bg.querySelector('[data-close]').focus({ preventScroll:true });
+  return true;
+}
+// By itself: the first start of a version this profile hasn't shown (an update or a new install). Over another box or a
+// show it waits for the next start (nothing recorded). <html data-notes> = shown | none once decided (tests wait on it).
+async function notesAtStart(){
+  let shown = false;
+  try {
+    const v = await desk.appVersion();
+    let seen = null; try { seen = localStorage.getItem(NOTES_SEEN); } catch {}
+    if (SastraNotes.shouldShow(v, seen) && !show.el) shown = openNotes(v);
+  } catch(e){ console.warn(e); }
+  document.documentElement.dataset.notes = shown ? 'shown' : 'none';
+}
 async function busy(label, fn){
   if (state.busy) { toast('Please wait for the current task to finish'); return; }
   state.busy = true; $('#stBusy').innerHTML = `<span class="busy"><span class="spin"></span>${label}</span>`;
@@ -1606,7 +1667,7 @@ if (desk) {
       themeSystem:() => setTheme('system', true), themeLight:() => setTheme('light', true), themeDark:() => setTheme('dark', true),
       present:() => presentCmd(false), presentStart:() => presentCmd(true),
       nextTab:() => switchTab(1), prevTab:() => switchTab(-1),
-      print:printCmd, about:openAbout
+      print:printCmd, about:openAbout, whatsNew:() => desk.appVersion().then(openNotes, () => {})
     };
     map[cmd]?.();
   });
@@ -1702,7 +1763,7 @@ async function makeAppendix(){
 (async () => {
   if (isNarrow()) app.classList.add('no-thumbs','no-tools');
   syncPanelBtns(); setTool('select'); renderTabs(); renderThumbs(); renderViewer(); updateUI();
-  if (desk) { await openPaths(await desk.initialPaths()); return; }
+  if (desk) { await openPaths(await desk.initialPaths()); notesAtStart(); return; }   // the files first, then What's new over them
   try {
     await openBytes(await makeAppendix(), 'Sample-Cost-Schedule.pdf', { sample:true });
     await openBytes(await makeReport(), 'Sample-Inspection-Report.pdf', { sample:true });
