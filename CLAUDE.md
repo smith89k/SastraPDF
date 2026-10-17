@@ -288,9 +288,19 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   woff2 only (~370 KB). Khmer anywhere in the
   UI (tab and file names, toasts, the brand) uses Noto Sans Khmer: it sits second in the
   `--ui` and `--mono` stacks, then "Khmer UI" (Windows). Without it Chromium drew Khmer
-  with Leelawadee UI (a Thai font) — keep a Khmer font in any new font stack; terracotta accent; light and dark themes via CSS tokens. Both side panels use
+  with Leelawadee UI (a Thai font) — keep a Khmer font in any new font stack. Accent = the logo's red
+  (since 2026-10-17, was terracotta): light `#cc2229` (one step deeper than the logo's #E82830 so white button text
+  is 5.5:1), dark `#ff5c61` with `--accent-fg` `#1f0a0b`; every accent use reads `--accent`/`--accent-soft`/
+  `--accent-fg` (index.html and task.html — keep both in step). Light and dark themes via CSS tokens. Both side panels use
   `--chrome` (the grey of the top and status bars); inside the Tools panel `--chrome` is
   redefined to `--panel`, so its buttons/fields/lists become lighter cards on the grey.
+- Dropdowns, tick boxes, round options: the app's own look, as in Bohpum (E:\_httdocs\Bohpum src/app.css) — since
+  2026-10-17. `select, ::picker(select){appearance:base-select}` (Chromium customizable select): the box keeps
+  `.field select` / `.zoomsel`, plus a chevron (`::picker-icon`), a floating `--panel` list, `::checkmark` in red.
+  Check boxes / radios: `appearance:none`, 16 × 16, ticked = `--accent` + `--tick` (an SVG per theme). An open list
+  has the focus on an `<option>`, so `isInput` counts anything inside a `<select>` (else Delete deleted pages while
+  choosing), and print.js `keys` / the right-click menu ignore keys while `select:open`. The printer box starts with
+  `<button><selectedcontent>` (print.js `PICKED`) so long names end in "…"; rebuild it with `PICKED` when refilling.
 - Native feel: UI text can't be selected (`user-select:none` on body, arrow cursor, logo not
   draggable); text inputs are the exception and still select/edit normally.
 - Theme switch: menubar button cycles System → Light → Dark (`setTheme`), saved in localStorage
