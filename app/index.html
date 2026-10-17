@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<script>/* saved theme before first paint, so there is no flash */try{const t=localStorage.getItem('sastra-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
+<script>/* saved theme and Pages panel width before first paint, so nothing flashes or jumps */try{const t=localStorage.getItem('sastra-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;const w=+localStorage.getItem('sastra-pages-w');if(w>=140&&w<=400)document.documentElement.style.setProperty('--pages-w',w+'px')}catch{}</script>
 <style>[hidden]{display:none!important}body{margin:0}</style>
 </head>
 <body>
@@ -137,11 +137,19 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:defau
 
 /* workspace */
 .workspace{display:flex;min-height:0;position:relative}
-.thumbs{width:186px;flex:none;background:var(--chrome);border-right:1px solid var(--line);overflow-y:auto;padding:12px 0 24px;display:flex;flex-direction:column;align-items:center;gap:14px}
+/* the Pages panel: --pages-w is set by dragging its right edge (186 px when not set); thumbnails fill it —
+   128 px wide at most in the normal panel, at most 1.3125 × as tall as wide (--ar = the page's width / height) */
+.thumbs{--tw:calc(var(--pages-w,186px) - 58px);--th:calc(var(--tw) * 1.3125)}
+.thumbs{width:var(--pages-w,186px);flex:none;background:var(--chrome);border-right:1px solid var(--line);overflow-y:auto;padding:12px 0 24px;display:flex;flex-direction:column;align-items:center;gap:14px}
 .thumbs-head{width:100%;box-sizing:border-box;padding:0 14px 2px;display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .thumb{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;border-radius:8px;cursor:pointer;position:relative;outline:none}
 .thumb:hover{background:var(--hover)}
-.tbox{background:#fff;box-shadow:0 0 0 1px var(--line-strong);position:relative;overflow:hidden}
+.tbox{width:min(var(--tw),calc(var(--th) * var(--ar,.707)));aspect-ratio:var(--ar,.707);background:#fff;box-shadow:0 0 0 1px var(--line-strong);position:relative;overflow:hidden}
+/* the Pages panel's right edge: drag to resize, double-click for the normal width (as in Bohpum) */
+.pages-resizer{position:absolute;top:0;bottom:0;left:calc(var(--pages-w,186px) - 3px);width:7px;z-index:21;cursor:col-resize}
+.pages-resizer::after{content:"";position:absolute;top:0;bottom:0;left:2px;width:3px;background:var(--accent);opacity:0;transition:opacity .12s}
+.pages-resizer:hover::after,body.pages-resizing .pages-resizer::after{opacity:1}
+body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .tbox canvas{width:100%;height:100%;display:block}
 .thumb .num{font-family:var(--mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;padding:0 6px;border-radius:4px}
 .thumb.current .num{color:var(--fg);font-weight:500}
@@ -350,7 +358,7 @@ select.big option{padding:8px 10px}
 .show-n{font-family:var(--mono);font-size:12px;min-width:70px;text-align:center;font-variant-numeric:tabular-nums}
 
 /* view states */
-#app.no-thumbs .thumbs{display:none}
+#app.no-thumbs .thumbs,#app.no-thumbs .pages-resizer,#app.focus .pages-resizer{display:none}
 #app>.tabbar:not(:has(.tab)){display:none}   /* no PDF open: no tab row, only the "Open a PDF" box */
 #app.no-tools .tools{display:none}
 #app.focus .status{display:none}
@@ -431,6 +439,7 @@ select.big option{padding:8px 10px}
 
   <div class="workspace" id="ws">
     <aside class="thumbs" id="thumbs" aria-label="Pages"></aside>
+    <div class="pages-resizer" id="pagesResizer" role="separator" aria-orientation="vertical" aria-label="Resize the Pages panel" title="Drag to resize · double-click for the normal width"></div>
     <main class="viewer" id="viewer" tabindex="0">
       <div id="pages"></div>
       <div class="empty" id="empty" hidden>
@@ -940,7 +949,7 @@ function renderThumbs(){
   if (!d) {   // no PDF: say what the panel is for instead of leaving an empty strip
     thumbsEl.innerHTML = '<div class="thumbs-head"><span>Pages</span><span>0</span></div>'
       + '<p class="thumbs-hint">Page thumbnails appear here when you open a PDF.</p>'
-      + [1,2,3].map(n => `<div class="thumb ghost" aria-hidden="true"><div class="tbox" style="width:119px;height:168px"></div><span class="num">${n}</span></div>`).join('');
+      + [1,2,3].map(n => `<div class="thumb ghost" aria-hidden="true"><div class="tbox" style="--ar:.708"></div><span class="num">${n}</span></div>`).join('');
     return;
   }
   const head = document.createElement('div'); head.className='thumbs-head';
@@ -949,8 +958,7 @@ function renderThumbs(){
   d.sizes.forEach((s,i) => {
     const t = document.createElement('div'); t.className='thumb'; t.dataset.i=i; t.draggable = true; t.tabIndex = 0;
     t.setAttribute('aria-label', 'Page ' + (i+1));
-    let w = 128, h = s.h/s.w*w; if (h > 168) { h = 168; w = s.w/s.h*h; }
-    const box = document.createElement('div'); box.className='tbox'; box.style.width=w+'px'; box.style.height=h+'px';
+    const box = document.createElement('div'); box.className='tbox'; box.style.setProperty('--ar', s.w/s.h);   // sized by CSS from the panel width
     if (d.thumbCanvas[i]) box.appendChild(d.thumbCanvas[i]);
     const num = document.createElement('span'); num.className='num'; num.textContent = i+1;
     t.append(box, num); thumbsEl.appendChild(t); tio.observe(t);
@@ -985,7 +993,7 @@ async function drawThumb(d, i, box){
   if (d.thumbCanvas[i] || box.dataset.busy) return; box.dataset.busy = '1';
   try {
     const page = await d.pdf.getPage(i+1); const s = d.sizes[i];
-    const scale = (parseFloat(box.style.width) * 2) / s.w; const vp = page.getViewport({scale});
+    const scale = ((box.clientWidth || 128) * 2) / s.w; const vp = page.getViewport({scale});
     const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
     const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
     await page.render({ canvasContext:ctx, viewport:vp }).promise;
@@ -1278,6 +1286,31 @@ function togglePanel(cls){ app.classList.toggle(cls); if (isNarrow()) app.classL
 function syncPanelBtns(){ $('#bThumbs').classList.toggle('on', !app.classList.contains('no-thumbs')); $('#bTools').classList.toggle('on', !app.classList.contains('no-tools')); }
 $('#bThumbs').onclick = () => togglePanel('no-thumbs');
 $('#bTools').onclick = () => togglePanel('no-tools');
+/* Pages panel width: drag its right edge (as in Bohpum); double-click = the normal width. --pages-w on <html>
+   sizes the panel and its thumbnails (the head script sets the saved width before first paint). */
+const PAGES_W = 186, PAGES_MIN = 140, PAGES_MAX = 400, resizer = $('#pagesResizer');
+let pagesW = PAGES_W; try { const w = +localStorage.getItem('sastra-pages-w'); if (w >= PAGES_MIN && w <= PAGES_MAX) pagesW = w; } catch {}
+function setPagesW(w){   // null: the normal width
+  pagesW = w == null ? PAGES_W : Math.round(Math.max(PAGES_MIN, Math.min(PAGES_MAX, w)));
+  if (w == null) document.documentElement.style.removeProperty('--pages-w'); else document.documentElement.style.setProperty('--pages-w', pagesW + 'px');
+  refit();
+}
+function savePagesW(w){ try { if (w == null) localStorage.removeItem('sastra-pages-w'); else localStorage.setItem('sastra-pages-w', String(w)); } catch {} }
+function redrawThumbs(){ for (const d of state.docs) d.thumbCanvas = []; renderThumbs(); }   // they were drawn for the old width
+resizer.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const sx = e.clientX, w0 = pagesW;
+  document.body.classList.add('pages-resizing'); resizer.setPointerCapture(e.pointerId);
+  const move = ev => setPagesW(w0 + ev.clientX - sx);
+  const up = () => {
+    resizer.removeEventListener('pointermove', move); resizer.removeEventListener('pointerup', up); resizer.removeEventListener('pointercancel', up);
+    document.body.classList.remove('pages-resizing');
+    if (pagesW !== w0) { savePagesW(pagesW); redrawThumbs(); }
+  };
+  resizer.addEventListener('pointermove', move); resizer.addEventListener('pointerup', up); resizer.addEventListener('pointercancel', up);
+});
+resizer.addEventListener('dblclick', () => { setPagesW(null); savePagesW(null); redrawThumbs(); });
 function toggleFocus(force){
   const on = force ?? !app.classList.contains('focus'); if (on && !active()) return;   // nothing to maximize
   app.classList.toggle('focus', on);

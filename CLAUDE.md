@@ -119,6 +119,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Actions apply to selected pages, or the current page if nothing is selected (`targets(d)`).
 - Viewer: pages are placeholders sized from page dimensions; IntersectionObserver renders
   canvases lazily. Thumbnails render lazily too.
+- Pages panel width (since 2026-10-17, as in Bohpum): drag `#pagesResizer` (the panel's right edge, 7 px, red line on
+  hover) 140–400 px, double-click = normal 186; `--pages-w` on <html>, kept in localStorage `sastra-pages-w` and set by
+  the head script before first paint. Thumbnail boxes are sized by CSS (`--tw`/`--th` from the width, `--ar` = page
+  w / h inline; at 186 px the old 128 × 168 max); after a drag `redrawThumbs()` drops every doc's `thumbCanvas` so they
+  redraw sharp (`drawThumb` uses the box's `clientWidth`).
 - Hand tool: pointer drag scrolls `#viewer` (tool H, hold Space, or middle mouse).
 - Layout: `#app` is a grid with named areas (menu/tabs/work/status), so hiding a bar never
   shifts the workspace into an `auto` row. The view toolbar (`.toolbar`) sits inside the logo
