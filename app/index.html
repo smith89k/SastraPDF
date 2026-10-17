@@ -235,6 +235,7 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .modal p{margin:0;line-height:1.5}
 .modal .acts{display:flex;justify-content:flex-end;gap:8px}
 .modal p.detail{color:var(--muted);font-size:13px}
+.modal.checking p{display:flex;align-items:center;gap:10px}
 .modal .names{margin:0;padding:8px 10px 8px 26px;max-height:168px;overflow-y:auto;background:var(--chrome);border:1px solid var(--line);border-radius:6px;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
 /* About (Help > About, or click the brand): the app, its author, credits */
 .modal.about{box-sizing:border-box;max-width:480px;max-height:calc(100vh - 32px);overflow-y:auto;gap:16px;padding:22px}
@@ -764,6 +765,69 @@ async function notesAtStart(){
     if (SastraNotes.shouldShow(v, seen) && !show.el) shown = openNotes(v);
   } catch(e){ console.warn(e); }
   document.documentElement.dataset.notes = shown ? 'shown' : 'none';
+}
+
+/* ---------- Automatic updates (main.js / updater.js): the ready box, Restart now, Help > Check for Updates ---------- */
+// Unsaved changes, before closing or restarting: true = go ahead (also when nothing is unsaved).
+async function askUnsaved(verb, ok){
+  const dirty = state.docs.filter(d => d.dirty && !d.sample);
+  if (!dirty.length) return true;
+  const msg = dirty.length === 1 ? `${dirty[0].name} has changes that haven't been saved. ${verb} Sastra PDF anyway?`
+    : `${dirty.length} files have changes that haven't been saved. ${verb} Sastra PDF anyway?`;
+  return askConfirm(msg, ok, dirty.length > 1 ? dirty.map(d => d.name) : []);
+}
+// Boxes that come by themselves (an update is ready, the right-click menu needs setting up) wait their turn: never over
+// another box or a Present show, and one at a time. Boxes and the show are children of <body>.
+const screenFree = () => !$('.modal-bg') && !show.el;
+function whenFree(){
+  return new Promise(res => {
+    if (screenFree()) return res();
+    const mo = new MutationObserver(() => { if (screenFree()) { mo.disconnect(); res(); } });
+    mo.observe(document.body, { childList:true });
+  });
+}
+let boxTurn = Promise.resolve();
+const inTurn = open => (boxTurn = boxTurn.then(whenFree).then(open).catch(e => console.warn(e)));
+
+async function readyBox(v){
+  const r = await askChoice(`Sastra PDF ${v} is ready to install.`, [['Later','outline'],['Restart now','primary']],
+    { detail:'Restart now to use it, or it installs the next time you close Sastra PDF.' });
+  if (r === 1) await restartForUpdate();
+}
+const offered = new Set();   // asked once per downloaded version while the app runs; Later = it installs on closing
+function updateReady(v){ if (offered.has(v)) return; offered.add(v); inTurn(() => readyBox(v)); }
+// The installer starts at once and closes the app by force, so the unsaved question comes first.
+async function restartForUpdate(){
+  if (!await askUnsaved('Restart', 'Restart without saving')) return;
+  const r = await desk.installUpdate();
+  if (r && !r.ok && r.reason === 'task') {
+    await askChoice("Sastra PDF can't restart while a right-click job is running.", [['OK','primary']],
+      { detail:'Wait for the small progress window to finish, then use ☰ › Help › Check for Updates. Or close Sastra PDF later: the update installs then.' });
+  }
+}
+// Help > Check for Updates: "Checking…" (Esc or a click outside closes it and drops the answer), then the answer.
+async function checkUpdatesCmd(){
+  if (!screenFree()) return;
+  const bg = document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML = `<div class="modal ask checking" role="dialog" aria-modal="true" aria-busy="true"><p><span class="spin"></span>Checking for updates…</p><div class="acts"></div></div>`;
+  let open = true;
+  const done = () => { if (!open) return; open = false; bg.remove(); document.removeEventListener('keydown', k, true); };
+  const k = e => { if (e.key==='Escape'){ e.stopPropagation(); done(); } };
+  bg.addEventListener('click', e => { if (e.target===bg) done(); });
+  document.addEventListener('keydown', k, true);
+  document.body.appendChild(bg);
+  let a; try { a = await desk.checkUpdates(); } catch { a = { kind:'failed' }; }
+  if (!open) return;
+  done();
+  if (a.kind === 'ready') return readyBox(a.version);
+  const failed = ["Couldn't check for updates. Check the internet connection and try again.", ''];
+  const [msg, detail] = {
+    current: ['You have the latest version.', `Sastra PDF ${a.version} is the newest version.`],
+    downloading: [`Version ${a.version} is downloading. You'll be asked to restart when it's ready.`, ''],
+    dev: ['Updates work only in the installed app.', ''],
+    failed
+  }[a.kind] || failed;
+  await askChoice(msg, [['OK','primary']], { detail });
 }
 async function busy(label, fn){
   if (state.busy) { toast('Please wait for the current task to finish'); return; }
@@ -1684,12 +1748,13 @@ if (desk) {
       themeSystem:() => setTheme('system', true), themeLight:() => setTheme('light', true), themeDark:() => setTheme('dark', true),
       present:() => presentCmd(false), presentStart:() => presentCmd(true),
       nextTab:() => switchTab(1), prevTab:() => switchTab(-1),
-      print:printCmd, about:openAbout, whatsNew:() => desk.appVersion().then(openNotes, () => {})
+      print:printCmd, about:openAbout, whatsNew:() => desk.appVersion().then(openNotes, () => {}), checkUpdates:checkUpdatesCmd
     };
     map[cmd]?.();
   });
   desk.onOpenPaths(openPaths);
   desk.onCombinePaths(combinePaths);
+  desk.onUpdateReady(updateReady);
   // ☰: the File / Edit / View / Help menu, since the window has no Windows title bar or menu row (main.js).
   // Alt pressed and let go on its own, or F10, opens it too — as with a menu row.
   const bMenu = $('#bMenu'), menuBlocked = () => !!($('.modal-bg') || show.el);
@@ -1708,13 +1773,10 @@ if (desk) {
   window.addEventListener('blur', () => { altAlone = false; });   // Alt+Tab
   let closeAsking = false;
   desk.onCloseRequest(async () => {
-    const dirty = state.docs.filter(d => d.dirty && !d.sample);
-    if (!dirty.length) { desk.closeNow(); return; }
+    if (!state.docs.some(d => d.dirty && !d.sample)) { desk.closeNow(); return; }
     if (closeAsking) return;   // X clicked again while the question is open
     closeAsking = true;
-    const msg = dirty.length === 1 ? `${dirty[0].name} has changes that haven't been saved. Close Sastra PDF anyway?`
-      : `${dirty.length} files have changes that haven't been saved. Close Sastra PDF anyway?`;
-    const ok = await askConfirm(msg, 'Close without saving', dirty.length > 1 ? dirty.map(d => d.name) : []);
+    const ok = await askUnsaved('Close', 'Close without saving');
     closeAsking = false;
     if (ok) desk.closeNow();
   });
