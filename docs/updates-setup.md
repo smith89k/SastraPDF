@@ -60,6 +60,11 @@ The job checks the version, builds the installer (with the right-click menu), up
 `latest.yml` last), removes the older installers there (their small `.blockmap` files stay — an installed copy uses its
 own to download only what changed), and makes the GitHub release `v1.2.0` with the notes and the installer.
 It stops with a plain message if the version doesn't match package.json, is already released, or a secret is missing.
+If a run stops half-way after uploading (the installer is in the bucket but there's no GitHub release), the next run of
+the same version refuses: bump the version and release again.
+
+After the first update that reaches an installed copy, right-click a PDF in File Explorer and check that the Sastra PDF
+items are still in the first menu (or that the app offered to set them up again and it worked).
 
 ## Good to know
 

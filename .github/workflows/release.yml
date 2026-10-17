@@ -27,19 +27,15 @@ jobs:
     defaults:
       run:
         shell: bash
+    # The R2 key can put an update on every installed copy, so it and the GitHub token are given only to the steps
+    # that need them (never to install or build steps, which run other people's code).
     env:
       VERSION: ${{ inputs.version }}
       EXE: Sastra-PDF-Setup-${{ inputs.version }}.exe
-      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
-      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: auto
       # R2 doesn't take the checksums newer AWS CLIs add by default
       AWS_REQUEST_CHECKSUM_CALCULATION: when_required
       AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
 
@@ -51,6 +47,13 @@ jobs:
           cache: pnpm
 
       - name: The version matches package.json, is not released yet, and the R2 secrets are set
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           v="$(node -p "require('./package.json').version")"
           if [ "$v" != "$VERSION" ]; then
@@ -62,6 +65,11 @@ jobs:
           for s in R2_ACCOUNT_ID R2_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
             if [ -z "${!s}" ]; then echo "::error::A GitHub secret is missing ($s): see docs/updates-setup.md"; exit 1; fi
           done
+          # An earlier run stopped after uploading but before the GitHub release: building again would put different
+          # bytes under the same name (Cloudflare may still serve the old ones), and updates would fail their checksum.
+          if aws s3api head-object --bucket "$R2_BUCKET" --key "$EXE" --endpoint-url "$R2_ENDPOINT" >/dev/null 2>&1; then
+            echo "::error::$EXE is already in R2 from an earlier run that stopped before the GitHub release. Bump the version and run again."; exit 1
+          fi
 
       - name: Install (fetches Electron, copies the PDF libraries, checks About versions)
         run: pnpm install --frozen-lockfile
@@ -92,6 +100,11 @@ jobs:
 
       # Installer first, latest.yml last: an installed copy never reads a latest.yml whose installer isn't there yet.
       - name: Upload to R2
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           put() {   # file key [aws options…]: upload, then check the bucket holds all of it
             local f="$1" key="$2"; shift 2
@@ -110,6 +123,11 @@ jobs:
           put dist/latest.yml latest.yml --cache-control no-cache --content-type text/yaml
 
       - name: Remove older installers from R2 (every .blockmap stays)
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           aws s3api list-objects-v2 --bucket "$R2_BUCKET" --endpoint-url "$R2_ENDPOINT" --query 'Contents[].[Key]' --output text > r2-keys.txt
           node scripts/r2-prune.js "$EXE" < r2-keys.txt > r2-old.txt
@@ -119,6 +137,8 @@ jobs:
           done < r2-old.txt
 
       - name: GitHub release (notes from What's new)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/release-notes.js "$VERSION" > notes.md
           printf '\nDownload: https://sastra-update.smith89k.com/Sastra-PDF-Setup.exe (always the newest version)\n\nSHA-256 of the installer: `%s`\n' \

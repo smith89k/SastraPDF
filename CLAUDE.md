@@ -333,7 +333,12 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `.modal-bg` or Present, one at a time). Restart now asks `askUnsaved('Restart', 'Restart without saving')` FIRST
   (shared with the close question), then `install-update` → main sets `allowClose` and `quitAndInstall(true, true)`
   (silent, start again) — the installer starts at once and closes the app by force, so nothing may ask after it. While
-  the task window is open it refuses (`installBlock` 'task'). Later + close = electron-updater installs on quit.
+  the task window is open it refuses (`installBlock` 'task'). If the installer didn't start (electron-updater leaves
+  `quitAndInstallCalled` set only when it did), `install()` returns false, forgets the download and checks again, main
+  sets `allowClose` back to false (else a later X would close unsaved PDFs without asking) and the page says "The
+  update couldn't be started." Later + close = electron-updater installs on quit. NOT YET PROVEN on a real update: the
+  installer's menu hooks (electron-updater runs it with `--updated /S`, so installer.nsh does `release` then
+  `install --silent`) — check the right-click menu on the first real update (t\e2e leaves the menu out on purpose).
   ☰ › Help › Check for Updates (`checkUpdatesCmd`): "Checking for updates…" (Esc drops the answer), then latest /
   downloading / couldn't check / only in the installed app / the ready box. Right-click menu after a silent update:
   explorer-menu.js `repairNeeded` (Windows 11, .msix present, Mode=classic, not Declined, `Asked` ≠ this version) → after
@@ -413,7 +418,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   the release date (What's new; `pnpm run dist` and the workflow refuse to build without it, and it becomes the GitHub
   release notes via scripts/release-notes.js), run the Playwright checks locally, push main, then Actions → Release →
   Run workflow → the version (`gh workflow run release.yml -f version=X.Y.Z`). The job stops if the version ≠
-  package.json, is already released, or an R2 secret is missing; builds with `--publish never`; uploads installer +
+  package.json, is already released, an R2 secret is missing, or that version's installer is already in R2 (an
+  earlier run stopped half-way: bump the version — a rebuild would put different bytes under the same name);
+  the R2 key and GH_TOKEN live only in the env of the check / upload / prune / release steps (never install or
+  build steps: that key can push an update to every installed copy); builds with `--publish never`; uploads installer +
   blockmap, then the fixed-name copy `Sastra-PDF-Setup.exe` (no-cache, Content-Disposition = the versioned name),
   then `latest.yml` (no-cache) LAST, checking each stored size; removes older `Sastra-PDF-Setup-*.exe` (never a
   .blockmap); creates tag + GitHub release (installer + SHA-256 + the download link). Secrets: R2_ACCOUNT_ID,

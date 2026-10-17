@@ -803,6 +803,9 @@ async function restartForUpdate(){
   if (r && !r.ok && r.reason === 'task') {
     await askChoice("Sastra PDF can't restart while a right-click job is running.", [['OK','primary']],
       { detail:'Wait for the small progress window to finish, then use ☰ › Help › Check for Updates. Or close Sastra PDF later: the update installs then.' });
+  } else if (r && !r.ok && r.reason === 'failed') {
+    await askChoice("The update couldn't be started.", [['OK','primary']],
+      { detail:'Your files are still open. Sastra PDF downloads the update again and offers it next time.' });
   }
 }
 // After an update installed silently, the right-click menu may sit under "Show more options" (main.js menu-repair):

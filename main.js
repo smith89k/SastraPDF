@@ -391,9 +391,10 @@ ipcMain.handle('check-updates', () => up ? up.checkNow() : { kind: 'dev' });
 ipcMain.handle('install-update', () => {
   const block = updates.installBlock({ downloaded: up && up.downloaded(), taskOpen: !!taskWin });
   if (block) return { ok: false, reason: block };
-  allowClose = true;
-  up.install();
-  return { ok: true };
+  allowClose = true;   // before: the app quits a moment after the installer starts
+  if (up.install()) return { ok: true };
+  allowClose = false;  // it didn't start: closing must ask about unsaved changes again
+  return { ok: false, reason: 'failed' };
 });
 // After a silent update the right-click menu may have fallen back to "Show more options" (explorer-menu.js
 // repairNeeded): 'check' → { needed }, 'later' → not again for this version, 'fix' → the installer's own setup step,

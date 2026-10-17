@@ -48,7 +48,15 @@ function createUpdater({ updater, current, send, log, timers = { setTimeout, set
       try { return checkAnswer({ result: await updater.checkForUpdates(), current }); }
       catch (error) { log('check: ' + error.message); return checkAnswer({ error, current }); }
     },
-    install() { updater.quitAndInstall(true, true); },   // silent, then start the new version
+    // Silent, then start the new version. → whether the installer started: electron-updater leaves quitAndInstallCalled
+    // set only then (it quits the app a moment later). If not, forget this download and fetch it again.
+    install() {
+      updater.quitAndInstall(true, true);
+      if (updater.quitAndInstallCalled === true) return true;
+      log('install did not start; checking again');
+      downloaded = null; check();
+      return false;
+    },
     downloaded: () => downloaded
   };
 }
