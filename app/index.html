@@ -1018,9 +1018,8 @@ async function openBytes(bytes, name, opts={}){
 async function openFiles(files){
   const list = [...files].filter(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
   if (!list.length) { toast('Choose PDF files (.pdf)', true); return; }
-  await busy(`Opening ${list.length} file${list.length>1?'s':''}…`, async () => {
-    for (const f of list) await openBytes(new Uint8Array(await f.arrayBuffer()), f.name, { path: desk?.pathForFile(f) || null });
-  });
+  // dropped files and the Combine panel's Add files: the same open job and progress box as files from disk
+  await queueOpen(list.map(f => ({ name: f.name, path: desk?.pathForFile(f) || null, read: async () => ({ data: await f.arrayBuffer() }) })));
 }
 function activate(id){
   const prev = active(); if (prev) prev.scroll = { t:viewer.scrollTop, l:viewer.scrollLeft };
