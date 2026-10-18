@@ -160,12 +160,16 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   shifts the workspace into an `auto` row. The view toolbar (`.toolbar`) sits inside the logo
   row (menubar) between Undo/Redo and Present; the right end is Present, Maximize, Theme, then
   Windows' caption buttons. As the window narrows the row sheds, in order:
-  button labels (<1732px), Fit width/page (<1478), the Khmer name (<1410), Zoom −/+ (<1357),
-  Prev/Next (<1289); all stay reachable via dropdown, right-click menu or shortcuts. Below
-  ~1217px the tool strip scrolls sideways. Re-measure if a button is added to or removed from that row
+  button labels (<1619px), Fit width/page (<1365), the Khmer name (<1297), Zoom −/+ (<1244),
+  Prev/Next (<1176); all stay reachable via dropdown, right-click menu or shortcuts. Below
+  ~1100px the tool strip scrolls sideways. Re-measure if a button is added to or removed from that row
   (re-measured 2026-10-16 for ☰ + the caption buttons and again without the Full screen button: force each
   step's hidden items at full width, measure the row's leftover space, threshold = needed width + 3;
-  "/ 9999" pages).
+  "/ 9999" pages). 2026-10-18: Rotate left/right and Delete left the toolbar (the user: they duplicated
+  Organize pages; the right-click menu now clicks `#oRotL`/`#oRotR`/`#oDel`); that freed exactly 113 px at
+  every step, so each threshold moved down 113. The measurement now comes out ~10 px under the old numbers,
+  which were kept as a margin. At 175 % screen scaling the viewport is fractional (1618.29 for a "1618" window),
+  so a test right at a threshold can land on the other side.
 - Title bar = the logo row (since 2026-10-16; Windows' own bar was 8 px shorter maximized — its edge goes
   off-screen — so everything jumped). main.js `titleBarStyle: 'hidden'` + `titleBarOverlay` (height
   `BAR_H` 44 = the 45 px row minus its line; colours `BAR_COLORS` = --chrome / --fg, KEEP IN SYNC with the

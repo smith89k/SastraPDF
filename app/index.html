@@ -101,11 +101,11 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:defau
 .menubar .btn .lbl{display:inline}
 /* the logo row holds everything, so it sheds the least-needed bits as the window narrows;
    all stay reachable (tooltips, zoom dropdown, right-click menu, shortcuts) */
-@media (max-width:1731px){#app:not(.focus) .menubar .btn .lbl{display:none}}
-@media (max-width:1477px){#bFitW,#bFitP{display:none}}
-@media (max-width:1409px){.menubar .brand-km{display:none}}
-@media (max-width:1356px){#bZoomOut,#bZoomIn{display:none}}
-@media (max-width:1288px){#bPrev,#bNext{display:none}}
+@media (max-width:1618px){#app:not(.focus) .menubar .btn .lbl{display:none}}
+@media (max-width:1364px){#bFitW,#bFitP{display:none}}
+@media (max-width:1296px){.menubar .brand-km{display:none}}
+@media (max-width:1243px){#bZoomOut,#bZoomIn{display:none}}
+@media (max-width:1175px){#bPrev,#bNext{display:none}}
 
 /* tabs */
 .tabbar{display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);min-width:0}
@@ -458,10 +458,6 @@ select.big option{padding:8px 10px}
         <button class="btn icon" id="bPrev" title="Previous page"><svg class="i" data-i="up"></svg></button>
         <div class="pagebox"><input id="pageIn" inputmode="numeric" aria-label="Page number" value="1"><span id="pageOf">/ 1</span></div>
         <button class="btn icon" id="bNext" title="Next page"><svg class="i" data-i="down"></svg></button>
-        <span class="sep"></span>
-        <button class="btn icon" id="bRotL" title="Rotate selected pages left"><svg class="i" data-i="rotl"></svg></button>
-        <button class="btn icon" id="bRotR" title="Rotate selected pages right"><svg class="i" data-i="rotr"></svg></button>
-        <button class="btn icon" id="bDel" title="Delete selected pages (Delete)"><svg class="i" data-i="trash"></svg></button>
       </div>
       <div class="spacer"></div>
       <div class="grp"><button class="btn" id="bTools" title="Organize tools"><svg class="i" data-i="panel"></svg><span class="lbl">Tools</span></button></div>
@@ -1546,7 +1542,7 @@ function updateUI(){
     if (!has && !el.disabled) { el.disabled = true; el.dataset.nodoc = ''; }
     else if (has && 'nodoc' in el.dataset) { el.disabled = false; delete el.dataset.nodoc; }
   }
-  ['#bSave','#bPrint','#bZoomOut','#bZoomIn','#bFitW','#bFitP','#bRotL','#bRotR','#bDel','#oRotL','#oRotR','#oDel','#oExtract','#oInsert','#oAll','#sGo','#eGo'].forEach(s => $(s).disabled = !has || b);
+  ['#bSave','#bPrint','#bZoomOut','#bZoomIn','#bFitW','#bFitP','#oRotL','#oRotR','#oDel','#oExtract','#oInsert','#oAll','#sGo','#eGo'].forEach(s => $(s).disabled = !has || b);
   $('#bUndo').disabled = !d?.history.length || b; $('#bRedo').disabled = !d?.future.length || b;
   updatePageUI(); updateZoomUI(); renderCombine();
   if (!d) { $('#stDoc').textContent = 'No document open'; $('#stSel').textContent=''; $('#eHint').textContent='';
@@ -1580,9 +1576,9 @@ $('#bPrev').onclick = () => goTo((active()?.current ?? 0) - 1);
 $('#bNext').onclick = () => goTo((active()?.current ?? 0) + 1);
 $('#pageIn').addEventListener('keydown', e => { if (e.key==='Enter') { const v = parseInt(e.target.value,10); if (v) goTo(v-1); viewer.focus(); } });
 $('#pageIn').addEventListener('blur', updatePageUI);
-$('#bRotL').onclick = $('#oRotL').onclick = () => rotate(-90);
-$('#bRotR').onclick = $('#oRotR').onclick = () => rotate(90);
-$('#bDel').onclick = $('#oDel').onclick = deletePages;
+$('#oRotL').onclick = () => rotate(-90);
+$('#oRotR').onclick = () => rotate(90);
+$('#oDel').onclick = deletePages;
 $('#oExtract').onclick = extractPages;
 $('#oAll').onclick = () => { const d=active(); if (!d) return; d.sel = new Set([...Array(d.n).keys()]); updateSel(); };
 $('#cGo').onclick = combine; $('#sGo').onclick = split; $('#eGo').onclick = exportImages;
@@ -1683,13 +1679,14 @@ window.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefaul
 
 /* ---------- right-click menu on the page area ----------
    The view toolbar as a menu (the only way to reach it while maximized). Each entry clicks the
-   toolbar button it stands for, so on/off state, disabled state and behaviour live in one place. */
+   toolbar button it stands for, so on/off state, disabled state and behaviour live in one place.
+   Rotate and Delete click the Organize pages buttons (the toolbar has no copies of them). */
 const CMENU = [
   ['tSelect','Select tool','V'], ['tHand','Hand tool','H'], '-',
   ['zoom'], ['bZoomIn','Zoom in','Ctrl+='], ['bZoomOut','Zoom out','Ctrl+−'], ['actual','Actual size','Ctrl+1'],
   ['bFitW','Fit width','Ctrl+2'], ['bFitP','Fit page','Ctrl+0'], '-',
   ['page'], ['bPrev','Previous page','PgUp'], ['bNext','Next page','PgDn'], '-',
-  ['bRotL','Rotate left','Ctrl+Shift+L'], ['bRotR','Rotate right','Ctrl+Shift+R'], ['bDel','Delete page','Del'], '-',
+  ['oRotL','Rotate left','Ctrl+Shift+L'], ['oRotR','Rotate right','Ctrl+Shift+R'], ['oDel','Delete page','Del'], '-',
   ['bThumbs','Page thumbnails',''], ['bTools','Tools panel',''], ['bFocus','Maximize page area','F'],
   ['bPresent','Present from this page','Shift+F5'], ['bPrint','Print…','Ctrl+P']
 ];
@@ -1723,7 +1720,7 @@ function openMenu(x, y, byKey){
     if (CHECKABLE.includes(id)) b.setAttribute('aria-checked', src.classList.contains('on'));
     b.disabled = src ? src.disabled : !d;
     b.innerHTML = `${src ? src.querySelector('svg').outerHTML : '<span></span>'}<span></span><span class="kb">${keys}</span>`;
-    b.children[1].textContent = id === 'bDel' && n > 1 ? `Delete ${n} pages` : id === 'bFocus' && maxed ? 'Restore panels' : label;
+    b.children[1].textContent = id === 'oDel' && n > 1 ? `Delete ${n} pages` : id === 'bFocus' && maxed ? 'Restore panels' : label;
     b.onclick = () => { closeMenu(true); if (src) src.click(); else setZoom(1); };
     m.appendChild(b);
   }
