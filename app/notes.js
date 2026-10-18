@@ -10,6 +10,9 @@ const KINDS = Object.freeze(['new', 'improved', 'fixed', 'removed']);   // the w
 const N = (version, date, notes) => Object.freeze({ version, date, notes: Object.freeze(notes.map(([kind, text]) => Object.freeze({ kind, text }))) });
 
 const NOTES = Object.freeze([
+  N('1.1.2', '2026-10-18', [
+    ['improved', 'The top bar is tidier: Rotate left, Rotate right and Delete are no longer repeated there. Use them from Organize pages in the Tools panel, the right-click menu, or the keys (Delete, Ctrl+Shift+L, Ctrl+Shift+R).']
+  ]),
   N('1.1.1', '2026-10-17', [
     ['improved', 'Updates now come from a private address: only copies installed from a Sastra PDF installer you were given can update.']
   ]),
