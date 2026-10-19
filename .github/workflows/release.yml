@@ -1,6 +1,8 @@
 # Builds the Windows installer and releases it: into the private Cloudflare R2 bucket behind
 # https://sastra-update.smith89k.com/ (locked with Cloudflare Access: only installed copies, which carry the update key,
-# get in), and as a GitHub release with the notes from What's new (app/notes.js) — the installer to hand out.
+# get in), and as a GitHub release with the notes from What's new (app/notes.js) — the installer to hand out. It also
+# builds the Microsoft Store package (store.js, build/store.config.js: the same app with no update key) and puts it on
+# the GitHub release only, never in R2: the user submits it in Partner Center, and Microsoft signs it.
 # Runs only by hand: Actions > Release > Run workflow, type the version (= package.json), or
 #   gh workflow run release.yml -f version=1.2.0
 # Pushing code or tags never releases. Setup (bucket, domain, lock, the six secrets): docs/updates-setup.md.
@@ -32,6 +34,7 @@ jobs:
     env:
       VERSION: ${{ inputs.version }}
       EXE: Sastra-PDF-Setup-${{ inputs.version }}.exe
+      MSIX: Sastra-PDF-Store-${{ inputs.version }}.msix
       AWS_DEFAULT_REGION: auto
       # R2 doesn't take the checksums newer AWS CLIs add by default
       AWS_REQUEST_CHECKSUM_CALCULATION: when_required
@@ -46,7 +49,7 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: The version matches package.json, is not released yet, and the R2 secrets are set
+      - name: The version matches package.json, is not released yet, store.json holds the Store identity, and the R2 secrets are set
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
@@ -64,6 +67,7 @@ jobs:
           if gh release view "v$VERSION" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
             echo "::error::v$VERSION is already released. Bump the version for a new release."; exit 1
           fi
+          node -e "if (!require('./store').readStoreInfo('store.json')) { console.error('::error::store.json is missing or not valid: see docs/updates-setup.md section 7'); process.exit(1); }"
           for s in R2_ACCOUNT_ID R2_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
             if [ -z "${!s}" ]; then echo "::error::A GitHub secret is missing ($s): see docs/updates-setup.md"; exit 1; fi
           done
@@ -100,11 +104,28 @@ jobs:
           done
           if ! grep -q "url: $EXE\$" dist/latest.yml; then echo "::error::latest.yml does not name $EXE"; cat dist/latest.yml; exit 1; fi
 
+      # The Microsoft Store package: the same app, but the update key leaves the workspace first (the installer is built).
+      - name: "For the Store: build the Store package (no update key inside)"
+        run: |
+          rm -f update-config.json
+          pnpm exec electron-builder --win appx --publish never --config build/store.config.js
+
+      - name: "For the Store: the package has the menu, and no update key"
+        run: node scripts/store-check.js dist-store "$MSIX"
+
       # Kept a few days on the run's page, in case R2 misbehaves.
       - uses: actions/upload-artifact@v7
         with:
           name: installer
           path: dist/*.exe
+          retention-days: 5
+          compression-level: 0
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: store
+          path: dist-store/${{ env.MSIX }}
+          if-no-files-found: error
           retention-days: 5
           compression-level: 0
 
@@ -167,4 +188,6 @@ jobs:
           node scripts/release-notes.js "$VERSION" > notes.md
           printf '\nGive the installer below to the people who should have Sastra PDF: copies installed from it update themselves.\n\nSHA-256 of the installer: `%s`\n' \
             "$(sha256sum "dist/$EXE" | cut -d' ' -f1)" >> notes.md
-          gh release create "v$VERSION" "dist/$EXE" --target "$GITHUB_SHA" --title "Sastra PDF $VERSION" --notes-file notes.md
+          printf '\n%s is for the Microsoft Store: submit it in Partner Center (docs/updates-setup.md section 7). Microsoft signs it.\n\nSHA-256 of the Store package: `%s`\n' \
+            "$MSIX" "$(sha256sum "dist-store/$MSIX" | cut -d' ' -f1)" >> notes.md
+          gh release create "v$VERSION" "dist/$EXE" "dist-store/$MSIX" --target "$GITHUB_SHA" --title "Sastra PDF $VERSION" --notes-file notes.md
