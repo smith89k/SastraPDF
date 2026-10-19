@@ -627,8 +627,12 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   Same publisher as Bohpum. With it the release workflow's store.json check passes.
   Known from review: in the real Store copy main.js sets userData itself, so a `--user-data-dir` test switch is
   overridden (Task 10 test runs share the "Sastra PDF Store" profile); Wide310x150Logo.png is in the package but the
-  manifest doesn't reference it (no wide tile; harmless on Windows 11); the 44 px logo has no targetsize/unplated
-  variants (check the taskbar icon in Task 10); the release now stops before R2 if the Store build fails.
+  manifest doesn't reference it (no wide tile; harmless on Windows 11); the release now stops before R2 if the Store
+  build fails. Task 10's first test package showed the taskbar icon in a box (the user, 2026-10-19: "taskbar icon: box"):
+  only the plated 44 px logo existed. build/appx now also has `Square44x44Logo.targetsize-N.png` and
+  `…targetsize-N_altform-unplated.png` for N = 16 20 24 32 40 44 48 64 256 — the PNG entries of build/icon.ico (the
+  installer copy's taskbar icon) byte for byte, 44 = Square44x44Logo.png. Any `.targetsize-` file makes electron-builder
+  run makepri (resources.pri), which is how Windows finds them.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
