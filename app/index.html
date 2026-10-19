@@ -548,7 +548,7 @@ select.big option{padding:8px 10px}
 </div>
 
 <input type="file" id="fOpen" accept="application/pdf,.pdf" multiple hidden>
-<input type="file" id="fInsert" accept="application/pdf,.pdf" multiple hidden>
+<input type="file" id="fInsert" accept=".pdf,.jpg,.jpeg,.jfif,.png,.bmp,.gif,.webp" multiple hidden>
 <input type="file" id="fAdd" accept="application/pdf,.pdf" multiple hidden>
 
 <script src="vendor/pdf-lib.min.js"></script>
@@ -1346,21 +1346,39 @@ async function extractPages(){
     toast(`Extracted ${tg.length} page${tg.length>1?'s':''} to a new tab`);
   });
 }
-async function insertFiles(files){
-  const d = active(); if (!d) return;
-  const list = [...files].filter(f => /\.pdf$/i.test(f.name) || /pdf$/i.test(f.type)); if (!list.length) return;
+// Files as { name, bytes } (bytes null: the file couldn't be read) — for insertItems
+const fileItems = files => Promise.all([...files].map(async f => ({ name: f.name, bytes: await f.arrayBuffer().then(b => new Uint8Array(b), () => null) })));
+const byName = new Intl.Collator(undefined, { numeric:true, sensitivity:'base' }).compare;   // as File Explorer: 2 before 10
+// PDFs and pictures (app/images.js: the picture's own size) → pages of d from index `at`, in name order, as ONE edit
+// (one Ctrl+Z). Insert file and files dropped on the Pages panel. Files that can't be used (password-protected,
+// damaged, not a PDF or picture) are skipped and named in one toast; none usable → nothing changes.
+async function insertItems(d, at, items){
+  const list = [...items].sort((a,b) => byName(a.name, b.name));
   await busy('Inserting pages…', async () => {
     const doc = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
-    let at = d.current + 1; const start = at;
-    for (const f of list) {
-      const src = await PDFDocument.load(new Uint8Array(await f.arrayBuffer()), { ignoreEncryption:true });
-      const pages = await doc.copyPages(src, src.getPageIndices());
-      pages.forEach(p => doc.insertPage(at++, p));
+    const skipped = []; let k = at;
+    for (const it of list) {
+      try {
+        if (SastraImages.kind(it.bytes) === 'pdf') {
+          const src = await PDFDocument.load(it.bytes, { ignoreEncryption:true });
+          if (src.isEncrypted) { skipped.push(it.name); continue; }
+          (await doc.copyPages(src, src.getPageIndices())).forEach(p => doc.insertPage(k++, p));
+        } else { await SastraImages.addImagePage(doc, it.bytes, k); k++; }
+      } catch { skipped.push(it.name); }   // bytes null, damaged, or not a PDF or picture
     }
-    const sel = []; for (let k=start;k<at;k++) sel.push(k);
-    await commit(d, await doc.save(), { sel, current:start, msg:`Inserted ${at-start} page${at-start>1?'s':''} after page ${start}` });
-    goTo(start);
+    const n = k - at, bad = skipped.length ? `Couldn't add ${skipped.join(', ')}: not a PDF or picture, damaged, or password-protected` : '';
+    if (!n) { if (bad) toast(bad, true); return; }
+    const sel = []; for (let i = at; i < k; i++) sel.push(i);
+    await commit(d, await doc.save(), { sel, current:at });
+    if (active() === d) goTo(at);
+    const done = `Inserted ${n} page${n>1?'s':''} ${at ? 'after page ' + at : 'at the start'}`;
+    toast(bad ? `${done} · ${bad}` : done, !!bad);
   });
+}
+// Insert file (Organize pages): after the current page
+async function insertFiles(files){
+  const d = active(); if (!d) return;
+  const items = await fileItems(files); if (items.length) await insertItems(d, d.current + 1, items);
 }
 const rangeLabel = SastraOps.rangeLabel;
 
