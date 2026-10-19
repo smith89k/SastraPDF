@@ -7,8 +7,9 @@ const fs = require('fs'), path = require('path');
 const FIRST_CHECK_MS = 10000;              // not while the window and its files are still opening
 const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
 
-// Only the installed Windows app updates itself: not `pnpm start`, not the portable .exe.
-function updatesRunHere({ packaged, platform, portable }) { return packaged === true && platform === 'win32' && !portable; }
+// Only the installed Windows app updates itself: not `pnpm start`, not the portable .exe, and not the Microsoft Store
+// copy (the Store updates it; store.js).
+function updatesRunHere({ packaged, platform, portable, store = false }) { return packaged === true && platform === 'win32' && !portable && store !== true; }
 
 // What Help > Check for Updates says → { kind, version }
 function checkAnswer({ downloaded, result, error, current }) {
