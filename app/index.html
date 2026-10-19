@@ -178,6 +178,8 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .drop p{margin:0;color:var(--muted);line-height:1.5}
 .kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--fg)}
 .dropping .viewer::after{content:"Drop PDFs to open them in new tabs";position:absolute;inset:12px;border:3px dashed var(--accent);border-radius:12px;display:grid;place-items:center;font-size:16px;font-weight:600;color:var(--accent);background:var(--accent-soft);pointer-events:none}
+.dropping.hasdoc .viewer::after{content:"Drop PDFs to open them in new tabs, or drop on the Pages panel to add them"}
+.dropping.dropping-pages .viewer::after{display:none}
 
 /* tools panel */
 .tools{width:286px;flex:none;background:var(--chrome);border-left:1px solid var(--line);overflow-y:auto;padding-bottom:28px}
@@ -1263,22 +1265,36 @@ function renderThumbs(){
       dragFrom = { docId:d.id }; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain','folio-pages');
       requestAnimationFrame(() => thumbsEl.querySelectorAll('.thumb.sel').forEach(x=>x.classList.add('dragging')));
     });
-    t.addEventListener('dragend', () => { dragFrom = null; clearDrop(); thumbsEl.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging')); });
-    t.addEventListener('dragover', e => {
-      if (!dragFrom) return; e.preventDefault(); e.dataTransfer.dropEffect='move';
-      const r = t.getBoundingClientRect(); const before = e.clientY < r.top + r.height/2;
-      clearDrop(); t.classList.add(before ? 'drop-before' : 'drop-after');
-    });
-    t.addEventListener('drop', e => {
-      if (!dragFrom) return; e.preventDefault(); e.stopPropagation();
-      const r = t.getBoundingClientRect(); const ins = e.clientY < r.top + r.height/2 ? i : i+1;
-      clearDrop(); movePages(ins);
-    });
+    t.addEventListener('dragend', endPageDrag);   // may never come when the thumbnail is gone: see the window's dragend
   });
   updateSel();
   const cur = thumbsEl.querySelector(`.thumb[data-i="${d.current}"]`); if (cur) { cur.classList.add('current'); cur.scrollIntoView({block:'nearest'}); }
 }
 const clearDrop = () => thumbsEl.querySelectorAll('.drop-before,.drop-after').forEach(x=>x.classList.remove('drop-before','drop-after'));
+// The red line for a mouse height: before / after the thumbnail under it (its middle decides), before the next one in
+// a gap, at the start above the first, after the last below it
+function dropSpot(y){
+  const ts = [...thumbsEl.querySelectorAll('.thumb:not(.ghost)')]; if (!ts.length) return null;
+  for (const t of ts) { const r = t.getBoundingClientRect(); if (y < r.bottom) return y < r.top + r.height/2 ? { at:+t.dataset.i, el:t, cls:'drop-before' } : { at:+t.dataset.i + 1, el:t, cls:'drop-after' }; }
+  const t = ts[ts.length-1]; return { at:+t.dataset.i + 1, el:t, cls:'drop-after' };
+}
+function endPageDrag(){ dragFrom = null; clearDrop(); thumbsEl.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging')); }
+// The Pages panel takes dragged thumbnails (move) and files from File Explorer (insert at the red line). A drag that
+// carries files is always a file drop, even if a page drag never got its dragend. No PDF open: the window opens tabs.
+thumbsEl.addEventListener('dragover', e => {
+  const d = active(), files = hasFiles(e); if (!d || !(files || dragFrom)) return;
+  const spot = dropSpot(e.clientY); if (!spot) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = files ? 'copy' : 'move';
+  if (!spot.el.classList.contains(spot.cls)) { clearDrop(); spot.el.classList.add(spot.cls); }
+});
+thumbsEl.addEventListener('drop', e => {
+  const d = active(), files = hasFiles(e); if (!d || !(files || dragFrom)) return;
+  e.preventDefault(); e.stopPropagation();   // never the window's drop: no new tabs
+  const spot = dropSpot(e.clientY), from = dragFrom;
+  endPageDrag(); endDropping(); if (!spot) return;
+  if (files) fileItems(e.dataTransfer.files).then(items => insertItems(d, spot.at, items));
+  else if (from.docId === d.id) movePages(spot.at);
+});
 async function drawThumb(d, i, box){
   if (d.thumbCanvas[i] || box.dataset.busy) return; box.dataset.busy = '1';
   try {
@@ -1554,6 +1570,7 @@ function updateZoomUI(){
 }
 function updateUI(){
   const d = active(), has = !!d, b = state.busy;
+  app.classList.toggle('hasdoc', has);   // the page area's drop box mentions the Pages panel
   // No PDF: every control in the toolbar and Tools panel (and Maximize) is disabled. Only the ones
   // switched off here are marked, so exactly those come back; the lines below set the rest.
   for (const el of document.querySelectorAll('.toolbar :is(button,select,input), .tools :is(button:not(.tsec-head),select,input), #bFocus, #bPresent')) {
@@ -1687,13 +1704,19 @@ function setTheme(t, announce){
 $('#bTheme').onclick = () => setTheme(THEMES[(THEMES.indexOf(theme)+1) % THEMES.length], true);
 setTheme(theme);
 
-/* drop files anywhere */
+/* drop files anywhere: PDFs open in new tabs (the Pages panel takes its own drops) */
 let dragDepth = 0;
 const hasFiles = e => [...(e.dataTransfer?.types||[])].includes('Files');
+function endDropping(){ dragDepth = 0; app.classList.remove('dropping','dropping-pages'); }
 window.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; app.classList.add('dropping'); });
-window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; dragDepth = Math.max(0,dragDepth-1); if (!dragDepth) app.classList.remove('dropping'); });
-window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
-window.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth = 0; app.classList.remove('dropping'); openFiles(e.dataTransfer.files); });
+window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; dragDepth = Math.max(0,dragDepth-1); if (!dragDepth) { endDropping(); clearDrop(); } });
+window.addEventListener('dragover', e => {
+  const inPages = !!e.target.closest?.('#thumbs');
+  if (!inPages) clearDrop();   // the red line only while over the panel
+  if (hasFiles(e)) { e.preventDefault(); app.classList.toggle('dropping-pages', inPages && !!active()); }
+});
+window.addEventListener('drop', e => { endPageDrag(); if (!hasFiles(e)) return; e.preventDefault(); endDropping(); openFiles(e.dataTransfer.files); });
+window.addEventListener('dragend', endPageDrag, true);   // a dragged thumbnail still in the page
 
 /* ---------- right-click menu on the page area ----------
    The view toolbar as a menu (the only way to reach it while maximized). Each entry clicks the
