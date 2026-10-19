@@ -48,8 +48,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        — filled by `scripts/copy-vendor.js` on `pnpm install` (gitignored; the script
                        empties the folder first so stale files never ship)
     scripts/check-credits.js    postinstall: warns if About's library versions are out of date
-    scripts/check-notes.js  first step of `pnpm run dist` / `dist:portable` and the release workflow: fails when the
-                       newest What's new entry isn't package.json's version, or an entry is broken (date, kind, text, twice)
+    scripts/check-notes.js  first step of `pnpm run dist` / `dist:portable` / `dist:store` and the release workflow: fails
+                       when the newest What's new entry isn't package.json's version, or an entry is broken (date, kind,
+                       text, twice)
     scripts/build-explorer-menu.js  run by `pnpm run dist` (and CI): finds MSVC with vswhere → vcvars64,
                        compiles SastraMenu.dll (/MT), packs SastraPDF.ExplorerMenu.msix with makeappx;
                        fails if the CLSID / package version differ between menu.cpp, the manifest and
@@ -84,13 +85,28 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        adding, and AppListEntry="none" means they show almost nowhere.
     app/author.jpg     200 px photo of the author (Sunnguon Taing), from their LinkedIn profile,
                        for the About screen
-    .github/workflows/release.yml  GitHub Actions, by hand only (Run workflow + version): builds the installer,
-                       uploads it to Cloudflare R2 (sastra-update.smith89k.com) and makes the GitHub release (see Status)
+    .github/workflows/release.yml  GitHub Actions, by hand only (Run workflow + version): builds the installer and the
+                       Microsoft Store package, uploads the installer to Cloudflare R2 (sastra-update.smith89k.com) and
+                       makes the GitHub release with both (see Status)
     updater.js         Automatic updates, no Electron inside (main.js hands in electron-updater's autoUpdater):
                        `updatesRunHere`, `checkAnswer`, `installBlock`, `logTo`, `createUpdater` (10 s, then every 6 h)
+    store.js           The Microsoft Store copy's rules, no Electron inside: `isStoreCopy` (process.windowsStore, or
+                       SASTRA_STORE_TEST=1 from source), `readStoreInfo` (store.json = Partner Center identity),
+                       `SIDELOAD` (unsigned test identity SastraPDF.StoreTest), `storePageUrl`. In the Store copy main.js
+                       never updates, never sets up/repairs the menu (`--explorer-menu=` exits 0), Check for Updates opens
+                       the Store, and userData is "Sastra PDF Store" (own single-instance lock)
+    store.json         Partner Center › Product identity (committed, not secret); the release refuses without it
+    build/store.config.js + scripts/store-config.js  electron-builder config of the Store package (`pnpm run dist:store`,
+                       SASTRA_STORE_SIDELOAD=1 = test package): appx into dist-store/, no update-config.json, only
+                       SastraMenu.dll, custom manifest build/store-manifest.xml (.pdf "Open with", the menu on EXTS, the
+                       DLL at app\resources\explorer-menu), logos in build/appx/
+    scripts/menu-sources.js  menu.cpp, the sparse manifest and the Store manifest agree (build-explorer-menu.js runs it)
+    scripts/store-check.js   the built Store package has the DLL and store.js, and no key / app-update.yml / sparse .msix
     scripts/release-notes.js  the release workflow: GitHub release notes from a version's What's new entry
     scripts/r2-prune.js  the release workflow: which old installers to delete from R2 (refuses when the new one is missing)
-    docs/updates-setup.md  Cloudflare + GitHub setup click by click, and how to release
+    docs/updates-setup.md  Cloudflare + GitHub setup click by click, how to release, and the Microsoft Store (section 7)
+    docs/store-listing.md  the Store listing texts for Partner Center (description, features, keywords, privacy policy,
+                       the runFullTrust reason, notes for certification)
     build.bat          pnpm install + pnpm run dist, then opens dist\  (CRLF line endings)
     run.bat            pnpm install if needed, then pnpm start  (CRLF line endings)
                        (both stop with "run npm install -g pnpm" when pnpm is missing)
@@ -574,7 +590,28 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   every commit and tag and force-pushed (backup bundle `E:\_httdocs\SastraPDF-old-history.bundle` on this PC only;
   this repo's `user.email` is GitHub's private `7828470+smith89k@users.noreply.github.com`). The six merged pull
   requests on GitHub still hold the OLD commits (PR #5's diff shows the work-document names, all show Gmail); only
-  GitHub Support can remove them. The README still has the 2026-10-15 "Code signing policy (applied for)" and MIT.
+  GitHub Support can remove them. The README still has MIT; its 2026-10-15 "Code signing policy (applied for)" section
+  became "Signing and privacy" with the Microsoft Store work (below).
+- **Microsoft Store work (2026-10-19 →)**: plan docs/superpowers/plans/2026-10-19-microsoft-store.md. menu.cpp starts the
+  app directly when its DLL runs inside the Store package (`InStorePackage`), so the app runs in that package too.
+  Tasks 1–9 done on 2026-10-19 in a Linux cloud session (Claude Code on the web), not on the user's PC. Commits on main:
+  f58d0b1 store.js, c164988 updater.js store gate, c097e62 main.js/page wiring, 45718c4 menu.cpp `InStorePackage`,
+  e48b893 Store build config + manifest + build/appx logos (made there with Python Pillow: the 3 square logos copied from
+  explorer-menu/Assets, Wide310x150 = the 150 px logo centred, PdfFile.png = build/pdf-file.png at 256 px Lanczos),
+  a3d7f2e scripts/menu-sources.js, df93b18 scripts/store-check.js, b90cf18 release.yml (checks store.json; after the
+  installer it deletes update-config.json, builds the Store package, runs store-check and attaches the .msix to the
+  GitHub release, never R2), then the docs (updates-setup.md section 7, docs/store-listing.md, README). Passed there:
+  unit store 5, updater-store 1, store-config 5, menu-sources 2, store-check 2, release-workflow 3; store-wiring-test 6
+  (Electron under xvfb); drop-test 42 still passes. The new menu.cpp function was only compile-checked with mingw-w64
+  (no MSVC there).
+  NOT done yet (needs the user's Windows PC): `pnpm run build:menu` with MSVC + the DLL harness; close-test.js; Task 10
+  (the sideloaded test package on the user's PC, WACK); Tasks 11–13 (Partner Center values → store.json, screenshots, release
+  1.2.0 with its What's new entry, submission, then Store-only releases). No store.json yet, so the release workflow
+  refuses to run until Task 11.
+  Known from review: in the real Store copy main.js sets userData itself, so a `--user-data-dir` test switch is
+  overridden (Task 10 test runs share the "Sastra PDF Store" profile); Wide310x150Logo.png is in the package but the
+  manifest doesn't reference it (no wide tile; harmless on Windows 11); the 44 px logo has no targetsize/unplated
+  variants (check the taskbar icon in Task 10); the release now stops before R2 if the Store build fails.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 

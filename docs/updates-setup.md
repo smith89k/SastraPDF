@@ -81,16 +81,62 @@ checks this by itself, and that the update key opens it (step "The update addres
 4. GitHub → **Actions** → **Release** → **Run workflow** → type `1.2.0` → Run
    (or `gh workflow run release.yml -f version=1.2.0`).
 
-The job checks the version and the six secrets, puts the update key into the app, builds the installer (with the
-right-click menu), uploads it to the bucket (installer first, `latest.yml` last), checks the address is locked and opens
-with the key, removes the older installers there (their small `.blockmap` files stay — an installed copy uses its own
-to download only what changed), and makes the GitHub release `v1.2.0` with the notes and the installer to hand out.
-It stops with a plain message if the version doesn't match package.json, is already released, or a secret is missing.
+The job checks the version, `store.json` (section 7) and the six secrets, puts the update key into the app, builds the
+installer (with the right-click menu), then the Microsoft Store package without the key (and checks it), uploads the
+installer to the bucket (installer first, `latest.yml` last), checks the address is locked and opens with the key,
+removes the older installers there (their small `.blockmap` files stay — an installed copy uses its own to download
+only what changed), and makes the GitHub release `v1.2.0` with the notes, the installer to hand out and the Store
+package (`Sastra-PDF-Store-1.2.0.msix`, for Partner Center: section 7; never put in the bucket).
+It stops with a plain message if the version doesn't match package.json, is already released, `store.json` is missing
+or not valid, or a secret is missing.
 If a run stops half-way after uploading (the installer is in the bucket but there's no GitHub release), the next run of
 the same version refuses: bump the version and release again.
 
 After the first update that reaches an installed copy, right-click a PDF in File Explorer and check that the Sastra PDF
 items are still in the first menu (or that the app offered to set them up again and it worked).
+
+## 7. The Microsoft Store
+
+The Store version is the same Sastra PDF with no update key. Microsoft signs it, so Windows shows no warning, and the
+Store keeps it up to date. Version 1.2.0 is the last one for installer copies; after Microsoft has published Sastra PDF,
+releases make only the Store package.
+
+**Once** (the developer account already exists, from Bohpum):
+1. Partner Center → **Apps and games** → **New product** → **MSIX or PWA app** → reserve the name **Sastra PDF** (if it
+   is taken, choose a close name — and change `displayName` in scripts/store-config.js to match).
+2. Sastra PDF → **Product management** → **Product identity**. Copy four values into `store.json` at the top of the
+   repository, then commit it (they are not secret):
+   ```json
+   {
+     "identityName": "<Package/Identity/Name>",
+     "publisher": "<Package/Identity/Publisher, CN=…>",
+     "publisherDisplayName": "<Package/Properties/PublisherDisplayName>",
+     "storeId": "<Store ID, 12 characters>"
+   }
+   ```
+   The release refuses to run without it.
+3. Put the privacy policy from `docs/store-listing.md` on a page of your website (for example
+   https://smith89k.com/sastra-pdf/privacy) — Partner Center asks for its address.
+4. The first submission (after the release has made the package): **Pricing and availability** (Free; markets: all),
+   **Properties** (category Productivity; the privacy policy address), **Age ratings** (the questionnaire: no violence,
+   no user content shared, no purchases), **Store listings** (English: description, features and keywords from
+   `docs/store-listing.md`, the screenshots), **Submission options** → restricted capabilities: paste the `runFullTrust`
+   text and the notes for certification from `docs/store-listing.md`.
+
+**Each release:**
+1. Release as in section 6.
+2. Open the GitHub release `v<version>` and download `Sastra-PDF-Store-<version>.msix`.
+3. Partner Center → Sastra PDF → **Start update** (or, the first time, the submission above) → **Packages** → drag the
+   `.msix` in → wait until it says it is valid → **Submit to the Store**.
+4. Microsoft checks it, usually in 1 to 3 days. Store users then get the update by themselves. If certification asks a
+   question (most likely about `runFullTrust` or the right-click menu), answer it in **Notes for certification** and
+   submit again.
+
+**Trying the Store package on this PC first** (before a first submission, or after changing the manifest): in
+PowerShell `Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue; $env:SASTRA_STORE_SIDELOAD='1'; pnpm run dist:store`,
+then in an administrator PowerShell `Add-AppxPackage -Path dist-store\Sastra-PDF-Store-<version>.msix -AllowUnsigned`.
+It installs as "Sastra PDF" (identity `SastraPDF.StoreTest`); remove it with
+`Get-AppxPackage SastraPDF.StoreTest | Remove-AppxPackage`.
 
 ## Good to know
 
@@ -100,6 +146,8 @@ items are still in the first menu (or that the app offered to set them up again 
   `pnpm start`, the portable .exe — never update: install a release's installer once.
 - **Windows SmartScreen** warns about the installer because it isn't code-signed yet: **More info** → **Run anyway**.
   Updates installed by the app don't show this.
+- **Without the warning:** the Microsoft Store version (section 7) is signed by Microsoft. Send people the Store link
+  instead of the installer.
 - **What the app sends:** only the requests for `latest.yml`, the installer and its blockmap, with the update key.
   Nothing about the user or their files. Problems with a check go to `%TEMP%\Sastra PDF\update.log`, never shown.
 - **The update key is inside every installer**, so anyone you give the file to could pull it out and download later

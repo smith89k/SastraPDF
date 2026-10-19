@@ -26,27 +26,19 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
   ☰ › Help › Check for Updates checks by hand
 
 ## Download
-Sastra PDF isn't downloadable by the public: the author gives the installer (Windows 10 or 11, 64-bit) to the people
-who should have it. Copies installed from it update themselves from a private address. Each release is built by GitHub
-Actions from the code in this repository and attached to [Releases](https://github.com/smith89k/SastraPDF/releases).
-Releasing and the update setup: [docs/updates-setup.md](docs/updates-setup.md).
+Sastra PDF is in the Microsoft Store (Windows 10 or 11, 64-bit), signed by Microsoft: open the Microsoft Store app and
+search for **Sastra PDF**. The Store keeps it up to date. Version 1.2.0 was the last one given out as an installer;
+those copies keep working but update no further — install the Store version, then uninstall the old one.
+Releasing: [docs/updates-setup.md](docs/updates-setup.md).
 
-## Code signing policy
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
-[SignPath Foundation](https://signpath.org). *(Applied for; until it is approved, releases are
-unsigned, so Windows SmartScreen may warn: click "More info" > "Run anyway".)*
+## Signing and privacy
+The Microsoft Store version is signed by Microsoft. Installers up to 1.2.0 are unsigned, so Windows SmartScreen may
+warn about them: "More info" > "Run anyway".
 
-- Committers and reviewers: [Sunnguon Taing (smith89k)](https://github.com/smith89k)
-- Approvers: [Sunnguon Taing (smith89k)](https://github.com/smith89k)
-
-Only releases built by this repository's GitHub Actions workflow are signed, and each signing
-request is approved by hand.
-
-**Privacy policy:** this program will not transfer any information to other networked systems
-unless specifically requested by the user or the person installing or operating it, with one exception: the
-installed app checks https://sastra-update.smith89k.com/ for a newer version when it starts and every 6 hours, and
-downloads it from there. Those requests carry nothing about you or your files. Your PDFs stay on your computer; the app
-has no telemetry and no online fonts.
+**Privacy policy:** Sastra PDF sends nothing about you or your files anywhere. Your PDFs stay on your computer; the app
+has no telemetry and no online fonts. The Store version makes no internet requests of its own (the Store updates it).
+Copies installed from an installer up to 1.2.0 check https://sastra-update.smith89k.com/ for a newer version when they
+start and every 6 hours; those requests carry nothing about you or your files.
 
 ## Licence
 MIT — see [LICENSE](LICENSE). The libraries and fonts it ships keep their own licences (listed on
