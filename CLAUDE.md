@@ -374,9 +374,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   the task window is open it refuses (`installBlock` 'task'). If the installer didn't start (electron-updater leaves
   `quitAndInstallCalled` set only when it did), `install()` returns false, forgets the download and checks again, main
   sets `allowClose` back to false (else a later X would close unsaved PDFs without asking) and the page says "The
-  update couldn't be started." Later + close = electron-updater installs on quit. NOT YET PROVEN on a real update: the
-  installer's menu hooks (electron-updater runs it with `--updated /S`, so installer.nsh does `release` then
-  `install --silent`) — check the right-click menu on the first real update (t\e2e leaves the menu out on purpose).
+  update couldn't be started." Later + close = electron-updater installs on quit. The installer's menu hooks on a
+  real update (electron-updater runs it with `--updated /S`, so installer.nsh does `release` then `install --silent`)
+  were PROVEN on 2026-10-19 (1.1.1 → 1.1.2 on the user's PC): explorer-menu.log "install: package already set up",
+  Get-AppxPackage SastraPDF.ExplorerMenu 1.1.0.0 Status Ok, Mode=package (t\e2e leaves the menu out on purpose).
   ☰ › Help › Check for Updates (`checkUpdatesCmd`): "Checking for updates…" (Esc drops the answer), then latest /
   downloading / couldn't check / only in the installed app / the ready box. Right-click menu after a silent update:
   explorer-menu.js `repairNeeded` (Windows 11, .msix present, Mode=classic, not Declined, `Asked` ≠ this version) → after
@@ -558,8 +559,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - **pnpm (2026-10-17) and automatic updates (2026-10-17, on main, pushed to GitHub 2026-10-17 with the opening progress box; Cloudflare set up the same day: bucket `sastra-pdf-updates`, domain sastra-update.smith89k.com answers 404 until the first release, token `sastra-pdf-release`, the 4 GitHub secrets set). **Released v1.1.0 on 2026-10-17** through GitHub Actions (run 39043889948, every step passed — the billing block is gone): R2 has Sastra-PDF-Setup-1.1.0.exe + .blockmap, the fixed-name copy and latest.yml (no-cache); installer 113 315 931 bytes, SHA-256 fa1f5096…bda0a1 = the downloaded link. The fixed link shows `max-age=14400` (the zone's Browser Cache TTL) but `cf-cache-status: REVALIDATED`, so the edge never serves an old copy. **Released v1.1.1 the same day** (run 39046511289): the address is PRIVATE (Cloudflare Access app `sastra-update`, policy "Sastra PDF app only" = service token `sastra-pdf-updater`); the job logged "Locked (without the key: HTTP 403); with the key: version 1.1.1" and removed Sastra-PDF-Setup-1.1.0.exe and the old public Sastra-PDF-Setup.exe; installer SHA-256 ae82cf19…84f3b9 on the GitHub release. 1.1.0 has no key, so its copies install 1.1.1 by hand once. **Released v1.1.2 on 2026-10-18** (run 39096372123, every
 step passed; "Locked (without the key: HTTP 403); with the key: version 1.1.2"): Rotate/Delete left the top toolbar.
 Installer 113 316 957 bytes, SHA-256 095dbcf8…2053cf on the GitHub release. It is the first version installed 1.1.1
-copies should fetch by themselves. Still to see: that automatic update (1.1.1 → 1.1.2) arriving on a real PC and the
-right-click menu after it.** Tests live in the
+copies should fetch by themselves. **Seen on the user's PC on 2026-10-19** (update.log): 1.1.1 found 1.1.2 at
+08:58, downloaded 3 % of it through the blockmaps (3 262 of 110 661 KB), Restart now → silent install, the right-click
+menu kept. The same copy's checks after the history rewrite and force-push (12:47) still say "latest version: 1.1.2"
+— installed copies never look at GitHub.** Tests live in the
   2026-10-17 session scratchpad `t\` (…\59bf0bdb-…\scratchpad\t; the older 4e4e0838 folder is gone): unit
   (`node --test t\unit\*.test.js`: updater 8, menu-repair 2, release 3), main-wiring (from source; `PACKED=1` uses
   `t\pack` from `pnpm exec electron-builder --win nsis --publish never "-c.directories.output=<t>\pack"` — app-update.yml
