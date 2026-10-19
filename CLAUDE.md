@@ -614,7 +614,8 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   window and exits); `waitForLoadState('load')` after `firstWindow()` (an early evaluate died with "Execution context was
   destroyed"); Chromium 152 ignores `effectAllowed`/`dropEffect` writes on a script-made `DataTransfer`, so the test's
   ones get own writable properties that record what the app sets. Store screenshots (store-shots.js, 2802 × 1577 at
-  175 %) in `t\shots-store\`. NOT run there: the DLL harness and the old suites (controls, pages-panel, titlebar, close,
+  175 %) in `t\shots-store\`; it swaps main's `printers` handler for made-up ones ("Office Printer", "Colour Laser") —
+  the user's wish: no real office printer names in public screenshots. NOT run there: the DLL harness and the old suites (controls, pages-panel, titlebar, close,
   images) — the old test folder (4e4e0838) is gone from this PC.
   NOT done yet (needs the user's Windows PC): the DLL harness; close-test.js; Task 10
   (the sideloaded test package on the user's PC, WACK); the rest of Task 11 (screenshots; the privacy policy needs no web page: Partner Center takes it as text, as for
