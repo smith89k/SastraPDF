@@ -21,7 +21,7 @@
 - A drag carrying files (`dataTransfer.types` has `Files`) is ALWAYS a file drop, whatever `dragFrom` says; a page drag never carries files. This is what keeps a stale `dragFrom` harmless.
 - Dropping files on the page area, on the tab row, or with no PDF open works as today (PDFs open in new tabs).
 - No Windows message boxes; no new libraries; the app sends nothing anywhere.
-- Tests live outside the repo in `T = C:\Users\taing\AppData\Local\Temp\claude\e---httdocs-SastraPDF\1b403cbd-775e-405a-a501-2aab4d3fe529\scratchpad\t` (this session's scratchpad). Older suites are in `OLD = C:\Users\taing\AppData\Local\Temp\claude\e---httdocs-SastraPDF\4e4e0838-1457-4a28-ac3f-40a6d477efff\scratchpad\t`. Every launch deletes `ELECTRON_RUN_AS_NODE` from the environment.
+- Tests live outside the repo in `T` = a folder `t` in the working session's scratchpad (on the first PC it was `C:\Users\taing\AppData\Local\Temp\claude\e---httdocs-SastraPDF\1b403cbd-775e-405a-a501-2aab4d3fe529\scratchpad\t`); Task 1 Step 1 makes it from nothing, on any PC. The test files use `APP`/`ROOT = 'E:/_httdocs/SastraPDF'`: change it if the repository is elsewhere. Older suites (`OLD = C:\Users\taing\AppData\Local\Temp\claude\e---httdocs-SastraPDF\4e4e0838-1457-4a28-ac3f-40a6d477efff\scratchpad\t`) exist only on the first PC: run them there, skip them elsewhere and say so. Every launch deletes `ELECTRON_RUN_AS_NODE` from the environment.
 - Work on main; one commit per task; never push without asking the user.
 
 ## Review Focus
@@ -38,22 +38,65 @@
 
 **Files:**
 - Modify: `app/images.js:105-121` (`addImagePage`)
-- Create (outside the repo): `$T\drop-test.js`, `$T\package.json`, `$T\node_modules\` (copied), `$T\notes-skip.js`, `$T\pictures.js`, `$T\pdfs\locked.pdf`
+- Create (outside the repo): `$T\drop-test.js`, `$T\package.json`, `$T\node_modules\`, `$T\notes-skip.js`, `$T\pictures.js`
 
 **Interfaces:**
 - Produces: `SastraImages.addImagePage(doc, bytes, at?) → Promise<{ width, height }>` — with `at` (0-based) the page goes in at that index (`doc.insertPage`), without it at the end as today.
 - Produces (test): `$T\drop-test.js` with helpers `ev`, `check`, `until`, `idle`, `quit`, `undo`, `ars`, `st`, `clickTab`, `dropAt`, `dragStart`, `overTab`, `dropOnTab`, `fileArg`, `launch(files)`, a `GROUPS` object and a runner; `TASKS=1,2,3,4` picks groups.
 
-- [ ] **Step 1: Set up the test folder**
+- [ ] **Step 1: Set up the test folder** (works on any PC; `T` = `<this session's scratchpad>/t`, in Git Bash form)
 
 ```bash
-T="/c/Users/taing/AppData/Local/Temp/claude/e---httdocs-SastraPDF/1b403cbd-775e-405a-a501-2aab4d3fe529/scratchpad/t"
-OLD="/c/Users/taing/AppData/Local/Temp/claude/e---httdocs-SastraPDF/4e4e0838-1457-4a28-ac3f-40a6d477efff/scratchpad/t"
-mkdir -p "$T/pdfs" && cp -r "$OLD/package.json" "$OLD/node_modules" "$OLD/notes-skip.js" "$OLD/pictures.js" "$T/" && cp "$OLD/pdfs/locked.pdf" "$T/pdfs/"
-ls "$T" "$T/pdfs"
+T="<this session's scratchpad>/t"; mkdir -p "$T" && cd "$T" && npm init -y >/dev/null && npm i playwright-core@1.48.2
 ```
 
-Expected: `node_modules notes-skip.js package.json pdfs pictures.js` and `locked.pdf`.
+Write `$T/notes-skip.js`:
+
+```js
+// Fresh test profiles are a new install, so What's new opens once at start-up. Close it so a suite starts as before.
+// Main window only (index.html): the Explorer-menu task window never shows it.
+module.exports = async function closeNotes(page, ms = 20000){
+  if (!page.url().endsWith('/index.html')) return false;
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const s = await page.evaluate(() => document.documentElement.dataset.notes || '').catch(() => '');
+    if (s === 'none') return false;
+    if (s === 'shown') { await page.evaluate(() => document.querySelector('.modal.notes [data-close]')?.click()); return true; }
+    await new Promise(r => setTimeout(r, 120));
+  }
+  return false;
+};
+```
+
+Write `$T/pictures.js`:
+
+```js
+// Test pictures: JPEG / PNG pixels drawn by Chromium in the test app's page, and an EXIF block put into a JPEG.
+const u16be = n => [n >> 8 & 255, n & 255], u32be = n => [n >>> 24 & 255, n >>> 16 & 255, n >>> 8 & 255, n & 255];
+const seg = (marker, body) => Buffer.from([0xFF, marker, ...u16be(body.length + 2), ...body]);
+// EXIF APP1 (big-endian) with only Orientation 1–8
+function app1({ orientation }) {
+  const tiff = [...Buffer.from('MM'), ...u16be(42), ...u32be(8), ...u16be(1), ...u16be(0x0112), ...u16be(3), ...u32be(1), ...u16be(orientation), 0, 0, ...u32be(0)];
+  return seg(0xE1, [...Buffer.from('Exif\0\0'), ...tiff]);
+}
+// a real JPEG with its leading APP0/APP1 blocks replaced by the given ones
+function jpegWith(jpeg, ...blocks) {
+  let i = 2;
+  while (jpeg[i] === 0xFF && (jpeg[i + 1] === 0xE0 || jpeg[i + 1] === 0xE1)) i += 2 + jpeg.readUInt16BE(i + 2);
+  return Buffer.concat([jpeg.subarray(0, 2), ...blocks, jpeg.subarray(i)]);
+}
+// four coloured quarters drawn by Chromium in the test app's page → JPEG / PNG bytes
+async function canvasPicture(page, type, w, h) {
+  return Buffer.from(await page.evaluate(async ([type, w, h]) => {
+    const c = new OffscreenCanvas(w, h), x = c.getContext('2d');
+    for (const [col, i, j] of [['#f00', 0, 0], ['#0f0', 1, 0], ['#00f', 0, 1], ['#ff0', 1, 1]]) { x.fillStyle = col; x.fillRect(i * w / 2, j * h / 2, w / 2, h / 2); }
+    return [...new Uint8Array(await (await c.convertToBlob({ type, quality: 0.95 })).arrayBuffer())];
+  }, [type, w, h]));
+}
+module.exports = { app1, jpegWith, canvasPicture };
+```
+
+Run: `ls "$T"` → `node_modules notes-skip.js package-lock.json package.json pictures.js`.
 
 - [ ] **Step 2: Write the test file with group 1 (failing)** — `$T\drop-test.js`:
 
@@ -146,7 +189,10 @@ GROUPS[1] = async () => {
   await makePdf(path.join(D, 'A.pdf'), [0, 1, 2, 3, 4].map(i => [101 + i, 200]));
   await makePdf(path.join(D, 'B.pdf'), [0, 1, 2].map(j => [201 + j, 300]));
   await makePdf(path.join(D, 'c.pdf'), [[150, 100], [100, 100]]);
-  fs.copyFileSync(path.join(T, 'pdfs', 'locked.pdf'), path.join(D, 'locked.pdf'));
+  // locked.pdf: a PDF whose trailer names an /Encrypt dictionary — pdf-lib then reports isEncrypted, as for a real one
+  { const { PDFString } = require('E:/_httdocs/SastraPDF/node_modules/pdf-lib'); const doc = await PDFDocument.create(); doc.addPage([100, 100]);
+    doc.context.trailerInfo.Encrypt = doc.context.register(doc.context.obj({ Filter: 'Standard', V: 1, R: 2, O: PDFString.of('x'.repeat(32)), U: PDFString.of('x'.repeat(32)), P: -4 }));
+    fs.writeFileSync(path.join(D, 'locked.pdf'), await doc.save({ useObjectStreams: false })); }
   fs.writeFileSync(path.join(D, 'notes.txt'), 'not a picture');
   await launch([path.join(D, 'A.pdf'), path.join(D, 'B.pdf')]);
   fs.writeFileSync(path.join(D, '2.jpg'), P.jpegWith(await P.canvasPicture(S.page, 'image/jpeg', 200, 100), P.app1({ orientation: 6 })));
@@ -659,7 +705,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 **Files:**
 - Modify: `CLAUDE.md` (section "How app/index.html works"), `docs/HISTORY.md` (new section 34 at the end)
 
-- [ ] **Step 1: Run the suites that touch the Pages panel, dropping and closing** (from source; each must end `ALL PASS`):
+- [ ] **Step 1: Run the suites that touch the Pages panel, dropping and closing** (from source; each must end `ALL PASS`). They exist only on the first PC: on another PC, skip this step, tell the user, and run it when back on the first PC:
 
 ```bash
 OLD="/c/Users/taing/AppData/Local/Temp/claude/e---httdocs-SastraPDF/4e4e0838-1457-4a28-ac3f-40a6d477efff/scratchpad/t"
