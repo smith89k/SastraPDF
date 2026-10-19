@@ -581,9 +581,11 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   `E:\_httdocs\SastraPDF-old-history.bundle` on this PC only. Force-pushed 2026-10-19 (main 30f716f + the seven tags;
   the seven releases still on their tags, not drafts, installers attached); every commit changed (Gmail was on the first
   one). The six merged pull requests keep the OLD commits on GitHub (PR #5's diff shows the work-document names, all
-  six show Gmail; old commits still open by ID) — only GitHub Support can remove them. **Made PUBLIC on 2026-10-19**
-  at the user's word ("go public now", knowing PR #5 shows the words until Support removes it). Still to do: the user
-  sends the Support request (PRs #1–#6 + cached views), releases 1.1.3 (a separate yes), applies to SignPath.
+  six show Gmail; old commits still open by ID) — only GitHub Support can remove them. Made public on 2026-10-19
+  ("go public now"), then **PRIVATE again the same day** (the user: "undo to private"; GitHub said private at 13:32,
+  a logged-out visit gets 404; no stars, forks or watchers were lost). Still to do: the user sends the Support request
+  (PRs #1–#6 + cached views); going public again, releasing 1.1.3 and applying to SignPath (it needs a public
+  repository) each wait for the user's yes.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. The user: GitHub two-step login, apply at signpath.org/apply once
   public with a release, then set the variable + secret (docs/updates-setup.md section 7).
