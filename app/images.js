@@ -1,7 +1,7 @@
-// Sastra PDF — pictures → PDF pages, for "Make PDF" / "Combine" from the File Explorer menu. Classic script:
-// window.SastraImages (needs pdf-lib). JPEG goes in as it is and PNG without loss; BMP, GIF (first frame) and WebP
-// are decoded by Chromium and stored as PNG. Each page is the picture's own size: pixels × 72 / dpi, the dpi
-// from the file, else 96. Phone photos are turned the way their EXIF orientation says.
+// Sastra PDF — pictures → PDF pages, for "Make PDF" / "Combine" from the File Explorer menu and for pictures dropped
+// into the Pages panel. Classic script: window.SastraImages (needs pdf-lib). JPEG goes in as it is and PNG without
+// loss; BMP, GIF (first frame) and WebP are decoded by Chromium and stored as PNG. Each page is the picture's own
+// size: pixels × 72 / dpi, the dpi from the file, else 96. Phone photos are turned the way their EXIF orientation says.
 (() => {
   const { pushGraphicsState, popGraphicsState, concatTransformationMatrix, drawObject } = PDFLib;
   const DEFAULT_DPI = 96, MAX_PT = 14400;   // 200 in: the largest page most PDF readers accept
@@ -102,9 +102,9 @@
     } finally { bmp.close(); }
   }
 
-  // Adds the picture as the last page of a pdf-lib document → { width, height } in points. Rejects (adding nothing)
-  // when the bytes are not a picture it can read.
-  async function addImagePage(doc, bytes) {
+  // Adds the picture as a page of a pdf-lib document — at index `at` when given, else last → { width, height } in
+  // points. Rejects (adding nothing) when the bytes are not a picture it can read.
+  async function addImagePage(doc, bytes, at) {
     const k = kind(bytes); let img, dpi = null, orientation = 1;
     if (k === 'jpeg') { ({ orientation, dpi } = jpegInfo(bytes)); img = await doc.embedJpg(bytes); }
     else if (k === 'png') { dpi = pngDpi(bytes); img = await doc.embedPng(bytes); }
@@ -112,7 +112,7 @@
     else throw new Error('not a supported picture');
     if (!(img.width > 0 && img.height > 0)) throw new Error('the picture has no size');
     const { width, height } = pageSize(img.width, img.height, dpi, orientation);
-    const page = doc.addPage([width, height]);
+    const page = at === undefined ? doc.addPage([width, height]) : doc.insertPage(at, [width, height]);
     page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...placement(orientation, width, height)),
       drawObject(page.node.newXObject('Image', img.ref)), popGraphicsState());
     return { width, height };
