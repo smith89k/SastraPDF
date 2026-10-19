@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sastra PDF - the Microsoft Store package's manifest (build/store.config.js; electron-builder fills in its macros).
+     electron-builder's own template, plus: the .pdf file type (Sastra PDF in "Open with"; Windows never makes a packaged
+     app the default by itself), and the File Explorer menu on PDFs and pictures - the same SastraMenu.dll, CLSID and
+     file types as explorer-menu/AppxManifest.xml (scripts/menu-sources.js checks), from inside this package (no sparse
+     package and no HKCU keys). menu.cpp finds Sastra PDF.exe two folders above the DLL: app\Sastra PDF.exe. -->
+<Package
+   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+   xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
+   xmlns:desktop5="http://schemas.microsoft.com/appx/manifest/desktop/windows10/5"
+   xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+   IgnorableNamespaces="uap desktop4 desktop5 com rescap">
+  <!-- single quotes around Publisher: its value may hold double quotes -->
+  <Identity Name="${identityName}" ProcessorArchitecture="${arch}" Publisher='${publisher}' Version="${version}" />
+  <Properties>
+    <DisplayName>${displayName}</DisplayName>
+    <PublisherDisplayName>${publisherDisplayName}</PublisherDisplayName>
+    <Description>${description}</Description>
+    <Logo>${logo}</Logo>
+  </Properties>
+  <Resources>
+    ${resourceLanguages}
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="${minVersion}" MaxVersionTested="${maxVersionTested}" />
+  </Dependencies>
+  ${capabilities}
+  <Applications>
+    <Application Id="${applicationId}" Executable="${executable}" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements BackgroundColor="${backgroundColor}" DisplayName="${displayName}" Description="${description}"
+        Square150x150Logo="${square150x150Logo}" Square44x44Logo="${square44x44Logo}" />
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="pdf">
+            <uap:DisplayName>PDF document</uap:DisplayName>
+            <uap:Logo>assets\PdfFile.png</uap:Logo>
+            <uap:SupportedFileTypes><uap:FileType>.pdf</uap:FileType></uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+        <desktop4:Extension Category="windows.fileExplorerContextMenus">
+          <desktop4:FileExplorerContextMenus>
+            <desktop5:ItemType Type=".pdf">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jpg">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jpeg">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jfif">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".png">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".bmp">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".gif">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".webp">
+              <desktop5:Verb Id="SastraPDF" Clsid="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" />
+            </desktop5:ItemType>
+          </desktop4:FileExplorerContextMenus>
+        </desktop4:Extension>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:SurrogateServer DisplayName="Sastra PDF Explorer menu">
+              <com:Class Id="47a2af3d-bd25-4ebd-949f-d0e6b6bd5004" Path="app\resources\explorer-menu\SastraMenu.dll" ThreadingModel="STA" />
+            </com:SurrogateServer>
+          </com:ComServer>
+        </com:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+</Package>
