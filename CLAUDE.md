@@ -645,7 +645,12 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   last installer (SHA-256 d88fb3c0…dd7c62) to R2 + Sastra-PDF-Store-1.2.0.msix (167 267 846 bytes, SHA-256
   a6e140ea…435c27) on the GitHub release. The older suites were NOT run before it (not on this PC). Then, as Bohpum did
   right after its 0.2.4, the release job became Store-only (Task 13; scripts/r2-prune.js deleted) without waiting for
-  Microsoft to publish. Next: the user submits the .msix in Partner Center (docs/updates-setup.md section 7).
+  Microsoft to publish. **Submitted to the Microsoft Store on 2026-10-19** (filled in by Claude in Chrome at the user's
+  wish, "do for me like bohpum"; the user dragged the .msix in, then said "yes" to Submit): Free, all markets; category
+  Productivity; privacy policy as TEXT (Partner Center asks for one because of runFullTrust, even after "No personal
+  information" — it switches the answer to Yes itself); IARC 3+ / Everyone; English listing from docs/store-listing.md
+  with the 3 store-shots screenshots; runFullTrust reason ≤ 500 characters; testing notes on Additional Testing
+  Information. Status "In certification" (usually hours, up to 3 business days); publishes as soon as it passes.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 

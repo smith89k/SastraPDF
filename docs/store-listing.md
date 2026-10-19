@@ -21,7 +21,10 @@ Your files stay on your computer. Sastra PDF has no account, no ads and sends no
 
 ## Keywords
 
-pdf, combine pdf, split pdf, merge, pdf pages, image to pdf, khmer
+pdf, merge, combine PDF files, split PDF pages, khmer
+
+(As submitted on 2026-10-19. Partner Center's keyword box drops spaces you type, so the two with spaces were picked
+from its own suggestions.)
 
 ## Privacy policy
 
@@ -42,7 +45,10 @@ Open, organize, combine, split and print PDF files. Your files stay on your comp
 
 Sastra PDF is a classic desktop app (Electron). It needs full trust to open and save PDF files the user picks anywhere
 on the PC, to save several files into a folder the user picks, to print, and to add "Sastra PDF" (Make PDF, Combine,
-Split, Images) to the File Explorer menu for PDF files and pictures.
+Split, Images) to the File Explorer menu for PDF files and pictures. The app makes no network requests.
+
+(Partner Center allows 500 characters here: this text only. The notes below go on Supplemental info › Additional
+Testing Information.)
 
 ## Notes for certification
 
