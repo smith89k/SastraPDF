@@ -118,6 +118,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:defau
 .tab:hover{background:var(--hover);color:var(--fg)}
 .tab.active{background:var(--tab-active);border-color:var(--line);color:var(--fg)}
 .tab.active::before{content:"";position:absolute;left:10px;right:10px;top:-1px;height:2px;background:var(--accent);border-radius:0 0 2px 2px}
+.tab.drop-on{background:var(--accent-soft);border-color:var(--accent);color:var(--fg)}
 .tab .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .tab .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
 .tab .x{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;flex:none;opacity:.7}
@@ -1056,6 +1057,9 @@ async function redo(){ const d=active(); if (!d?.future.length) return;
   await busy('Redoing…', async () => { d.history.push(d.bytes); d.bytes = d.future.pop(); d.dirty = true; await reload(d); toast('Redone'); }); }
 
 /* ---------- tabs ---------- */
+const TAB_HOVER_MS = 500;
+let tabHover = null;   // { el, timer }: a page drag resting on another file's tab
+function cancelTabHover(){ if (!tabHover) return; clearTimeout(tabHover.timer); tabHover.el.classList.remove('drop-on'); tabHover = null; }
 function renderTabs(){
   stripEl.innerHTML = '';
   for (const d of state.docs){
@@ -1066,6 +1070,19 @@ function renderTabs(){
     t.addEventListener('click', e => { if (e.target.closest('.x')) closeDoc(d.id); else if (d.id!==state.activeId) activate(d.id); });
     t.addEventListener('auxclick', e => { if (e.button===1) closeDoc(d.id); });
     t.addEventListener('keydown', e => { if (e.key==='Enter') activate(d.id); });
+    // pages dragged from another file: the tab lights up, opens after TAB_HOVER_MS; a drop on it adds them at the end
+    t.addEventListener('dragover', e => {
+      if (hasFiles(e) || !dragFrom || d.id === dragFrom.docId) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move';
+      if (tabHover?.el === t) return;
+      cancelTabHover(); t.classList.add('drop-on');
+      tabHover = { el:t, timer: d.id === state.activeId ? null : setTimeout(() => { cancelTabHover(); if (dragFrom) activate(d.id); }, TAB_HOVER_MS) };
+    });
+    t.addEventListener('drop', e => {
+      if (hasFiles(e) || !dragFrom || d.id === dragFrom.docId) return;
+      e.preventDefault(); e.stopPropagation();
+      const from = dragFrom; endPageDrag(); transferPages(from, d, d.n, e.ctrlKey);
+    });
     stripEl.appendChild(t);
   }
   updateTitle();
@@ -1262,7 +1279,7 @@ function renderThumbs(){
     });
     t.addEventListener('dragstart', e => {
       if (!d.sel.has(i)) { d.sel = new Set([i]); d.anchor = i; updateSel(); }
-      dragFrom = { docId:d.id }; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain','folio-pages');
+      dragFrom = { docId:d.id, pages:[...d.sel].sort((a,b)=>a-b) }; e.dataTransfer.effectAllowed='copyMove'; e.dataTransfer.setData('text/plain','folio-pages');
       requestAnimationFrame(() => thumbsEl.querySelectorAll('.thumb.sel').forEach(x=>x.classList.add('dragging')));
     });
     t.addEventListener('dragend', endPageDrag);   // may never come when the thumbnail is gone: see the window's dragend
@@ -1278,13 +1295,13 @@ function dropSpot(y){
   for (const t of ts) { const r = t.getBoundingClientRect(); if (y < r.bottom) return y < r.top + r.height/2 ? { at:+t.dataset.i, el:t, cls:'drop-before' } : { at:+t.dataset.i + 1, el:t, cls:'drop-after' }; }
   const t = ts[ts.length-1]; return { at:+t.dataset.i + 1, el:t, cls:'drop-after' };
 }
-function endPageDrag(){ dragFrom = null; clearDrop(); thumbsEl.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging')); }
+function endPageDrag(){ dragFrom = null; cancelTabHover(); clearDrop(); thumbsEl.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging')); }
 // The Pages panel takes dragged thumbnails (move) and files from File Explorer (insert at the red line). A drag that
 // carries files is always a file drop, even if a page drag never got its dragend. No PDF open: the window opens tabs.
 thumbsEl.addEventListener('dragover', e => {
   const d = active(), files = hasFiles(e); if (!d || !(files || dragFrom)) return;
   const spot = dropSpot(e.clientY); if (!spot) return;
-  e.preventDefault(); e.dataTransfer.dropEffect = files ? 'copy' : 'move';
+  e.preventDefault(); e.dataTransfer.dropEffect = files || (dragFrom.docId !== d.id && e.ctrlKey) ? 'copy' : 'move';
   if (!spot.el.classList.contains(spot.cls)) { clearDrop(); spot.el.classList.add(spot.cls); }
 });
 thumbsEl.addEventListener('drop', e => {
@@ -1294,6 +1311,7 @@ thumbsEl.addEventListener('drop', e => {
   endPageDrag(); endDropping(); if (!spot) return;
   if (files) fileItems(e.dataTransfer.files).then(items => insertItems(d, spot.at, items));
   else if (from.docId === d.id) movePages(spot.at);
+  else transferPages(from, d, spot.at, e.ctrlKey);
 });
 async function drawThumb(d, i, box){
   if (d.thumbCanvas[i] || box.dataset.busy) return; box.dataset.busy = '1';
@@ -1334,6 +1352,26 @@ async function movePages(ins){
     (await out.copyPages(src, order)).forEach(p => out.addPage(p));
     const sel = moving.map((_,k)=>pos+k);
     await commit(d, await out.save(), { sel, current:pos, msg:`Moved ${moving.length} page${moving.length>1?'s':''}` });
+  });
+}
+// Pages dragged from another open file: copied into d at `at`, then (no Ctrl) removed from the source — each file its
+// own undo step, nothing saved. Both new files are made before either changes, so a failure leaves both as they were.
+// Every page of the source → copied instead: a PDF needs at least one page.
+async function transferPages(from, d, at, copy){
+  const s = state.docs.find(x => x.id === from.docId); if (!s || s === d) return;
+  const pages = from.pages.filter(i => i < s.n); if (!pages.length) return;
+  const all = !copy && pages.length >= s.n; if (all) copy = true;
+  const n = pages.length, what = `${n} page${n>1?'s':''}`;
+  await busy(copy ? 'Copying pages…' : 'Moving pages…', async () => {
+    const src = await PDFDocument.load(s.bytes, { ignoreEncryption:true }), doc = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
+    let k = at; (await doc.copyPages(src, pages)).forEach(p => doc.insertPage(k++, p));
+    const target = await doc.save();
+    let rest = null; if (!copy) { [...pages].reverse().forEach(i => src.removePage(i)); rest = await src.save(); }
+    await commit(d, target, { sel:pages.map((_, j) => at + j), current:at });
+    if (rest) await commit(s, rest, { sel:[], current:Math.min(pages[0], s.n - n - 1) });
+    if (active() !== d) activate(d.id); else renderTabs();   // the source's tab shows its change dot too
+    goTo(at);
+    toast(all ? `Copied ${what} to ${d.name} — ${s.name} keeps them: a PDF needs at least one page` : `${copy ? 'Copied' : 'Moved'} ${what} to ${d.name}`);
   });
 }
 async function rotate(delta){
@@ -1713,6 +1751,7 @@ window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; dragDepth 
 window.addEventListener('dragover', e => {
   const inPages = !!e.target.closest?.('#thumbs');
   if (!inPages) clearDrop();   // the red line only while over the panel
+  if (tabHover && e.target.closest?.('.tab') !== tabHover.el) cancelTabHover();   // left the tab before it opened
   if (hasFiles(e)) { e.preventDefault(); app.classList.toggle('dropping-pages', inPages && !!active()); }
 });
 window.addEventListener('drop', e => { endPageDrag(); if (!hasFiles(e)) return; e.preventDefault(); endDropping(); openFiles(e.dataTransfer.files); });
