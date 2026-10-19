@@ -605,9 +605,12 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   (Electron under xvfb); drop-test 42 still passes. The new menu.cpp function was only compile-checked with mingw-w64
   (no MSVC there).
   NOT done yet (needs the user's Windows PC): `pnpm run build:menu` with MSVC + the DLL harness; close-test.js; Task 10
-  (the sideloaded test package on the user's PC, WACK); Tasks 11–13 (Partner Center values → store.json, screenshots, release
-  1.2.0 with its What's new entry, submission, then Store-only releases). No store.json yet, so the release workflow
-  refuses to run until Task 11.
+  (the sideloaded test package on the user's PC, WACK); the rest of Task 11 (screenshots, the privacy page) and Tasks 12–13
+  (release 1.2.0 with its What's new entry, submission, then Store-only releases).
+  store.json (2026-10-19, from the user's Partner Center › Product identity; name "Sastra PDF" reserved):
+  smith89k.SastraPDF, CN=AAA3A883-09DC-4D02-89C9-CD2286F692F0, "Taing Sunnguon", Store ID 9P768LL4RTVP (Store page
+  apps.microsoft.com/detail/9P768LL4RTVP; Check for Updates opens ms-windows-store://pdp/?ProductId=9P768LL4RTVP).
+  Same publisher as Bohpum. With it the release workflow's store.json check passes.
   Known from review: in the real Store copy main.js sets userData itself, so a `--user-data-dir` test switch is
   overridden (Task 10 test runs share the "Sastra PDF Store" profile); Wide310x150Logo.png is in the package but the
   manifest doesn't reference it (no wide tile; harmless on Windows 11); the 44 px logo has no targetsize/unplated
