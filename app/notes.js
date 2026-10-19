@@ -10,6 +10,12 @@ const KINDS = Object.freeze(['new', 'improved', 'fixed', 'removed']);   // the w
 const N = (version, date, notes) => Object.freeze({ version, date, notes: Object.freeze(notes.map(([kind, text]) => Object.freeze({ kind, text }))) });
 
 const NOTES = Object.freeze([
+  N('1.2.0', '2026-10-19', [
+    ['new', 'Sastra PDF is now in the Microsoft Store, signed by Microsoft, so Windows no longer warns when you install it. New versions now come only from the Store. If you installed Sastra PDF from an installer: open the Microsoft Store app, search for Sastra PDF (or go to apps.microsoft.com/detail/9P768LL4RTVP), install it, then uninstall this copy in Settings › Apps. The Store version starts with fresh settings.'],
+    ['new', 'Drag PDFs and pictures from File Explorer onto the Pages panel to add them where the red line shows. Pictures keep their own size. One Ctrl+Z takes it all back.'],
+    ['new', 'Drag pages onto another open file\'s tab to copy them there. Hold them over the tab for half a second to open it, then drop them where you want. Inside one file, hold Ctrl while you drop to copy pages instead of moving them.'],
+    ['improved', 'Insert file (Organize pages) now takes pictures too, in name order.']
+  ]),
   N('1.1.2', '2026-10-18', [
     ['improved', 'The top bar is tidier: Rotate left, Rotate right and Delete are no longer repeated there. Use them from Organize pages in the Tools panel, the right-click menu, or the keys (Delete, Ctrl+Shift+L, Ctrl+Shift+R).']
   ]),
