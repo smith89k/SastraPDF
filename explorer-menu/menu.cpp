@@ -4,6 +4,7 @@
 // explorer.exe). A click writes the chosen files to a list file and starts Sastra PDF with
 // --sastra-task / --sastra-list (main.js + explorer-menu.js read them).
 #include <windows.h>
+#include <appmodel.h>
 #include <shobjidl_core.h>
 #include <shlobj_core.h>
 #include <shlguid.h>
@@ -187,6 +188,18 @@ static void Oops() {
   MessageBoxW(nullptr, L"Sastra PDF is missing or damaged. Please reinstall it.", L"Sastra PDF", MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
 }
 
+// Inside the Microsoft Store package (any package but the installer's sparse SastraPDF.ExplorerMenu) this DLL runs in a
+// helper process with that package's identity. The app must run inside the package too (its own temp and settings
+// folders), and a packaged process's children do: start it directly. No package (classic menu) or the sparse one:
+// through Explorer, so the app never runs inside the add-on's identity.
+static bool InStorePackage() {
+  UINT32 len = 0;
+  if (GetCurrentPackageFamilyName(&len, nullptr) != ERROR_INSUFFICIENT_BUFFER) return false;   // no package
+  std::wstring family(len, L'\0');
+  if (GetCurrentPackageFamilyName(&len, family.data()) != ERROR_SUCCESS) return false;
+  return family.rfind(L"SastraPDF.ExplorerMenu_", 0) != 0;
+}
+
 static HRESULT Launch(Act a, const std::vector<std::wstring>& paths) {
   if (paths.empty()) return S_OK;
   const bool test = !EnvVar(L"SASTRA_MENU_EXE").empty();
@@ -196,7 +209,7 @@ static HRESULT Launch(Act a, const std::vector<std::wstring>& paths) {
   if (list.empty()) { Oops(); return E_FAIL; }
   std::wstring args = std::wstring(L"--sastra-task=") + TaskName(a) + L" \"--sastra-list=" + list + L"\"";
   std::wstring dir = exe.substr(0, exe.find_last_of(L'\\'));
-  HRESULT hr = test ? E_FAIL : ShellLaunch(exe, args, dir);
+  HRESULT hr = test || InStorePackage() ? E_FAIL : ShellLaunch(exe, args, dir);
   if (FAILED(hr)) hr = DirectLaunch(exe, args, dir);
   if (FAILED(hr)) { DeleteFileW(list.c_str()); Oops(); }
   return hr;
