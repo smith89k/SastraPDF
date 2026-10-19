@@ -1,63 +1,51 @@
-# Builds the Windows installer and releases it: into the private Cloudflare R2 bucket behind
-# https://sastra-update.smith89k.com/ (locked with Cloudflare Access: only installed copies, which carry the update key,
-# get in), and as a GitHub release with the notes from What's new (app/notes.js) — the installer to hand out. It also
-# builds the Microsoft Store package (store.js, build/store.config.js: the same app with no update key) and puts it on
-# the GitHub release only, never in R2: the user submits it in Partner Center, and Microsoft signs it.
+# Builds the Microsoft Store package and makes it a GitHub release (store.js, build/store.config.js): download
+# Sastra-PDF-Store-<version>.msix from the release and submit it in Partner Center; Microsoft signs it and the Store
+# updates installed copies (docs/updates-setup.md section 7). Since 1.2.0 there is no installer and nothing goes to R2:
+# copies installed from an installer stay on 1.2.0 (R2 still serves it to them; its What's new points to the Store).
 # Runs only by hand: Actions > Release > Run workflow, type the version (= package.json), or
-#   gh workflow run release.yml -f version=1.2.0
-# Pushing code or tags never releases. Setup (bucket, domain, lock, the six secrets): docs/updates-setup.md.
+#   gh workflow run release.yml -f version=1.3.0
+# Pushing code or tags never releases.
+#
+# Three jobs, each on its own fresh machine, and no secret at all: "check" (the GitHub token, installs nothing) — the
+# version and store.json; "build" runs other people's code (pnpm install, electron-builder) with no token; "publish"
+# (the GitHub token, installs nothing) makes the GitHub release with the package.
 name: Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version to release, the same as package.json (e.g. 1.2.0)
+        description: Version to release, the same as package.json (e.g. 1.3.0)
         required: true
 
 permissions:
-  contents: write   # create the tag and the GitHub release
+  contents: read
 
 concurrency:
   group: release
   cancel-in-progress: false
 
+env:
+  VERSION: ${{ inputs.version }}
+  MSIX: Sastra-PDF-Store-${{ inputs.version }}.msix
+
 jobs:
-  build:
-    runs-on: windows-latest
-    timeout-minutes: 40
+  # Before anything is built: the version, and the Store identity the package is built with.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
-    # The R2 key can put an update on every installed copy, so it and the GitHub token are given only to the steps
-    # that need them (never to install or build steps, which run other people's code).
-    env:
-      VERSION: ${{ inputs.version }}
-      EXE: Sastra-PDF-Setup-${{ inputs.version }}.exe
-      MSIX: Sastra-PDF-Store-${{ inputs.version }}.msix
-      AWS_DEFAULT_REGION: auto
-      # R2 doesn't take the checksums newer AWS CLIs add by default
-      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
     steps:
       - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6   # the pnpm version comes from package.json "packageManager"
 
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
 
-      - name: The version matches package.json, is not released yet, store.json holds the Store identity, and the R2 secrets are set
+      - name: The version matches package.json, is not released yet, and store.json holds the Store identity
         env:
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           GH_TOKEN: ${{ github.token }}
         run: |
           v="$(node -p "require('./package.json').version")"
@@ -68,14 +56,26 @@ jobs:
             echo "::error::v$VERSION is already released. Bump the version for a new release."; exit 1
           fi
           node -e "if (!require('./store').readStoreInfo('store.json')) { console.error('::error::store.json is missing or not valid: see docs/updates-setup.md section 7'); process.exit(1); }"
-          for s in R2_ACCOUNT_ID R2_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
-            if [ -z "${!s}" ]; then echo "::error::A GitHub secret is missing ($s): see docs/updates-setup.md"; exit 1; fi
-          done
-          # An earlier run stopped after uploading but before the GitHub release: building again would put different
-          # bytes under the same name (Cloudflare may still serve the old ones), and updates would fail their checksum.
-          if aws s3api head-object --bucket "$R2_BUCKET" --key "$EXE" --endpoint-url "$R2_ENDPOINT" >/dev/null 2>&1; then
-            echo "::error::$EXE is already in R2 from an earlier run that stopped before the GitHub release. Bump the version and run again."; exit 1
-          fi
+
+  # Other people's code runs here (pnpm install, electron-builder): no secret, no GitHub token.
+  build:
+    needs: check
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6   # the pnpm version comes from package.json "packageManager"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
 
       - name: Install (fetches Electron, copies the PDF libraries, checks About versions)
         run: pnpm install --frozen-lockfile
@@ -83,43 +83,14 @@ jobs:
       - name: Check What's new has notes for this version (app/notes.js)
         run: node scripts/check-notes.js
 
-      # The update address only lets this key in; it goes inside the app, so every copy installed from this release can
-      # update. Never committed (.gitignore). A build without it doesn't check for updates.
-      - name: Put the update key into the app (update-config.json)
-        env:
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-        run: node -e "require('fs').writeFileSync('update-config.json', JSON.stringify({ clientId:process.env.CF_ACCESS_CLIENT_ID, clientSecret:process.env.CF_ACCESS_CLIENT_SECRET }))"
-
-      - name: Build the File Explorer menu (C++ DLL + package; needs the runner's Visual Studio + Windows SDK)
+      - name: Build the File Explorer menu (C++ DLL; needs the runner's Visual Studio + Windows SDK)
         run: node scripts/build-explorer-menu.js
 
-      - name: Build the installer
-        run: pnpm exec electron-builder --win nsis --publish never
+      - name: Build the Store package
+        run: pnpm exec electron-builder --win appx --publish never --config build/store.config.js
 
-      - name: The build has the installer, its blockmap and latest.yml naming it
-        run: |
-          for f in "dist/$EXE" "dist/$EXE.blockmap" dist/latest.yml; do
-            if [ ! -f "$f" ]; then echo "::error::The build made no $f"; ls dist; exit 1; fi
-          done
-          if ! grep -q "url: $EXE\$" dist/latest.yml; then echo "::error::latest.yml does not name $EXE"; cat dist/latest.yml; exit 1; fi
-
-      # The Microsoft Store package: the same app, but the update key leaves the workspace first (the installer is built).
-      - name: "For the Store: build the Store package (no update key inside)"
-        run: |
-          rm -f update-config.json
-          pnpm exec electron-builder --win appx --publish never --config build/store.config.js
-
-      - name: "For the Store: the package has the menu, and no update key"
+      - name: The package has the menu, and no update key
         run: node scripts/store-check.js dist-store "$MSIX"
-
-      # Kept a few days on the run's page, in case R2 misbehaves.
-      - uses: actions/upload-artifact@v7
-        with:
-          name: installer
-          path: dist/*.exe
-          retention-days: 5
-          compression-level: 0
 
       - uses: actions/upload-artifact@v7
         with:
@@ -129,65 +100,33 @@ jobs:
           retention-days: 5
           compression-level: 0
 
-      # Installer first, latest.yml last: an installed copy never reads a latest.yml whose installer isn't there yet.
-      - name: Upload to R2
-        env:
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          put() {   # file key [aws options…]: upload, then check the bucket holds all of it
-            local f="$1" key="$2"; shift 2
-            aws s3 cp "$f" "s3://$R2_BUCKET/$key" --endpoint-url "$R2_ENDPOINT" --only-show-errors "$@"
-            local want got
-            want="$(stat -c %s "$f")"
-            got="$(aws s3api head-object --bucket "$R2_BUCKET" --key "$key" --endpoint-url "$R2_ENDPOINT" --query ContentLength --output text | tr -d '\r')"
-            if [ "$got" != "$want" ]; then echo "::error::$key in R2 is $got bytes, not $want"; exit 1; fi
-            echo "Uploaded $key ($got bytes)"
-          }
-          put "dist/$EXE" "$EXE"
-          put "dist/$EXE.blockmap" "$EXE.blockmap"
-          put dist/latest.yml latest.yml --cache-control no-cache --content-type text/yaml
+  # Only the built package and this repository's own scripts (nothing installed), with the GitHub token.
+  publish:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write   # create the tag and the GitHub release
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
 
-      # Without the key the address must refuse (no public downloads); with it, installed copies must get this version.
-      - name: The update address is locked, and opens with the key
-        env:
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-        run: |
-          url=https://sastra-update.smith89k.com/latest.yml
-          without="$(curl -s -o /dev/null -w '%{http_code}' "$url")"
-          if [ "$without" = "200" ]; then
-            echo "::error::The update address is NOT locked: anyone can download. Check the Cloudflare Access application for sastra-update.smith89k.com."; exit 1
-          fi
-          if ! body="$(curl -sf -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" "$url")"; then
-            echo "::error::The update key doesn't open the update address. Check the Access policy and the CF_ACCESS_* secrets."; exit 1
-          fi
-          if ! grep -q "^version: $VERSION" <<< "$body"; then echo "::error::latest.yml at the address is not $VERSION:"; echo "$body"; exit 1; fi
-          echo "Locked (without the key: HTTP $without); with the key: version $VERSION"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
 
-      - name: Remove older installers from R2 (every .blockmap stays)
-        env:
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          aws s3api list-objects-v2 --bucket "$R2_BUCKET" --endpoint-url "$R2_ENDPOINT" --query 'Contents[].[Key]' --output text > r2-keys.txt
-          node scripts/r2-prune.js "$EXE" < r2-keys.txt > r2-old.txt
-          while IFS= read -r key; do
-            echo "Removing $key"
-            aws s3 rm "s3://$R2_BUCKET/$key" --endpoint-url "$R2_ENDPOINT" --only-show-errors
-          done < r2-old.txt
+      - uses: actions/download-artifact@v8
+        with:
+          name: store
+          path: dist-store
 
       - name: GitHub release (notes from What's new)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/release-notes.js "$VERSION" > notes.md
-          printf '\nGive the installer below to the people who should have Sastra PDF: copies installed from it update themselves.\n\nSHA-256 of the installer: `%s`\n' \
-            "$(sha256sum "dist/$EXE" | cut -d' ' -f1)" >> notes.md
-          printf '\n%s is for the Microsoft Store: submit it in Partner Center (docs/updates-setup.md section 7). Microsoft signs it.\n\nSHA-256 of the Store package: `%s`\n' \
+          printf '\n%s is for the Microsoft Store: submit it in Partner Center (docs/updates-setup.md section 7). Microsoft signs it.\n\nSHA-256 of the package: `%s`\n' \
             "$MSIX" "$(sha256sum "dist-store/$MSIX" | cut -d' ' -f1)" >> notes.md
-          gh release create "v$VERSION" "dist/$EXE" "dist-store/$MSIX" --target "$GITHUB_SHA" --title "Sastra PDF $VERSION" --notes-file notes.md
+          gh release create "v$VERSION" "dist-store/$MSIX" --target "$GITHUB_SHA" --title "Sastra PDF $VERSION" --notes-file notes.md

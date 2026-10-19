@@ -85,9 +85,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        adding, and AppListEntry="none" means they show almost nowhere.
     app/author.jpg     200 px photo of the author (Sunnguon Taing), from their LinkedIn profile,
                        for the About screen
-    .github/workflows/release.yml  GitHub Actions, by hand only (Run workflow + version): builds the installer and the
-                       Microsoft Store package, uploads the installer to Cloudflare R2 (sastra-update.smith89k.com) and
-                       makes the GitHub release with both (see Status)
+    .github/workflows/release.yml  GitHub Actions, by hand only (Run workflow + version). Since 1.2.0 (as Bohpum since
+                       0.2.5): Store package only — three jobs (check / build with no token / publish), no secret,
+                       nothing to R2; the GitHub release carries Sastra-PDF-Store-<version>.msix for Partner Center.
+                       1.2.0 was the last installer release (R2 keeps serving it to installed copies)
     updater.js         Automatic updates, no Electron inside (main.js hands in electron-updater's autoUpdater):
                        `updatesRunHere`, `checkAnswer`, `installBlock`, `logTo`, `createUpdater` (10 s, then every 6 h)
     store.js           The Microsoft Store copy's rules, no Electron inside: `isStoreCopy` (process.windowsStore, or
@@ -103,7 +104,6 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
     scripts/menu-sources.js  menu.cpp, the sparse manifest and the Store manifest agree (build-explorer-menu.js runs it)
     scripts/store-check.js   the built Store package has the DLL and store.js, and no key / app-update.yml / sparse .msix
     scripts/release-notes.js  the release workflow: GitHub release notes from a version's What's new entry
-    scripts/r2-prune.js  the release workflow: which old installers to delete from R2 (refuses when the new one is missing)
     docs/updates-setup.md  Cloudflare + GitHub setup click by click, how to release, and the Microsoft Store (section 7)
     docs/store-listing.md  the Store listing texts for Partner Center (description, features, keywords, privacy policy,
                        the runFullTrust reason, notes for certification)
@@ -640,6 +640,12 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   After the rebuild with the unplated icons the taskbar logo has no box. Microsoft's checker (appcert, 24 tests):
   OVERALL_RESULT PASS; only the optional "Blocked executables" flags CreateProcessW in Sastra PDF.exe and SastraMenu.dll
   and "Reg"/"Cmd" strings in chrome_200_percent.pak (Electron; doesn't fail the result). Test package removed.
+  **Released v1.2.0 on 2026-10-19** (the user: "i want to submit to microsoft store", "follow the bohpum app to the
+  store"; run 39258455294, every step passed; "Locked (without the key: HTTP 403); with the key: version 1.2.0"): the
+  last installer (SHA-256 d88fb3c0…dd7c62) to R2 + Sastra-PDF-Store-1.2.0.msix (167 267 846 bytes, SHA-256
+  a6e140ea…435c27) on the GitHub release. The older suites were NOT run before it (not on this PC). Then, as Bohpum did
+  right after its 0.2.4, the release job became Store-only (Task 13; scripts/r2-prune.js deleted) without waiting for
+  Microsoft to publish. Next: the user submits the .msix in Partner Center (docs/updates-setup.md section 7).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 

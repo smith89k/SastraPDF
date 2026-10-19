@@ -80,7 +80,7 @@ Double-click **run.bat**, or run `pnpm start`.
     build/logo.png     The Sastra logo, 1024 px master
     scripts/           Run by pnpm install: fetch Electron, copy the libraries into app/vendor,
                        check the About screen's library versions; build-explorer-menu.js (pnpm run dist);
-                       release-notes.js and r2-prune.js (the release workflow)
+                       release-notes.js (the release workflow)
     pnpm-workspace.yaml  pnpm settings: a pinned build-tool version, which packages may run install scripts
 
 ## Troubleshooting

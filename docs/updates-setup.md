@@ -74,32 +74,25 @@ checks this by itself, and that the update key opens it (step "The update addres
 
 ## 6. Releasing a version
 
-1. `pnpm version 1.2.0 --no-git-tag-version --no-git-checks` (only edits package.json).
+1. `pnpm version 1.3.0 --no-git-tag-version --no-git-checks` (only edits package.json).
 2. Write the version's entry at the top of `app/notes.js` (What's new) with today's date — the build refuses to run
    without it, and it becomes the GitHub release notes.
 3. Commit and push main.
-4. GitHub → **Actions** → **Release** → **Run workflow** → type `1.2.0` → Run
-   (or `gh workflow run release.yml -f version=1.2.0`).
+4. GitHub → **Actions** → **Release** → **Run workflow** → type `1.3.0` → Run
+   (or `gh workflow run release.yml -f version=1.3.0`).
 
-The job checks the version, `store.json` (section 7) and the six secrets, puts the update key into the app, builds the
-installer (with the right-click menu), then the Microsoft Store package without the key (and checks it), uploads the
-installer to the bucket (installer first, `latest.yml` last), checks the address is locked and opens with the key,
-removes the older installers there (their small `.blockmap` files stay — an installed copy uses its own to download
-only what changed), and makes the GitHub release `v1.2.0` with the notes, the installer to hand out and the Store
-package (`Sastra-PDF-Store-1.2.0.msix`, for Partner Center: section 7; never put in the bucket).
-It stops with a plain message if the version doesn't match package.json, is already released, `store.json` is missing
-or not valid, or a secret is missing.
-If a run stops half-way after uploading (the installer is in the bucket but there's no GitHub release), the next run of
-the same version refuses: bump the version and release again.
-
-After the first update that reaches an installed copy, right-click a PDF in File Explorer and check that the Sastra PDF
-items are still in the first menu (or that the app offered to set them up again and it worked).
+The job checks the version and `store.json`, builds the Store package with the right-click menu inside, checks it has
+no update key, and makes the GitHub release `v<version>` with the notes and `Sastra-PDF-Store-<version>.msix`. Then
+submit it (section 7, "Each release"). Nothing goes to R2 any more: the bucket, its lock and keys stay so 1.2.0
+installer copies keep finding 1.2.0. (1.2.0 itself was the last release made with the old job: the installer to R2 and
+the Store package.)
+It stops with a plain message if the version doesn't match package.json, is already released, or `store.json` is
+missing or not valid.
 
 ## 7. The Microsoft Store
 
 The Store version is the same Sastra PDF with no update key. Microsoft signs it, so Windows shows no warning, and the
-Store keeps it up to date. Version 1.2.0 is the last one for installer copies; after Microsoft has published Sastra PDF,
-releases make only the Store package.
+Store keeps it up to date. Since 1.2.0, releases make only the Store package (as Bohpum).
 
 **Once** (the developer account already exists, from Bohpum):
 1. Partner Center → **Apps and games** → **New product** → **MSIX or PWA app** → reserve the name **Sastra PDF** (if it
