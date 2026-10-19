@@ -1356,7 +1356,7 @@ cd /e/_httdocs/SastraPDF && pnpm version 1.2.0 --no-git-tag-version --no-git-che
   N('1.2.0', '<release day, YYYY-MM-DD>', [
     ['new', 'Sastra PDF is now in the Microsoft Store, signed by Microsoft, so Windows no longer warns when you install it. New versions now come only from the Store. If you installed Sastra PDF from an installer: open the Microsoft Store app, search for Sastra PDF (or go to apps.microsoft.com/detail/<storeId from store.json>), install it, then uninstall this copy in Settings › Apps. The Store version starts with fresh settings.'],
     ['new', 'Drag PDFs and pictures from File Explorer onto the Pages panel to add them where the red line shows. Pictures keep their own size. One Ctrl+Z takes it all back.'],
-    ['new', 'Drag pages onto another open file\'s tab to move them there. Hold them over the tab for half a second to open it, then drop them where you want. Hold Ctrl to copy instead of move.'],
+    ['new', 'Drag pages onto another open file\'s tab to copy them there. Hold them over the tab for half a second to open it, then drop them where you want. Inside one file, hold Ctrl while you drop to copy pages instead of moving them.'],
     ['improved', 'Insert file (Organize pages) now takes pictures too, in name order.']
   ]),
 ```

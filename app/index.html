@@ -1071,10 +1071,10 @@ function renderTabs(){
     t.addEventListener('click', e => { if (e.target.closest('.x')) closeDoc(d.id); else if (d.id!==state.activeId) activate(d.id); });
     t.addEventListener('auxclick', e => { if (e.button===1) closeDoc(d.id); });
     t.addEventListener('keydown', e => { if (e.key==='Enter') activate(d.id); });
-    // pages dragged from another file: the tab lights up, opens after TAB_HOVER_MS; a drop on it adds them at the end
+    // pages dragged from another file: the tab lights up, opens after TAB_HOVER_MS; a drop on it copies them to the end
     t.addEventListener('dragover', e => {
       if (hasFiles(e) || !dragFrom || d.id === dragFrom.docId) return;
-      e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move';
+      e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
       if (tabHover?.el === t) return;
       cancelTabHover(); t.classList.add('drop-on');
       tabHover = { el:t, timer: d.id === state.activeId ? null : setTimeout(() => { cancelTabHover(); if (dragFrom) activate(d.id); }, TAB_HOVER_MS) };
@@ -1082,7 +1082,7 @@ function renderTabs(){
     t.addEventListener('drop', e => {
       if (hasFiles(e) || !dragFrom || d.id === dragFrom.docId) return;
       e.preventDefault(); e.stopPropagation();
-      const from = dragFrom; endPageDrag(); transferPages(from, d, d.n, e.ctrlKey);
+      const from = dragFrom; endPageDrag(); copyPagesTo(from, d, d.n);
     });
     stripEl.appendChild(t);
   }
@@ -1297,12 +1297,13 @@ function dropSpot(y){
   const t = ts[ts.length-1]; return { at:+t.dataset.i + 1, el:t, cls:'drop-after' };
 }
 function endPageDrag(){ dragFrom = null; cancelTabHover(); clearDrop(); thumbsEl.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging')); }
-// The Pages panel takes dragged thumbnails (move) and files from File Explorer (insert at the red line). A drag that
-// carries files is always a file drop, even if a page drag never got its dragend. No PDF open: the window opens tabs.
+// The Pages panel takes dragged thumbnails and files from File Explorer (insert at the red line). As in Acrobat: pages
+// of this file move (Ctrl: copied), pages of another file are copied. A drag that carries files is always a file drop,
+// even if a page drag never got its dragend. No PDF open: the window opens tabs.
 thumbsEl.addEventListener('dragover', e => {
   const d = active(), files = hasFiles(e); if (!d || !(files || dragFrom)) return;
   const spot = dropSpot(e.clientY); if (!spot) return;
-  e.preventDefault(); e.dataTransfer.dropEffect = files || (dragFrom.docId !== d.id && e.ctrlKey) ? 'copy' : 'move';
+  e.preventDefault(); e.dataTransfer.dropEffect = files || dragFrom.docId !== d.id || e.ctrlKey ? 'copy' : 'move';
   if (!spot.el.classList.contains(spot.cls)) { clearDrop(); spot.el.classList.add(spot.cls); }
 });
 thumbsEl.addEventListener('drop', e => {
@@ -1311,8 +1312,8 @@ thumbsEl.addEventListener('drop', e => {
   const spot = dropSpot(e.clientY), from = dragFrom;
   endPageDrag(); endDropping(); if (!spot) return;
   if (files) fileItems(e.dataTransfer.files).then(items => insertItems(d, spot.at, items));
-  else if (from.docId === d.id) movePages(spot.at);
-  else transferPages(from, d, spot.at, e.ctrlKey);
+  else if (from.docId === d.id && !e.ctrlKey) movePages(spot.at);
+  else copyPagesTo(from, d, spot.at);
 });
 async function drawThumb(d, i, box){
   if (d.thumbCanvas[i] || box.dataset.busy) return; box.dataset.busy = '1';
@@ -1355,24 +1356,19 @@ async function movePages(ins){
     await commit(d, await out.save(), { sel, current:pos, msg:`Moved ${moving.length} page${moving.length>1?'s':''}` });
   });
 }
-// Pages dragged from another open file: copied into d at `at`, then (no Ctrl) removed from the source — each file its
-// own undo step, nothing saved. Both new files are made before either changes, so a failure leaves both as they were.
-// Every page of the source → copied instead: a PDF needs at least one page.
-async function transferPages(from, d, at, copy){
-  const s = state.docs.find(x => x.id === from.docId); if (!s || s === d) return;
+// Dragged pages copied into d at `at`, the copies selected — from another open file (it keeps them), or from d itself
+// (Ctrl at the drop). One undo step in d; nothing saved.
+async function copyPagesTo(from, d, at){
+  const s = state.docs.find(x => x.id === from.docId); if (!s) return;
   const pages = from.pages.filter(i => i < s.n); if (!pages.length) return;
-  const all = !copy && pages.length >= s.n; if (all) copy = true;
   const n = pages.length, what = `${n} page${n>1?'s':''}`;
-  await busy(copy ? 'Copying pages…' : 'Moving pages…', async () => {
+  await busy('Copying pages…', async () => {
     const src = await PDFDocument.load(s.bytes, { ignoreEncryption:true }), doc = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
     let k = at; (await doc.copyPages(src, pages)).forEach(p => doc.insertPage(k++, p));
-    const target = await doc.save();
-    let rest = null; if (!copy) { [...pages].reverse().forEach(i => src.removePage(i)); rest = await src.save(); }
-    await commit(d, target, { sel:pages.map((_, j) => at + j), current:at });
-    if (rest) await commit(s, rest, { sel:[], current:Math.min(pages[0], s.n - n - 1) });
-    if (active() !== d) activate(d.id); else renderTabs();   // the source's tab shows its change dot too
+    await commit(d, await doc.save(), { sel:pages.map((_, j) => at + j), current:at });
+    if (active() !== d) activate(d.id);
     goTo(at);
-    toast(all ? `Copied ${what} to ${d.name} — ${s.name} keeps them: a PDF needs at least one page` : `${copy ? 'Copied' : 'Moved'} ${what} to ${d.name}`);
+    toast(s === d ? `Copied ${what}` : `Copied ${what} to ${d.name}`);
   });
 }
 async function rotate(delta){

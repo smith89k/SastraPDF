@@ -168,9 +168,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   PDF open files still open as tabs. A drag carrying files is ALWAYS a file drop (a page drag never carries files), so a
   stale `dragFrom` can't turn it into a page move. Page drags: `dragFrom = { docId, pages }`, `copyMove`; another file's
   tab lights up (`.tab.drop-on`) and opens after `TAB_HOVER_MS` 500 (`tabHover`, cancelled by the window's dragover when
-  the mouse leaves it); drop at the line or on the tab (= at the end) → `transferPages`: copy into the target, then remove
-  from the source (both new files made first), one undo step in each; Ctrl = copy; every page → copied with a toast
-  saying why. `endPageDrag` runs on every drop and on a `dragend` caught at the window. Test: drop-test.js (groups 1–4;
+  the mouse leaves it); drop at the line or on the tab (= at the end) → `copyPagesTo`: ALWAYS a copy, the source keeps its
+  pages, one undo step in the target (the user, 2026-10-19: "drag cross file don't move just copy" — Acrobat's rule;
+  until then it moved, Ctrl = copy). Inside one file a drag moves (`movePages`) and Ctrl at the drop copies there
+  (`copyPagesTo` with the same file; drop effect `copy`). `endPageDrag` runs on every drop and on a `dragend` caught at the window. Test: drop-test.js (groups 1–4;
   runs on Windows and, under `xvfb-run -a`, on Linux). A script-made `DataTransfer` in this Chromium ignores writes to
   `effectAllowed`/`dropEffect`, so the test gives it own writable properties to read the app's choice back.
 - Opening PDFs (since 2026-10-17; spec/plan docs/superpowers/*/2026-10-17-open-progress*; Bohpum's reading box, the

@@ -383,3 +383,6 @@ page cross file". PDFs and pictures dragged from File Explorer onto the Pages pa
 their own size, name order, one undo); Insert file takes pictures too. Thumbnails dragged onto another file's tab open
 it after half a second and move there (Ctrl = copy; every page → copied, since a PDF needs a page). Part of 1.2.0.
 Built and tested in a Linux cloud session (synthetic drags); real drags from File Explorer still to try on Windows.
+The same evening, after trying it on Windows, the user: "drag cross file don't move just copy, but move inside file with
+control is copy" — Acrobat's rule. Pages dragged to another file are now always copied (the source keeps them); inside
+one file a drag moves and Ctrl+drag copies.
