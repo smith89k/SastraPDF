@@ -5,7 +5,12 @@
   "description": "Sastra PDF (សាស្ត្រា PDF) — combine, split, organize and export PDF pages",
   "main": "main.js",
   "author": "Sunnguon Taing",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smith89k/SastraPDF.git"
+  },
+  "homepage": "https://github.com/smith89k/SastraPDF",
   "private": true,
   "packageManager": "pnpm@12.4.1",
   "scripts": {

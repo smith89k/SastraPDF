@@ -260,6 +260,7 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .about-name .brand-km{font-size:15px}
 .about-ver{margin-top:3px;color:var(--muted);font-family:var(--mono);font-size:12px}
 .about .note{color:var(--muted);font-size:12px}
+.about .license a{color:var(--accent)}
 .about section{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:1px solid var(--line)}
 .about h3{margin:0;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .author{display:flex;align-items:center;gap:14px}
@@ -714,6 +715,7 @@ function openAbout(){
       <div><div class="about-name" id="aboutName">Sastra PDF<span class="brand-km" lang="km">សាស្ត្រា</span></div><div class="about-ver"></div></div></div>
     <p>Combine, split, organize and export PDF pages. Your files stay on this computer.</p>
     <p class="note"><span lang="km">សាស្ត្រា</span> (sastra) are the traditional Khmer palm-leaf manuscripts: each leaf is a page.</p>
+    <p class="note license">Free software under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" ${out}>GNU GPL 3.0</a> or later, with no warranty. <a href="https://github.com/smith89k/SastraPDF" ${out}>Source code on GitHub</a></p>
     <section aria-label="Made by"><h3>Made by</h3>
       <div class="author"><img src="${A.photo}" alt="" width="64" height="64"><div><b>${A.name}<span class="handle">${A.handle}</span></b><span>${A.role}</span></div></div>
       <p>${A.bio}</p>
