@@ -575,8 +575,12 @@ right-click menu after it.** Tests live in the
   all pass). History clean-up before going public (the user's choice "Clean both"): the work-document names (PR #5
   took them out of the files on 2026-10-15, old commits still had them) and the Gmail address (author/committer,
   annotated-tag taggers, the Cloudflare line in updates-setup.md) rewritten in every commit; backup bundle
-  `E:\_httdocs\SastraPDF-old-history.bundle` on this PC only. The six merged pull requests keep the OLD commits on
-  GitHub (PR #5's diff shows the work-document names): only GitHub Support can remove them.
+  `E:\_httdocs\SastraPDF-old-history.bundle` on this PC only. Force-pushed 2026-10-19 (main 30f716f + the seven tags;
+  the seven releases still on their tags, not drafts, installers attached); every commit changed (Gmail was on the first
+  one). The six merged pull requests keep the OLD commits on GitHub (PR #5's diff shows the work-document names): the
+  user's choice is **keep the repository private until GitHub Support has removed PRs #1–#6 and the cached views**,
+  then make it public (`gh repo edit smith89k/SastraPDF --visibility public --accept-visibility-change-consequences`),
+  then release 1.1.3 (a separate yes) and apply to SignPath.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. The user: GitHub two-step login, apply at signpath.org/apply once
   public with a release, then set the variable + secret (docs/updates-setup.md section 7).
