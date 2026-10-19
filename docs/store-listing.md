@@ -17,7 +17,7 @@ Your files stay on your computer. Sastra PDF has no account, no ads and sends no
 - Combine and split PDFs; save pages as JPG or PNG pictures
 - Print with a preview: poster, several pages per sheet, booklets, both sides
 - Right-click PDFs and pictures in File Explorer: Make PDF, Combine, Split, Save as images
-- Khmer and English; light and dark themes; works offline
+- Khmer and English documents; light and dark themes; works offline
 
 ## Keywords
 
