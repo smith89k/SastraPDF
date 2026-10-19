@@ -114,14 +114,13 @@ releases make only the Store package.
      "storeId": "<Store ID, 12 characters>"
    }
    ```
-   The release refuses to run without it.
-3. Put the privacy policy from `docs/store-listing.md` on a page of your website (for example
-   https://smith89k.com/sastra-pdf/privacy) — Partner Center asks for its address.
-4. The first submission (after the release has made the package): **Pricing and availability** (Free; markets: all),
-   **Properties** (category Productivity; the privacy policy address), **Age ratings** (the questionnaire: no violence,
-   no user content shared, no purchases), **Store listings** (English: description, features and keywords from
-   `docs/store-listing.md`, the screenshots), **Submission options** → restricted capabilities: paste the `runFullTrust`
-   text and the notes for certification from `docs/store-listing.md`.
+   The release refuses to run without it. (Done on 2026-10-19: `smith89k.SastraPDF`, Store ID `9P768LL4RTVP`.)
+3. The first submission (after the release has made the package): **Pricing and availability** (Free; markets: all),
+   **Properties** (category Productivity; **Privacy policy** → **Provide privacy policy text**: paste the privacy
+   policy from `docs/store-listing.md` — no web page needed, as for Bohpum), **Age ratings** (the questionnaire: no
+   violence, no user content shared, no purchases), **Store listings** (English: description, short description,
+   features, keywords and copyright from `docs/store-listing.md`, the screenshots), **Submission options** → restricted
+   capabilities: paste the `runFullTrust` text and the notes for certification from `docs/store-listing.md`.
 
 **Each release:**
 1. Release as in section 6.
@@ -146,8 +145,9 @@ It installs as "Sastra PDF" (identity `SastraPDF.StoreTest`); remove it with
   `pnpm start`, the portable .exe — never update: install a release's installer once.
 - **Windows SmartScreen** warns about the installer because it isn't code-signed yet: **More info** → **Run anyway**.
   Updates installed by the app don't show this.
-- **Without the warning:** the Microsoft Store version (section 7) is signed by Microsoft. Send people the Store link
-  instead of the installer.
+- **Without the warning:** the Microsoft Store version (section 7) is signed by Microsoft. Send people its Store link,
+  https://apps.microsoft.com/detail/9P768LL4RTVP (it works once Microsoft has published the first submission), instead
+  of the installer. The Store keeps their copy up to date.
 - **What the app sends:** only the requests for `latest.yml`, the installer and its blockmap, with the update key.
   Nothing about the user or their files. Problems with a check go to `%TEMP%\Sastra PDF\update.log`, never shown.
 - **The update key is inside every installer**, so anyone you give the file to could pull it out and download later

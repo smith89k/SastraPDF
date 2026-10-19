@@ -26,9 +26,17 @@ pdf, combine pdf, split pdf, merge, pdf pages, image to pdf, khmer
 ## Privacy policy
 
 Sastra PDF does not collect, store or send any personal information. Your PDFs and pictures stay on your computer and
-are never uploaded. Sastra PDF has no account, no analytics and no ads, and its fonts are inside the app. The Microsoft
-Store version makes no internet requests of its own; updates come from the Microsoft Store.
-Questions: https://smith89k.com
+are never uploaded. Sastra PDF has no account, no analytics and no ads. Updates come from the Microsoft Store.
+
+(Partner Center takes this as text: Properties › Privacy policy › Provide privacy policy text. A URL is not needed.)
+
+## Short description
+
+Open, organize, combine, split and print PDF files. Your files stay on your computer.
+
+## Copyright and developer
+
+© 2026 smith89k · Developed by Taing Sunnguon
 
 ## Restricted capability: runFullTrust
 

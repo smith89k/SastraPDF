@@ -605,7 +605,8 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   (Electron under xvfb); drop-test 42 still passes. The new menu.cpp function was only compile-checked with mingw-w64
   (no MSVC there).
   NOT done yet (needs the user's Windows PC): `pnpm run build:menu` with MSVC + the DLL harness; close-test.js; Task 10
-  (the sideloaded test package on the user's PC, WACK); the rest of Task 11 (screenshots, the privacy page) and Tasks 12–13
+  (the sideloaded test package on the user's PC, WACK); the rest of Task 11 (screenshots; the privacy policy needs no web page: Partner Center takes it as text, as for
+  Bohpum — docs/store-listing.md) and Tasks 12–13
   (release 1.2.0 with its What's new entry, submission, then Store-only releases).
   store.json (2026-10-19, from the user's Partner Center › Product identity; name "Sastra PDF" reserved):
   smith89k.SastraPDF, CN=AAA3A883-09DC-4D02-89C9-CD2286F692F0, "Taing Sunnguon", Store ID 9P768LL4RTVP (Store page
