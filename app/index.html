@@ -953,6 +953,7 @@ async function checkUpdatesCmd(){
   let a; try { a = await desk.checkUpdates(); } catch { a = { kind:'failed' }; }
   if (!open) return;
   done();
+  if (a.kind === 'store') return;   // main opened Sastra PDF's page in the Store, which updates this copy
   if (a.kind === 'ready') return readyBox(a.version);
   const failed = ["Couldn't check for updates. Check the internet connection and try again.", ''];
   const [msg, detail] = {

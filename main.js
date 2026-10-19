@@ -7,6 +7,7 @@ const fsSync = require('fs');
 const { execFile } = require('child_process');
 const menu = require('./explorer-menu');
 const updates = require('./updater');
+const store = require('./store');
 
 const APP_NAME = 'Sastra PDF';
 // Window title: "Sastra PDF v1.0.0", plus " (dev)" when run from source (pnpm start / run.bat).
@@ -16,12 +17,21 @@ let pendingPaths = [];      // PDFs passed before the window was ready
 let allowClose = false;
 let up = null;              // automatic updates (updater.js), only in the installed app
 
+// The Microsoft Store copy (store.js): Windows says so (process.windowsStore). Tests only (never in the installed app):
+// SASTRA_STORE_TEST=1 makes `electron .` act as one.
+const STORE = store.isStoreCopy({ windowsStore: process.windowsStore, test: !app.isPackaged && process.env.SASTRA_STORE_TEST === '1' });
+const STORE_INFO = STORE ? store.readStoreInfo(path.join(__dirname, 'store.json')) : null;   // its Store ID, for Check for Updates
+// Its own settings folder name: the single-instance lock is named from that path, and an installer copy on the same PC
+// uses "Sastra PDF". Windows keeps the Store copy's files apart already, but not the lock's name.
+if (process.windowsStore) app.setPath('userData', path.join(app.getPath('appData'), 'Sastra PDF Store'));
+
 // Installer hooks (build/installer.nsh): "Sastra PDF.exe --explorer-menu=install|uninstall|release|add-package"
 // sets up the File Explorer right-click menu and exits — before the single-instance lock, with no window.
 const menuCmd = (process.argv.find(a => a.startsWith('--explorer-menu=')) || '').slice('--explorer-menu='.length);
 if (menuCmd) {
   const res = path.join(process.resourcesPath, 'explorer-menu');
-  process.exit(app.isPackaged ? menu.runCommand(menuCmd, {
+  // the Store copy's menu comes with its package (build/store-manifest.xml): nothing to set up or remove
+  process.exit(STORE ? 0 : app.isPackaged ? menu.runCommand(menuCmd, {
     installDir: path.dirname(process.execPath), exe: process.execPath,
     dll: path.join(res, 'SastraMenu.dll'), msix: path.join(res, menu.PKG + '.msix'),
     silent: process.argv.includes('--silent')
@@ -386,7 +396,11 @@ ipcMain.handle('app-version', () => app.getVersion());
 
 /* Automatic updates (updater.js). The page asks about unsaved changes BEFORE install-update: quitAndInstall starts the
    installer at once and it closes the app by force, so nothing may be left to ask by then. */
-ipcMain.handle('check-updates', () => up ? up.checkNow() : { kind: 'dev' });
+// The Store copy: the Store updates it, so Check for Updates opens Sastra PDF's page there (store.js storePageUrl).
+ipcMain.handle('check-updates', () => {
+  if (STORE) { shell.openExternal(store.storePageUrl(STORE_INFO)).catch(() => {}); return { kind: 'store' }; }
+  return up ? up.checkNow() : { kind: 'dev' };
+});
 ipcMain.handle('install-update', () => {
   const block = updates.installBlock({ downloaded: up && up.downloaded(), taskOpen: !!taskWin });
   if (block) return { ok: false, reason: block };
@@ -400,7 +414,7 @@ ipcMain.handle('install-update', () => {
 // run as a separate process so the window doesn't freeze while Windows asks for permission.
 ipcMain.handle('menu-repair', async (_e, action) => {
   if (action === 'check') {
-    return { needed: app.isPackaged && menu.repairNeeded({
+    return { needed: app.isPackaged && !STORE && menu.repairNeeded({
       build: menu.windowsBuild(), msixExists: fsSync.existsSync(path.join(process.resourcesPath, 'explorer-menu', menu.PKG + '.msix')),
       state: menu.readState(), version: app.getVersion()
     }) };
@@ -421,14 +435,14 @@ app.whenReady().then(() => {
   // when the main window opens would give the Explorer-menu task window a File/Edit/View bar too.
   buildMenu();
   nativeTheme.on('updated', paintBar);   // theme "System" and Windows switched light ↔ dark
-  if (app.isPackaged) menu.cleanOld(path.dirname(process.execPath));
+  if (app.isPackaged && !STORE) menu.cleanOld(path.dirname(process.execPath));   // the Store copy has no DLL moved aside
   if (handleTask(process.argv)) { if (!win && !taskWin) app.quit(); return; }
   pendingPaths = pdfArgs(process.argv);
   if (pendingPaths.length) remember('open', path.dirname(pendingPaths[0]));
   createWindow();
   // a right-click job alone (above) never checks; electron-updater is loaded only here. The update address is locked:
   // only a copy built by the release job carries the key (update-config.json), so a copy without it doesn't check.
-  if (updates.updatesRunHere({ packaged: app.isPackaged, platform: process.platform, portable: !!process.env.PORTABLE_EXECUTABLE_DIR })) {
+  if (updates.updatesRunHere({ packaged: app.isPackaged, platform: process.platform, portable: !!process.env.PORTABLE_EXECUTABLE_DIR, store: STORE })) {
     const log = updates.logTo(path.join(os.tmpdir(), 'Sastra PDF', 'update.log'));
     const key = updates.readUpdateConfig(path.join(__dirname, 'update-config.json'));
     if (!key) log('no update key (update-config.json): this copy does not check for updates');
