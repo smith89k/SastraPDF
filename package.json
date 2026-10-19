@@ -16,6 +16,7 @@
   "scripts": {
     "postinstall": "node scripts/ensure-electron.js && node scripts/copy-vendor.js && node scripts/check-credits.js",
     "start": "electron .",
+    "test": "node --test \"tests/*.test.js\"",
     "build:menu": "node scripts/build-explorer-menu.js",
     "dist": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win nsis --publish never",
     "dist:portable": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win portable --publish never"
