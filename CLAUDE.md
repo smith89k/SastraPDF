@@ -142,6 +142,21 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   the head script before first paint. Thumbnail boxes are sized by CSS (`--tw`/`--th` from the width, `--ar` = page
   w / h inline; at 186 px the old 128 × 168 max); after a drag `redrawThumbs()` drops every doc's `thumbCanvas` so they
   redraw sharp (`drawThumb` uses the box's `clientWidth`).
+- Drop into the Pages panel (since 2026-10-19; spec/plan docs/superpowers/*/2026-10-19-drop-into-pages*): the panel
+  (`#thumbs`) owns `dragover`/`drop` for both dragged thumbnails and files; `dropSpot(y)` puts the red line before or
+  after the thumbnail under the mouse (its middle decides; a gap goes before the next one), above the first = at the
+  start, below the last = at the end. Files (PDFs + the menu's picture types, by content)
+  → `fileItems` → `insertItems(d, at, items)`: name order (`byName`, as Explorer), pictures at their own size
+  (`addImagePage(doc, bytes, at)`), ONE commit, unusable files named in one error toast. Insert file uses it too (after
+  the current page). Over the panel `#app.dropping-pages` hides the page area's "Drop PDFs…" box; elsewhere and with no
+  PDF open files still open as tabs. A drag carrying files is ALWAYS a file drop (a page drag never carries files), so a
+  stale `dragFrom` can't turn it into a page move. Page drags: `dragFrom = { docId, pages }`, `copyMove`; another file's
+  tab lights up (`.tab.drop-on`) and opens after `TAB_HOVER_MS` 500 (`tabHover`, cancelled by the window's dragover when
+  the mouse leaves it); drop at the line or on the tab (= at the end) → `transferPages`: copy into the target, then remove
+  from the source (both new files made first), one undo step in each; Ctrl = copy; every page → copied with a toast
+  saying why. `endPageDrag` runs on every drop and on a `dragend` caught at the window. Test: drop-test.js (groups 1–4;
+  runs on Windows and, under `xvfb-run -a`, on Linux). A script-made `DataTransfer` in this Chromium ignores writes to
+  `effectAllowed`/`dropEffect`, so the test gives it own writable properties to read the app's choice back.
 - Opening PDFs (since 2026-10-17; spec/plan docs/superpowers/*/2026-10-17-open-progress*; Bohpum's reading box, the
   user: "similar to bohpum"): every way in — Open (main's `open-dialog` now returns only `[{ path, name }]`), "Open
   with" / start-up files (`openPaths`), dropped files and the Combine panel's Add files (`openFiles`) — goes through

@@ -376,3 +376,10 @@ history was cleaned (the names of the user's work documents and the Gmail addres
 and the repository was made public. The same day the user changed their mind: "undo to private", then "back to before
 we plan to go public". The repository is private again and every file is back to its 2026-10-18 state (undone with
 new commits, so the work stays in git history). The cleaned history stays.
+
+### 34. Drop files into the Pages panel, move pages between files (Claude Code, 2026-10-19)
+The user: "i need drag pdf or image file to place in openned pdf file in page panel like moving page", then "and move
+page cross file". PDFs and pictures dragged from File Explorer onto the Pages panel go in at a red line (pictures at
+their own size, name order, one undo); Insert file takes pictures too. Thumbnails dragged onto another file's tab open
+it after half a second and move there (Ctrl = copy; every page → copied, since a PDF needs a page). Part of 1.2.0.
+Built and tested in a Linux cloud session (synthetic drags); real drags from File Explorer still to try on Windows.
