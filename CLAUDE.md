@@ -633,6 +633,13 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   `…targetsize-N_altform-unplated.png` for N = 16 20 24 32 40 44 48 64 256 — the PNG entries of build/icon.ico (the
   installer copy's taskbar icon) byte for byte, 44 = Square44x44Logo.png. Any `.targetsize-` file makes electron-builder
   run makepri (resources.pri), which is how Windows finds them.
+  **Task 10 done 2026-10-19 on the user's second PC:** `SASTRA_STORE_SIDELOAD=1 pnpm run dist:store` → Sastra-PDF-Store-1.1.2.msix
+  (167 MB; store-check passed), `Add-AppxPackage -AllowUnsigned` (UAC) → SastraPDF.StoreTest 1.1.2.0 Ok. Started from the
+  Start menu it runs from C:\Program Files\WindowsApps\SastraPDF.StoreTest_…\app with userData "Sastra PDF Store"; "Open
+  with" opened A.pdf in it; the right-click menu's Images here wrote A_page-1…5.jpg; the user confirmed the rest ("yes").
+  After the rebuild with the unplated icons the taskbar logo has no box. Microsoft's checker (appcert, 24 tests):
+  OVERALL_RESULT PASS; only the optional "Blocked executables" flags CreateProcessW in Sastra PDF.exe and SastraMenu.dll
+  and "Reg"/"Cmd" strings in chrome_200_percent.pak (Electron; doesn't fail the result). Test package removed.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
