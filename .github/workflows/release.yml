@@ -1,18 +1,9 @@
-# Builds the Windows installer and releases it: into the Cloudflare R2 bucket behind https://sastra-update.smith89k.com/
-# (locked with Cloudflare Access: only installed copies, which carry the update key, get in), and as a public GitHub
-# release with the notes from What's new (app/notes.js) — the installer people download.
+# Builds the Windows installer and releases it: into the private Cloudflare R2 bucket behind
+# https://sastra-update.smith89k.com/ (locked with Cloudflare Access: only installed copies, which carry the update key,
+# get in), and as a GitHub release with the notes from What's new (app/notes.js) — the installer to hand out.
 # Runs only by hand: Actions > Release > Run workflow, type the version (= package.json), or
 #   gh workflow run release.yml -f version=1.2.0
-# Pushing code or tags never releases. Setup (bucket, domain, lock, the six secrets, SignPath): docs/updates-setup.md.
-#
-# Each job runs on its own fresh machine. The R2 upload key can put an update on every installed copy, so it never
-# shares a machine with other people's code: "build" runs pnpm install and electron-builder with no R2 key and no GitHub
-# token (only the update key, which goes inside the app anyway); "check" and "publish" have the keys but install nothing
-# and run only this repository's own scripts.
-# Two more once SignPath is set up (repository variable SIGNPATH_ORGANIZATION_ID, secret SIGNPATH_API_TOKEN; free code
-# signing for open source, docs/updates-setup.md section 7): "sign" sends the installer to SignPath and waits until it
-# is approved there by hand; "rehash" (no keys) makes the blockmap and latest.yml again from the signed file. Then
-# publish releases only the signed installer. Until then nothing changes: the installer stays unsigned.
+# Pushing code or tags never releases. Setup (bucket, domain, lock, the six secrets): docs/updates-setup.md.
 name: Release
 
 on:
@@ -23,38 +14,39 @@ on:
         required: true
 
 permissions:
-  contents: read
+  contents: write   # create the tag and the GitHub release
 
 concurrency:
   group: release
   cancel-in-progress: false
 
-env:
-  VERSION: ${{ inputs.version }}
-  EXE: Sastra-PDF-Setup-${{ inputs.version }}.exe
-  AWS_DEFAULT_REGION: auto
-  # R2 doesn't take the checksums newer AWS CLIs add by default
-  AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-  AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
-
 jobs:
-  # Before anything is built: the version, the secrets, nothing left in R2 by a stopped run, and the lock.
-  check:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash
+    # The R2 key can put an update on every installed copy, so it and the GitHub token are given only to the steps
+    # that need them (never to install or build steps, which run other people's code).
+    env:
+      VERSION: ${{ inputs.version }}
+      EXE: Sastra-PDF-Setup-${{ inputs.version }}.exe
+      AWS_DEFAULT_REGION: auto
+      # R2 doesn't take the checksums newer AWS CLIs add by default
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
     steps:
       - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6   # the pnpm version comes from package.json "packageManager"
 
       - uses: actions/setup-node@v7
         with:
           node-version: 24
+          cache: pnpm
 
-      - name: The version matches package.json, is not released yet, and the secrets are set
+      - name: The version matches package.json, is not released yet, and the R2 secrets are set
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
@@ -65,7 +57,6 @@ jobs:
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          source scripts/r2-put.sh
           v="$(node -p "require('./package.json').version")"
           if [ "$v" != "$VERSION" ]; then
             echo "::error::You typed $VERSION, but package.json says $v. Bump package.json, push main, then run again."; exit 1
@@ -78,50 +69,9 @@ jobs:
           done
           # An earlier run stopped after uploading but before the GitHub release: building again would put different
           # bytes under the same name (Cloudflare may still serve the old ones), and updates would fail their checksum.
-          if r2_has "$EXE"; then
+          if aws s3api head-object --bucket "$R2_BUCKET" --key "$EXE" --endpoint-url "$R2_ENDPOINT" >/dev/null 2>&1; then
             echo "::error::$EXE is already in R2 from an earlier run that stopped before the GitHub release. Bump the version and run again."; exit 1
           fi
-
-      # The address must refuse requests without the key and let this key in (latest.yml is there, so "let in" means
-      # R2's own answer: 200, or 404 on an empty bucket). A wrong CF_ACCESS_* secret stops the run here, not after the
-      # installer is in the bucket (which would use up the version number).
-      - name: "Before anything is built: the update address is locked, and the update key opens it"
-        env:
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-        run: |
-          url=https://sastra-update.smith89k.com/latest.yml
-          without="$(curl -s -o /dev/null -w '%{http_code}' "$url")"
-          with="$(curl -s -o /dev/null -w '%{http_code}' -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" "$url")"
-          if [ "$without" = "200" ] || [ "$without" = "404" ]; then
-            echo "::error::The update address is NOT locked (HTTP $without without the key). Check the Cloudflare Access application for sastra-update.smith89k.com."; exit 1
-          fi
-          case "$with" in
-            200|404) echo "Locked (HTTP $without without the key); the update key opens it (HTTP $with)" ;;
-            *) echo "::error::The update key doesn't open the update address (HTTP $with). Check the Access policy and the CF_ACCESS_* secrets."; exit 1 ;;
-          esac
-
-  # Other people's code runs here (pnpm install, electron-builder): no R2 key, no GitHub token.
-  build:
-    needs: check
-    runs-on: windows-latest
-    timeout-minutes: 40
-    outputs:
-      unsigned: ${{ steps.unsigned.outputs.artifact-id }}
-    permissions:
-      contents: read
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6   # the pnpm version comes from package.json "packageManager"
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
 
       - name: Install (fetches Electron, copies the PDF libraries, checks About versions)
         run: pnpm install --frozen-lockfile
@@ -150,131 +100,13 @@ jobs:
           done
           if ! grep -q "url: $EXE\$" dist/latest.yml; then echo "::error::latest.yml does not name $EXE"; cat dist/latest.yml; exit 1; fi
 
-      # What publish uploads; also kept a few days on the run's page, in case R2 misbehaves.
+      # Kept a few days on the run's page, in case R2 misbehaves.
       - uses: actions/upload-artifact@v7
         with:
           name: installer
-          path: |
-            dist/${{ env.EXE }}
-            dist/${{ env.EXE }}.blockmap
-            dist/latest.yml
+          path: dist/*.exe
           retention-days: 5
           compression-level: 0
-
-      # SignPath signs the files of one artifact: the installer alone goes there.
-      - name: "For SignPath: the installer on its own (only once SignPath is set up)"
-        id: unsigned
-        if: vars.SIGNPATH_ORGANIZATION_ID != ''
-        uses: actions/upload-artifact@v7
-        with:
-          name: installer-unsigned
-          path: dist/${{ env.EXE }}
-          retention-days: 5
-          compression-level: 0
-
-  # SignPath Foundation's free code signing for open source (docs/updates-setup.md section 7): SignPath checks the
-  # artifact came from this run, signs the installer once it is approved there by hand, and gives it back. Only the
-  # SignPath token here: no R2 key, no update key, nothing installed.
-  sign:
-    needs: build
-    if: vars.SIGNPATH_ORGANIZATION_ID != ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 360   # the time there is to approve it in SignPath
-    permissions:
-      contents: read
-      actions: read        # SignPath reads this run and downloads the artifact with the GitHub token
-    steps:
-      - name: Sign the installer (waits for the approval in SignPath)
-        uses: signpath/github-action-submit-signing-request@v3
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: SastraPDF
-          signing-policy-slug: release-signing
-          github-artifact-id: ${{ needs.build.outputs.unsigned }}
-          wait-for-completion: true
-          wait-for-completion-timeout-in-seconds: 21000
-          output-artifact-directory: signed
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: installer-signed
-          path: signed/${{ env.EXE }}
-          if-no-files-found: error
-          retention-days: 5
-          compression-level: 0
-
-  # The signature changes the installer's bytes, and installed copies check latest.yml's SHA-512 and size and download
-  # only the changed parts (the blockmap): both are made again from the signed file (scripts/rehash-installer.js, with
-  # electron-builder's own blockmap code). No keys at all here.
-  rehash:
-    needs: [build, sign]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install (electron-builder's blockmap code; no install scripts run)
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: installer
-          path: dist
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: installer-signed
-          path: signed
-
-      - name: The signed installer replaces the unsigned one, with its own blockmap, SHA-512 and size
-        run: node scripts/rehash-installer.js "signed/$EXE" dist
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: installer-final
-          path: |
-            dist/${{ env.EXE }}
-            dist/${{ env.EXE }}.blockmap
-            dist/latest.yml
-          retention-days: 5
-          compression-level: 0
-
-  # Only the built files and this repository's own scripts (nothing installed), with the R2 key and the GitHub token.
-  # Once SignPath is set up it releases only a signed installer: a refused, failed or timed-out signing stops it here.
-  publish:
-    needs: [check, build, sign, rehash]
-    if: ${{ !cancelled() && needs.check.result == 'success' && needs.build.result == 'success' && ((vars.SIGNPATH_ORGANIZATION_ID == '' && needs.sign.result == 'skipped') || needs.rehash.result == 'success') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write   # create the tag and the GitHub release
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: ${{ needs.rehash.result == 'success' && 'installer-final' || 'installer' }}
-          path: dist
 
       # Installer first, latest.yml last: an installed copy never reads a latest.yml whose installer isn't there yet.
       - name: Upload to R2
@@ -284,13 +116,20 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          source scripts/r2-put.sh
+          put() {   # file key [aws options…]: upload, then check the bucket holds all of it
+            local f="$1" key="$2"; shift 2
+            aws s3 cp "$f" "s3://$R2_BUCKET/$key" --endpoint-url "$R2_ENDPOINT" --only-show-errors "$@"
+            local want got
+            want="$(stat -c %s "$f")"
+            got="$(aws s3api head-object --bucket "$R2_BUCKET" --key "$key" --endpoint-url "$R2_ENDPOINT" --query ContentLength --output text | tr -d '\r')"
+            if [ "$got" != "$want" ]; then echo "::error::$key in R2 is $got bytes, not $want"; exit 1; fi
+            echo "Uploaded $key ($got bytes)"
+          }
           put "dist/$EXE" "$EXE"
           put "dist/$EXE.blockmap" "$EXE.blockmap"
           put dist/latest.yml latest.yml --cache-control no-cache --content-type text/yaml
 
-      # Without the key the address must refuse (downloads come from the GitHub release); with it, installed copies must
-      # get this version.
+      # Without the key the address must refuse (no public downloads); with it, installed copies must get this version.
       - name: The update address is locked, and opens with the key
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
@@ -326,7 +165,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/release-notes.js "$VERSION" > notes.md
-          printf '\nDownload the installer below and run it: copies installed from it update themselves.\n\nSHA-256 of the installer: `%s`\n' \
+          printf '\nGive the installer below to the people who should have Sastra PDF: copies installed from it update themselves.\n\nSHA-256 of the installer: `%s`\n' \
             "$(sha256sum "dist/$EXE" | cut -d' ' -f1)" >> notes.md
-          printf '\nFree and open source (GNU GPL 3.0). [Code signing policy](https://github.com/smith89k/SastraPDF#code-signing-policy)\n' >> notes.md
           gh release create "v$VERSION" "dist/$EXE" --target "$GITHUB_SHA" --title "Sastra PDF $VERSION" --notes-file notes.md

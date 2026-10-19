@@ -368,13 +368,11 @@ the same bohpum app": the Print dialog became a print screen filling the window,
 zoomable preview and Save as PDF ("exactly what prints", chosen over sharp-text PDFs). The installer now also refreshes
 Windows' icon cache so an update shows the new icons at once.
 
-### 33. Open source, like Bohpum (Claude Code, 2026-10-19)
-The 2026-10-15 preparation (section 29) never went further: the repository stayed private. On 2026-10-19 Bohpum, the
-sister app, went public and got its release ready for SignPath, and the user asked "please go open source like bohpum to
-get code-signing". Decisions (asked one at a time): **GPL 3.0** like Bohpum (replacing the unpublished MIT file); clean
-the history first — the names of the user's work documents (out of the files since 2026-10-15, still in old commits) and
-the Gmail address on every commit become neutral wording and GitHub's private address; public downloads from the
-Releases page are fine (the update address stays locked to installed copies). Built from a written spec and plan: About
-says it is free software and links to the code; the release job became Bohpum's five jobs (check, build, sign, rehash,
-publish), with SignPath signing switched on later by one repository variable; version 1.1.3; the README and the setup
-guide rewritten for a public project; the release tests now live in the repository (`pnpm test`).
+### 33. Open source, tried and undone (Claude Code, 2026-10-19)
+Bohpum, the sister app, went public for SignPath's free code signing, and the user asked "please go open source like
+bohpum to get code-signing". Done from a written spec and plan: GPL 3.0, About linking to the code, Bohpum's five-job
+release with a SignPath step, version 1.1.3, README and setup guide for a public project. Before going public the
+history was cleaned (the names of the user's work documents and the Gmail address on every commit) and force-pushed,
+and the repository was made public. The same day the user changed their mind: "undo to private", then "back to before
+we plan to go public". The repository is private again and every file is back to its 2026-10-18 state (undone with
+new commits, so the work stays in git history). The cleaned history stays.

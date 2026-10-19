@@ -1,22 +1,16 @@
 {
   "name": "sastra-pdf",
   "productName": "Sastra PDF",
-  "version": "1.1.3",
+  "version": "1.1.2",
   "description": "Sastra PDF (សាស្ត្រា PDF) — combine, split, organize and export PDF pages",
   "main": "main.js",
   "author": "Sunnguon Taing",
-  "license": "GPL-3.0-or-later",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/smith89k/SastraPDF.git"
-  },
-  "homepage": "https://github.com/smith89k/SastraPDF",
+  "license": "MIT",
   "private": true,
   "packageManager": "pnpm@12.4.1",
   "scripts": {
     "postinstall": "node scripts/ensure-electron.js && node scripts/copy-vendor.js && node scripts/check-credits.js",
     "start": "electron .",
-    "test": "node --test \"tests/*.test.js\"",
     "build:menu": "node scripts/build-explorer-menu.js",
     "dist": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win nsis --publish never",
     "dist:portable": "node scripts/check-notes.js && node scripts/build-explorer-menu.js && electron-builder --win portable --publish never"
