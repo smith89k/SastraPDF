@@ -604,7 +604,18 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   unit store 5, updater-store 1, store-config 5, menu-sources 2, store-check 2, release-workflow 3; store-wiring-test 6
   (Electron under xvfb); drop-test 42 still passes. The new menu.cpp function was only compile-checked with mingw-w64
   (no MSVC there).
-  NOT done yet (needs the user's Windows PC): `pnpm run build:menu` with MSVC + the DLL harness; close-test.js; Task 10
+  **On the user's second PC (repo at C:\_httdocs\SastraPDF, no E: drive), 2026-10-19 evening:** `pnpm run build:menu` with
+  MSVC builds menu.cpp (with `InStorePackage`) cleanly. The test folder was made again from the two plans' code (`T` =
+  that session's scratchpad `t\`, …\c---httdocs-SastraPDF\624e0a35-…\scratchpad\t; `t\root.js` finds C: or E:): unit 18,
+  store-wiring 6, drop-test 42 — all pass. Three Windows-only test fixes (the app was right each time): Playwright
+  1.48 starts Electron through a shell on Windows, so `app.process().kill()` ends only the shell — `quit()` now runs
+  `taskkill /PID <electron pid> /T /F` and waits (else the relaunch with the same profile hands its files to the old
+  window and exits); `waitForLoadState('load')` after `firstWindow()` (an early evaluate died with "Execution context was
+  destroyed"); Chromium 152 ignores `effectAllowed`/`dropEffect` writes on a script-made `DataTransfer`, so the test's
+  ones get own writable properties that record what the app sets. Store screenshots (store-shots.js, 2802 × 1577 at
+  175 %) in `t\shots-store\`. NOT run there: the DLL harness and the old suites (controls, pages-panel, titlebar, close,
+  images) — the old test folder (4e4e0838) is gone from this PC.
+  NOT done yet (needs the user's Windows PC): the DLL harness; close-test.js; Task 10
   (the sideloaded test package on the user's PC, WACK); the rest of Task 11 (screenshots; the privacy policy needs no web page: Partner Center takes it as text, as for
   Bohpum — docs/store-listing.md) and Tasks 12–13
   (release 1.2.0 with its What's new entry, submission, then Store-only releases).
