@@ -84,8 +84,19 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        adding, and AppListEntry="none" means they show almost nowhere.
     app/author.jpg     200 px photo of the author (Sunnguon Taing), from their LinkedIn profile,
                        for the About screen
-    .github/workflows/release.yml  GitHub Actions, by hand only (Run workflow + version): builds the installer,
-                       uploads it to Cloudflare R2 (sastra-update.smith89k.com) and makes the GitHub release (see Status)
+    .github/workflows/release.yml  GitHub Actions, by hand only (Run workflow + version), five jobs (since 2026-10-19,
+                       Bohpum's): check → build → sign → rehash → publish. Builds the installer, has SignPath sign it
+                       (only once the variable SIGNPATH_ORGANIZATION_ID is set), uploads it to Cloudflare R2
+                       (sastra-update.smith89k.com) and makes the public GitHub release (see Status)
+    scripts/rehash-installer.js  the release's rehash job: the signed installer replaces the unsigned one in dist/, its
+                       .blockmap and latest.yml's SHA-512 + size made again (electron-builder's `buildBlockMap`);
+                       refuses a file with no Authenticode certificate table. From Bohpum
+    scripts/r2-put.sh  the release's R2 helpers: `put` (upload + size check), `r2_has` (only a real 404 = absent)
+    tests/             `pnpm test` = `node --test "tests/*.test.js"`: release-workflow (the five jobs, who sees which
+                       secret, `bash -n` on every bash step, r2_has with a stand-in aws), rehash-installer (PE headers
+                       in memory only — virus scanners delete made-up programs written to disk)
+    .gitattributes     `*.sh` stays LF (the Windows runner checks out with autocrlf; bash can't source CRLF)
+    LICENSE            GNU GPL 3.0 (since 2026-10-19; was MIT, never published)
     updater.js         Automatic updates, no Electron inside (main.js hands in electron-updater's autoUpdater):
                        `updatesRunHere`, `checkAnswer`, `installBlock`, `logTo`, `createUpdater` (10 s, then every 6 h)
     scripts/release-notes.js  the release workflow: GitHub release notes from a version's What's new entry
@@ -125,8 +136,10 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   pnpm ignores npm's package.json `overrides` (it silently installed 3.0.0).
 - Security: contextIsolation on, nodeIntegration off, sandbox on, CSP meta in app/index.html. The CSP
   allows 'wasm-unsafe-eval' (WebAssembly only, for pdf.js's image decoders) but not 'unsafe-eval'.
-- Licensing: all libraries are permissive. Avoid AGPL libraries (PyMuPDF, iText) unless a
-  commercial licence is bought.
+- Licensing: Sastra PDF itself is **GPL-3.0-or-later** (since 2026-10-19, like Bohpum; open source so SignPath
+  Foundation signs it for free). All libraries are permissive and GPL-3.0-compatible (pdf.js Apache-2.0). Avoid AGPL
+  libraries (PyMuPDF, iText). The repository is public: never commit work documents, keys or the user's Gmail (this
+  repo's `user.email` is GitHub's private `7828470+smith89k@users.noreply.github.com`).
 
 ## How app/index.html works
 - `state.docs[]`: each doc = { id, name, path, bytes (Uint8Array), pdf (pdf.js doc), n, sizes,
@@ -323,7 +336,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   button (`#bAbout`) that opens the About screen.
 - About screen (`openAbout`, data in `AUTHOR` and `CREDITS`): opened by the brand button or
   Help > About (main sends `about`; version comes from `desk.appVersion()` → `app-version`; in a
-  plain browser it says "Web version"). Shows the app, "Made by" (photo, name + dev name smith89k, title, bio, skills,
+  plain browser it says "Web version"). Shows the app, the license line ("Free software under the GNU GPL 3.0 or later,
+  with no warranty. Source code on GitHub", links in --accent, since 2026-10-19), "Made by" (photo, name + dev name smith89k, title, bio, skills,
   links to smith89k.com / LinkedIn / GitHub smith89k) and open-source credits. The author
   asked to keep it short: no employer, career history, education, town or project list.
   Credits list every open-source part that ships, with its version: pdf.js, pdf-lib, pako,
@@ -452,6 +466,12 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   (never a .blockmap); creates tag + GitHub release (installer + SHA-256). Secrets: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
   R2_SECRET_ACCESS_KEY, R2_BUCKET, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET. The installer is named
   `Sastra-PDF-Setup-<version>.exe` (dashes: latest.yml names it so).
+  Since 2026-10-19 the same in five jobs (Bohpum's; the R2 key never on the machine that runs pnpm install / the build;
+  the update address must refuse without the key and open with it BEFORE anything is built), plus SignPath: once the
+  repository variable `SIGNPATH_ORGANIZATION_ID` and secret `SIGNPATH_API_TOKEN` exist, `sign` waits (up to 6 h) for the
+  user to approve in SignPath (project `SastraPDF`, policy `release-signing`), `rehash` remakes blockmap + latest.yml,
+  and publish never releases unsigned after that. Release notes end "Free and open source (GNU GPL 3.0). Code signing
+  policy" (README link). docs/updates-setup.md section 7 = the SignPath setup.
 - Fixed during first run: Electron binary not unpacked on Node 24; zoomed page pushing the
   Tools panel off-screen (`#app` grid needed `grid-template-columns:minmax(0,1fr)`); stray
   Windows scrollbars on tab row, Pages panel and split inputs (box-sizing).
@@ -548,16 +568,26 @@ right-click menu after it.** Tests live in the
   `t\launch.js` (playwright-core 1.64.1) closes What's new on fresh profiles. Then the opening progress box:
   `t\open-progress-test.js` (TASKS=1,2,3,4 picks groups; swaps main's read-file for a delayed one; makes `t\pdfs\`
   p1–p20, q1–q5, big.pdf 3000 pages + copies, bad.pdf) — all pass, with update-ui, menu-repair-ui, close-check, main-wiring.
+- **Open source, 2026-10-19** (spec/plan docs/superpowers/*/2026-10-19-open-source-signing*; the user: "go open source
+  like bohpum to get code-signing"): GPL-3.0-or-later, About's license line, the five-job release with SignPath, 1.1.3
+  What's new, README (Download, Build from source, Releasing, Code signing policy, Privacy, License), updates-setup.md
+  section 7, `tests/` in the repo (21 pass; About checked once with Playwright from this session's scratchpad `t\`,
+  all pass). History clean-up before going public (the user's choice "Clean both"): the work-document names (PR #5
+  took them out of the files on 2026-10-15, old commits still had them) and the Gmail address (author/committer,
+  annotated-tag taggers, the Cloudflare line in updates-setup.md) rewritten in every commit; backup bundle
+  `E:\_httdocs\SastraPDF-old-history.bundle` on this PC only. The six merged pull requests keep the OLD commits on
+  GitHub (PR #5's diff shows the work-document names): only GitHub Support can remove them.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
-  re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
+  re-run the Playwright checks after every upgrade. The user: GitHub two-step login, apply at signpath.org/apply once
+  public with a release, then set the variable + secret (docs/updates-setup.md section 7).
 
 ## Ideas not built yet
 - Extract the original embedded images from a PDF (current export renders whole pages).
 - Khmer UI language toggle (menus and labels in Khmer).
 - Remember recent files and window/panel state.
 - Text editing, OCR (Khmer OCR), digital signatures — the hard parts of Acrobat.
-- Code signing so SmartScreen doesn't warn. A signed menu package would also install without admin
-  (no UAC prompt) — sign the .msix too and drop the OID from its Publisher.
+- Sign more than the installer once SignPath works: Sastra PDF.exe, the menu DLL, and the menu package — a signed
+  .msix would install without admin (no UAC prompt); drop the OID from its Publisher.
 
 ## Known build gotchas
 - pnpm layout (since 2026-10-17): node_modules holds only our own packages, each a LINK to its real folder

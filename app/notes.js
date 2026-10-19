@@ -10,6 +10,10 @@ const KINDS = Object.freeze(['new', 'improved', 'fixed', 'removed']);   // the w
 const N = (version, date, notes) => Object.freeze({ version, date, notes: Object.freeze(notes.map(([kind, text]) => Object.freeze({ kind, text }))) });
 
 const NOTES = Object.freeze([
+  N('1.1.3', '2026-10-19', [
+    ['new', 'Sastra PDF is open source, under the GNU GPL 3.0: anyone can read its code and download it on GitHub. ☰ › Help › About says so and links to it.'],
+    ['improved', 'Releases are ready for a free digital signature from SignPath Foundation, so Windows can stop warning about the installer once the signature is in place.']
+  ]),
   N('1.1.2', '2026-10-18', [
     ['improved', 'The top bar is tidier: Rotate left, Rotate right and Delete are no longer repeated there. Use them from Organize pages in the Tools panel, the right-click menu, or the keys (Delete, Ctrl+Shift+L, Ctrl+Shift+R).']
   ]),

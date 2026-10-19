@@ -367,3 +367,14 @@ inside an open list no longer reach the page (Delete had deleted a page while ch
 the same bohpum app": the Print dialog became a print screen filling the window, with Publisher-style big dropdowns, a
 zoomable preview and Save as PDF ("exactly what prints", chosen over sharp-text PDFs). The installer now also refreshes
 Windows' icon cache so an update shows the new icons at once.
+
+### 33. Open source, like Bohpum (Claude Code, 2026-10-19)
+The 2026-10-15 preparation (section 29) never went further: the repository stayed private. On 2026-10-19 Bohpum, the
+sister app, went public and got its release ready for SignPath, and the user asked "please go open source like bohpum to
+get code-signing". Decisions (asked one at a time): **GPL 3.0** like Bohpum (replacing the unpublished MIT file); clean
+the history first — the names of the user's work documents (out of the files since 2026-10-15, still in old commits) and
+the Gmail address on every commit become neutral wording and GitHub's private address; public downloads from the
+Releases page are fine (the update address stays locked to installed copies). Built from a written spec and plan: About
+says it is free software and links to the code; the release job became Bohpum's five jobs (check, build, sign, rehash,
+publish), with SignPath signing switched on later by one repository variable; version 1.1.3; the README and the setup
+guide rewritten for a public project; the release tests now live in the repository (`pnpm test`).
