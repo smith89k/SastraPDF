@@ -288,10 +288,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `pickPages` and `planSheets` are pure (points, 5 mm margin) and exposed on `window.SastraPrint`, so
   tests call them directly. Printing draws every sheet with pdf.js (intent 'print') into `#printArea` as JPEG 0.92 at 600 dpi (since 2026-10-20,
   "acrobat look sharper"; A3 575 — a sheet never passes 64 MP) unless the job is heavy: `go()` draws up to 3 sample
-  sheets (first, middle, last) at `printTopDpi(paper)`, estimates the job (their average size × sheets) and past 300 MB
-  lowers the resolution, `printDpi` = floor(top × √(300 MB / estimate)), never below 150; samples at the final resolution
+  sheets (first, middle, last) at `printTopDpi(paper)`, estimates the job (their average size × sheets) and past 500 MB
+  lowers the resolution, `printDpi` = floor(top × √(500 MB / estimate)), never below 150; samples at the final resolution
   are reused. Measured: 600 dpi PNG failed (50 noisy scans ≈ 11 GB, "Printing failed"); Chromium keeps each sheet's
-  encoded data, so the cost follows bytes; a Khmer report page at 600 dpi JPEG ≈ 0.6 MB (200 pages ≈ 120 MB → 600 dpi).
+  encoded data, so the cost follows bytes; the user's real reports at 600 dpi JPEG are 1.6–2.4 MB a page (a 200-page
+  report ≈ 315–480 MB → still 600 dpi).
   Acrobat prints the page itself (vector); that was tried — a PDF in an Electron 44 window printed silently gives "Print
   job canceled" / "Failed to convert PDF: … PdfToEmfConverter" — so the sheets stay pictures. Save as PDF keeps 300 / 150
   dpi JPEG; landscape sheets are turned onto portrait paper

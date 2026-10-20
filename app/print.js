@@ -13,7 +13,7 @@ const PAPERS = { A4:[210,297], A3:[297,420], A5:[148,210], Letter:[215.9,279.4],
 // every sheet's data (50 noisy scans at 600 dpi PNG needed ~11 GB and failed). go() draws up to 3 sample sheets at the
 // top resolution and estimates the job from them; past PRINT_BUDGET the resolution goes down just enough (the data grows
 // with dpi²), never below 150. A sheet never passes 64 MP (pdfops.js's canvas limit), so A3's top is 575 dpi.
-const PRINT_TOP = 600, PRINT_FLOOR = 150, PRINT_BUDGET = 300e6;
+const PRINT_TOP = 600, PRINT_FLOOR = 150, PRINT_BUDGET = 500e6;
 function printTopDpi(paper){
   const [w, h] = PAPERS[paper] || PAPERS.A4;
   return Math.min(PRINT_TOP, Math.floor(Math.sqrt(64e6 / ((w / 25.4) * (h / 25.4)))));
