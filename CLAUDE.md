@@ -199,8 +199,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   shifts the workspace into an `auto` row. The view toolbar (`.toolbar`) sits inside the logo
   row (menubar) between Undo/Redo and Present; the right end is Present, Maximize, Theme, then
   Windows' caption buttons. As the window narrows the row sheds, in order:
-  button labels (<1619px), Fit width/page (<1365), the Khmer name (<1297), Zoom −/+ (<1244),
-  Prev/Next (<1176); all stay reachable via dropdown, right-click menu or shortcuts. Below
+  button labels (<1639px), Fit width/page (<1385), the Khmer name (<1317), Zoom −/+ (<1264),
+  Prev/Next (<1196); all stay reachable via dropdown, right-click menu or shortcuts. Below
   ~1100px the tool strip scrolls sideways. Re-measure if a button is added to or removed from that row
   (re-measured 2026-10-16 for ☰ + the caption buttons and again without the Full screen button: force each
   step's hidden items at full width, measure the row's leftover space, threshold = needed width + 3;
@@ -208,7 +208,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Organize pages; the right-click menu now clicks `#oRotL`/`#oRotR`/`#oDel`); that freed exactly 113 px at
   every step, so each threshold moved down 113. The measurement now comes out ~10 px under the old numbers,
   which were kept as a margin. At 175 % screen scaling the viewport is fractional (1618.29 for a "1618" window),
-  so a test right at a threshold can land on the other side.
+  so a test right at a threshold can land on the other side. 2026-10-20: the Save ▾ arrow (20 px) moved every threshold up 20
+  (save-menu-test.js measures the row at each step).
 - Title bar = the logo row (since 2026-10-16; Windows' own bar was 8 px shorter maximized — its edge goes
   off-screen — so everything jumped). main.js `titleBarStyle: 'hidden'` + `titleBarOverlay` (height
   `BAR_H` 44 = the 45 px row minus its line; colours `BAR_COLORS` = --chrome / --fg, KEEP IN SYNC with the
@@ -228,6 +229,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   back. F11 / View > Full Screen (native window full screen from main.js) is still there.
 - Save icon (`ICONS.save`): a floppy disk, as in Acrobat / Office (2026-10-16; it was a down arrow into a
   tray, which read as "Download"). Used by the Save button only.
+- Save ▾ (since 2026-10-20, as Acrobat's split Save): `.splitbtn` = `#bSave` + a 20 px arrow `#bSaveMore` (`up` icon
+  turned) that opens `.cmenu.savemenu` (`openSaveMenu`, same look and keys as the right-click menu — `menuKeys`):
+  Save (Ctrl+S) / Save As… (Ctrl+Shift+S) / Save as Reduced Size PDF… (`saveReducedActive`, also ☰ File, command
+  `saveReduced`). The reduced copy: `SastraReduce.reduce(d.bytes)` under `busy` ("Reducing file size · picture 3 of
+  40…"), then main's Save dialog (kind `'reduced'`, title "Save as Reduced Size PDF") starting in the OPEN FILE'S folder
+  (the user's wish; `d.saveDir` for a file with no path), name `<name>_reduced.pdf`; toast "Saved … · 12.4 MB → 3.1 MB
+  (75 % smaller)"; the tab stays the original. Not smaller → "<name> is already as small as it can be — no copy made".
 - Present (`startShow`/`showPage`/`endShow`): one page at a time on black, fitted to the screen,
   in HTML full screen. Button in the logo row (kept when maximized), F5 = from the start,
   Shift+F5 / Ctrl+L = from the current page, View > Present…, right-click > Present from this

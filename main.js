@@ -165,6 +165,7 @@ function buildMenu() {
       { type: 'separator' },
       k('&Save', 'Ctrl+S', 'save'),
       k('Save &As…', 'Ctrl+Shift+S', 'saveAs'),
+      k('Save as &Reduced Size PDF…', undefined, 'saveReduced'),
       { type: 'separator' },
       k('&Print…', 'Ctrl+P', 'print'),
       { type: 'separator' },
@@ -261,7 +262,7 @@ ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind, dir }) => {
   // dir: where the doc came from (Combine from the Explorer menu), else the last folder used
   const start = typeof dir === 'string' && path.isAbsolute(dir) && await isDir(dir) ? dir : await startIn('save');
   const r = await dialog.showSaveDialog(win, {
-    title: kind === 'export' ? 'Export' : kind === 'pdf' ? 'Save as PDF' : 'Save As',
+    title: kind === 'export' ? 'Export' : kind === 'pdf' ? 'Save as PDF' : kind === 'reduced' ? 'Save as Reduced Size PDF' : 'Save As',
     defaultPath: path.join(start, defaultName),
     filters: [{ name: names[ext] || ext.toUpperCase(), extensions: [ext] }]
   });

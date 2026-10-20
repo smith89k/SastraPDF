@@ -72,6 +72,15 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .btn.primary{background:var(--accent);color:var(--accent-fg);font-weight:500}
 .btn.primary:hover:not(:disabled){filter:brightness(1.07);background:var(--accent)}
 .btn.outline{border:1px solid var(--line-strong)}
+/* Save ▾, as Acrobat's: Save and a narrow arrow that opens Save / Save As… / Save as Reduced Size PDF… — one unit */
+.splitbtn{display:inline-flex;align-items:center;flex:none;border-radius:6px}
+.splitbtn>.btn{border-radius:0}
+.splitbtn>#bSave{border-radius:6px 0 0 6px}
+.splitbtn>.more{width:20px;border-radius:0 6px 6px 0;position:relative}
+.splitbtn>.more::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--line-strong);opacity:0}
+.splitbtn:hover>.more::before,.splitbtn>.more[aria-expanded="true"]::before{opacity:1}
+.splitbtn:hover>.btn:not(:disabled),.splitbtn>.more[aria-expanded="true"]{background:var(--hover)}
+.splitbtn>.more svg{width:12px;height:12px;transform:rotate(180deg)}
 .btn:focus-visible,.tab:focus-visible,.thumb:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 /* Dropdowns: the app's own look, as in Bohpum (customizable <select>, Chromium 135+). The box itself is styled by
    .field select / .zoomsel; this adds the chevron, the open state and the floating list. */
@@ -101,11 +110,11 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:defau
 .menubar .btn .lbl{display:inline}
 /* the logo row holds everything, so it sheds the least-needed bits as the window narrows;
    all stay reachable (tooltips, zoom dropdown, right-click menu, shortcuts) */
-@media (max-width:1618px){#app:not(.focus) .menubar .btn .lbl{display:none}}
-@media (max-width:1364px){#bFitW,#bFitP{display:none}}
-@media (max-width:1296px){.menubar .brand-km{display:none}}
-@media (max-width:1243px){#bZoomOut,#bZoomIn{display:none}}
-@media (max-width:1175px){#bPrev,#bNext{display:none}}
+@media (max-width:1638px){#app:not(.focus) .menubar .btn .lbl{display:none}}
+@media (max-width:1384px){#bFitW,#bFitP{display:none}}
+@media (max-width:1316px){.menubar .brand-km{display:none}}
+@media (max-width:1263px){#bZoomOut,#bZoomIn{display:none}}
+@media (max-width:1195px){#bPrev,#bNext{display:none}}
 
 /* tabs */
 .tabbar{display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);min-width:0}
@@ -439,7 +448,7 @@ select.big option{padding:8px 10px}
     <button class="btn icon" id="bMenu" title="Menu (Alt)" aria-haspopup="menu" hidden><svg class="i" data-i="menu"></svg></button>
     <button class="brand" id="bAbout" title="About Sastra PDF"><img class="brand-mark" src="logo.png" alt="" width="26" height="26"><span>Sastra PDF</span><span class="brand-km" lang="km">សាស្ត្រា</span></button>
     <button class="btn" id="bOpen" title="Open PDF files (Ctrl+O)"><svg class="i" data-i="open"></svg><span class="lbl">Open</span></button>
-    <button class="btn" id="bSave" title="Save PDF (Ctrl+S)"><svg class="i" data-i="save"></svg><span class="lbl">Save</span></button>
+    <span class="splitbtn"><button class="btn" id="bSave" title="Save PDF (Ctrl+S)"><svg class="i" data-i="save"></svg><span class="lbl">Save</span></button><button class="btn icon more" id="bSaveMore" title="More ways to save" aria-label="More ways to save" aria-haspopup="menu" aria-expanded="false"><svg class="i" data-i="up"></svg></button></span>
     <button class="btn" id="bPrint" title="Print (Ctrl+P)"><svg class="i" data-i="print"></svg><span class="lbl">Print</span></button>
     <span class="sep"></span>
     <button class="btn icon" id="bUndo" title="Undo (Ctrl+Z)"><svg class="i" data-i="undo"></svg></button>
@@ -1586,6 +1595,28 @@ async function saveAsActive(){
   const ok = await saveFile(d.name, new Blob([d.bytes], { type:'application/pdf' }));
   if (ok) { d.dirty = false; d.sample = false; renderTabs(); }
 }
+// Save as Reduced Size PDF… (Save ▾, ☰ File): a smaller copy of the open file as it is now, as Acrobat's — pictures to
+// 150 ppi JPEG, the file packed (reduce.js). The Save window starts in the open file's own folder (the user's wish) with
+// "<name>_reduced.pdf"; the tab stays the original file.
+async function saveReducedActive(){
+  const d = active(); if (!d) return;
+  const step = ({ i, n }) => { $('#stBusy').innerHTML = `<span class="busy"><span class="spin"></span>Reducing file size · picture ${i} of ${n}…</span>`; };
+  const r = await busy('Reducing file size…', async () => {
+    try { return await SastraReduce.reduce(d.bytes, { onStep:step }); } catch(e){ return { error:e.reason || 'damaged' }; }
+  });
+  if (!r) return;   // another task was running
+  if (r.error) { toast(`Couldn't reduce ${d.name}: ${r.error === 'protected' ? "it's password-protected" : 'it may be damaged'}`, true); return; }
+  if (!r.bytes) { toast(`${d.name} is already as small as it can be — no copy made`); return; }
+  const name = SastraReduce.reducedName(d.name);
+  const how = `${fmtBytes(r.before)} → ${fmtBytes(r.after)} (${Math.round((1 - r.after / r.before) * 100)} % smaller)`;
+  if (desk) {
+    const dir = d.path && !d.sample ? d.path.replace(/[\\/][^\\/]*$/, '') : d.saveDir || null;
+    try { const p = await desk.saveDialog(name, r.bytes.slice().buffer, 'reduced', dir); if (p) toast(`Saved ${p.split(/[\\/]/).pop()} · ${how}`); }
+    catch(e){ toast(`Couldn't save ${name}: ${e.message}`, true); }
+    return;
+  }
+  if (await saveFile(name, new Blob([r.bytes], { type:'application/pdf' }))) toast(`Saved ${name} · ${how}`);
+}
 
 /* ---------- UI state ---------- */
 function updatePageUI(){
@@ -1614,7 +1645,7 @@ function updateUI(){
     if (!has && !el.disabled) { el.disabled = true; el.dataset.nodoc = ''; }
     else if (has && 'nodoc' in el.dataset) { el.disabled = false; delete el.dataset.nodoc; }
   }
-  ['#bSave','#bPrint','#bZoomOut','#bZoomIn','#bFitW','#bFitP','#oRotL','#oRotR','#oDel','#oExtract','#oInsert','#oAll','#sGo','#eGo'].forEach(s => $(s).disabled = !has || b);
+  ['#bSave','#bSaveMore','#bPrint','#bZoomOut','#bZoomIn','#bFitW','#bFitP','#oRotL','#oRotR','#oDel','#oExtract','#oInsert','#oAll','#sGo','#eGo'].forEach(s => $(s).disabled = !has || b);
   $('#bUndo').disabled = !d?.history.length || b; $('#bRedo').disabled = !d?.future.length || b;
   updatePageUI(); updateZoomUI(); renderCombine();
   if (!d) { $('#stDoc').textContent = 'No document open'; $('#stSel').textContent=''; $('#eHint').textContent='';
@@ -1771,7 +1802,24 @@ const CMENU = [
 ];
 const CHECKABLE = ['tSelect','tHand','bFitW','bFitP','bThumbs','bTools'];
 let cmenu = null;
-function closeMenu(refocus){ if (!cmenu) return; cmenu.remove(); cmenu = null; if (refocus) viewer.focus({ preventScroll:true }); }
+function closeMenu(refocus){
+  if (!cmenu) return;
+  const save = cmenu.classList.contains('savemenu'); cmenu.remove(); cmenu = null;
+  if (save) $('#bSaveMore').setAttribute('aria-expanded', 'false');
+  if (refocus) (save ? $('#bSaveMore') : viewer).focus({ preventScroll:true });
+}
+// ↑ ↓ Tab move through a menu's items, Esc closes it; page shortcuts (Esc = restore, Delete, F…) stay out of an open menu
+const menuKeys = m => e => {
+  e.stopPropagation();
+  if (e.target.closest('select')?.matches(':open')) return;   // the menu's open zoom list handles its own keys
+  const items = [...m.querySelectorAll('.ci:not(:disabled), select:not(:disabled), input:not(:disabled)')];
+  const i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape') { e.preventDefault(); closeMenu(true); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Tab') {
+    e.preventDefault(); const back = e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey);
+    items[i < 0 ? (back ? items.length-1 : 0) : (i + (back ? -1 : 1) + items.length) % items.length]?.focus();
+  }
+};
 function openMenu(x, y, byKey){
   closeMenu();
   const d = active(), maxed = app.classList.contains('focus'), n = d ? targets(d).length : 1;
@@ -1803,17 +1851,7 @@ function openMenu(x, y, byKey){
     b.onclick = () => { closeMenu(true); if (src) src.click(); else setZoom(1); };
     m.appendChild(b);
   }
-  m.addEventListener('keydown', e => {
-    e.stopPropagation();   // page shortcuts (Esc = restore, Delete, F…) stay out of the open menu
-    if (e.target.closest('select')?.matches(':open')) return;   // the menu's open zoom list handles its own keys
-    const items = [...m.querySelectorAll('.ci:not(:disabled), select:not(:disabled), input:not(:disabled)')];
-    const i = items.indexOf(document.activeElement);
-    if (e.key === 'Escape') { e.preventDefault(); closeMenu(true); }
-    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Tab') {
-      e.preventDefault(); const back = e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey);
-      items[i < 0 ? (back ? items.length-1 : 0) : (i + (back ? -1 : 1) + items.length) % items.length]?.focus();
-    }
-  });
+  m.addEventListener('keydown', menuKeys(m));
   document.body.appendChild(m); cmenu = m;
   const r = m.getBoundingClientRect();
   m.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
@@ -1828,7 +1866,31 @@ viewer.addEventListener('contextmenu', e => {
   const byKey = !e.clientX && !e.clientY, r = viewer.getBoundingClientRect();   // menu key / Shift+F10
   openMenu(byKey ? r.left + 24 : e.clientX, byKey ? r.top + 24 : e.clientY, byKey);
 });
-document.addEventListener('pointerdown', e => { if (cmenu && !cmenu.contains(e.target)) closeMenu(); }, true);
+// a click outside closes a menu (the Save arrow's own click toggles its list)
+document.addEventListener('pointerdown', e => {
+  if (cmenu && !cmenu.contains(e.target) && !(cmenu.classList.contains('savemenu') && e.target.closest?.('#bSaveMore'))) closeMenu();
+}, true);
+
+/* ---------- Save ▾: the arrow next to Save lists Save / Save As… / Save as Reduced Size PDF… (as Acrobat's) ---------- */
+const SAVE_MENU = [['Save', 'Ctrl+S', () => saveActive()], ['Save As…', 'Ctrl+Shift+S', () => saveAsActive()], ['Save as Reduced Size PDF…', '', () => saveReducedActive()]];
+function openSaveMenu(byKey){
+  closeMenu();
+  const b = $('#bSaveMore'), r = b.parentElement.getBoundingClientRect();
+  const m = document.createElement('div'); m.className = 'cmenu savemenu'; m.setAttribute('role','menu'); m.tabIndex = -1;
+  for (const [label, keys, run] of SAVE_MENU) {
+    const it = document.createElement('button'); it.type = 'button'; it.className = 'ci'; it.setAttribute('role','menuitem');
+    it.innerHTML = `<span></span><span></span><span class="kb">${keys}</span>`; it.children[1].textContent = label;
+    it.onclick = () => { closeMenu(); run(); };
+    m.appendChild(it);
+  }
+  m.addEventListener('keydown', menuKeys(m));
+  document.body.appendChild(m); cmenu = m; b.setAttribute('aria-expanded', 'true');
+  m.style.left = Math.max(8, Math.min(r.left, innerWidth - m.getBoundingClientRect().width - 8)) + 'px';
+  m.style.top = (r.bottom + 4) + 'px';
+  (byKey ? m.querySelector('.ci') : m).focus({ preventScroll:true });
+}
+$('#bSaveMore').onclick = e => { if (cmenu?.classList.contains('savemenu')) closeMenu(); else openSaveMenu(!e.detail); };   // detail 0 = Enter/Space
+$('#bSaveMore').onkeydown = e => { if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); openSaveMenu(true); } };
 viewer.addEventListener('wheel', () => closeMenu(), { passive:true });
 window.addEventListener('resize', () => closeMenu());
 
@@ -1982,7 +2044,7 @@ if (desk) {
     if ($('.modal-bg')) return;
     const d = active();
     const map = {
-      open:openCmd, save:saveActive, saveAs:saveAsActive, closeTab:() => d && closeDoc(d.id), undo, redo,
+      open:openCmd, save:saveActive, saveAs:saveAsActive, saveReduced:saveReducedActive, closeTab:() => d && closeDoc(d.id), undo, redo,
       selectAll:() => $('#oAll').click(), delete:() => d && deletePages(), rotL:() => d && rotate(-90), rotR:() => d && rotate(90),
       zoomIn:() => stepZoom(1), zoomOut:() => stepZoom(-1), actual:() => setZoom(1), fitPage:() => setZoom(0,'page'), fitWidth:() => setZoom(0,'width'),
       hand:() => setTool('hand'), select:() => setTool('select'), focus:() => toggleFocus(),
