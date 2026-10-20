@@ -4,6 +4,8 @@
 
 **Goal:** Pages look as sharp as in Acrobat: ClearType text on screen, 600 dpi lossless sheets when printing.
 
+Superseded during the work: print is 600 dpi JPEG 0.92 with a smart size check (500 MB budget) — see the spec, section B.
+
 **Architecture:** The viewer's and Present's page canvases become opaque (`getContext('2d', { alpha:false })`) whenever
 they are shown 1:1, which makes Chromium draw pdf.js's glyphs with LCD (ClearType) anti-aliasing; the devicePixelRatio
 cap of 2 goes. Printing picks its resolution and image format with a new pure function `SastraPrint.printQuality`
@@ -261,6 +263,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ---
 
 ### Task 2: Print at 600 dpi, lossless
+
+Superseded during the work: print is 600 dpi JPEG 0.92 with a smart size check (500 MB budget) — see the spec, section B.
 
 **Files:**
 - Modify: `app/print.js` (near `PAPERS`, line 10; `go()`, around line 509; the export line 587)

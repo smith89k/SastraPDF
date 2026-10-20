@@ -32,18 +32,23 @@ stripped; a name without it just gets `_reduced.pdf`).
    recursively, guarding against loops) and note, for each image, the longest side of the largest page it appears on
    (points). Images found nowhere (used only in annotations, patterns…) get the document's largest page.
 3. **Which pictures**: image streams (`/Subtype /Image`) that are
-   - 8 bits per component, not `/ImageMask`, no `/Decode`, no `/Mask` (colour-key or stencil);
+   - 8 bits per component, not `/ImageMask`, no `/Mask` (colour-key or stencil), no real `/Decode` (an identity one,
+     as pdf-lib writes on soft masks, counts as none and is dropped);
    - `DCTDecode` (JPEG) or `FlateDecode` (with no predictor or a PNG predictor ≥ 10), a single filter;
-   - colour space `DeviceRGB`, `DeviceGray`, or `ICCBased` with N = 1 or 3 (CMYK, Indexed, Lab, JPEG 2000, JBIG2 and
-     CCITT pictures are left exactly as they are);
+   - colour space `DeviceRGB`, `DeviceGray`, or `ICCBased` with N = 3 (CMYK, Indexed, Lab, grey `ICCBased`, JPEG 2000,
+     JBIG2 and CCITT pictures, and JPEGs with `/ColorTransform 0`, are left exactly as they are);
    - stored in at least 20 KB (small icons and logos are never touched).
 4. **New size** (Acrobat's usual rule): if the picture is sharper than **225 ppi** when stretched across its page's
    longest side, it is resampled to **150 ppi** on that side, keeping its shape; otherwise its size stays.
-5. **Re-encode**: JPEG decoded by Chromium (`createImageBitmap`, `imageOrientation:'none'` — PDFs ignore EXIF), Flate
+5. **Re-encode**: JPEG decoded by Chromium (`createImageBitmap`) after the payload of its EXIF and ICC segments is
+   zeroed (PDFs ignore both, and Electron 44 applies EXIF orientation even with `imageOrientation:'none'`), Flate
    pixels decoded by pdf-lib's `decodePDFRawStream` plus the PNG un-filter, resized in the same step
    (`resizeQuality:'high'`), drawn on an `OffscreenCanvas` and saved as JPEG at quality **0.75** (Acrobat's "medium").
-   The new picture is stored as `DCTDecode`, `DeviceRGB` (a gray picture stays gray-looking), 8 bits; the dictionary's
-   other keys (`/Intent`, `/Interpolate`, `/SMask`, `/Metadata`…) are kept.
+   The new picture is stored as `DCTDecode`, 8 bits. RGB pictures keep their colour space (`DeviceRGB` or the same
+   `ICCBased` reference; the values are not converted); `DeviceGray` becomes a `DeviceRGB` JPEG (gray-looking), with
+   no `/Decode`; the dictionary's other keys (`/Intent`, `/Interpolate`, `/SMask`, `/Metadata`…) are kept. Order of
+   the work: unreferenced objects are pruned before the pictures are made, streams with no filter are Flate-compressed
+   after.
    - A transparency mask (`/SMask`) of a resized picture is resized to the same size and kept lossless (Flate), so the
      edges stay clean. If the mask can't be read, the picture is left alone.
    - The new picture replaces the old one only when it is **at least 10 % smaller**; a picture that fails in any way

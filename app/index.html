@@ -76,7 +76,7 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .splitbtn{display:inline-flex;align-items:center;flex:none;border-radius:6px}
 .splitbtn>.btn{border-radius:0}
 .splitbtn>#bSave{border-radius:6px 0 0 6px}
-.splitbtn>.more{width:20px;border-radius:0 6px 6px 0;position:relative}
+.splitbtn>.btn.more{width:20px;border-radius:0 6px 6px 0;position:relative}
 .splitbtn>.more::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--line-strong);opacity:0}
 .splitbtn:hover>.more::before,.splitbtn>.more[aria-expanded="true"]::before{opacity:1}
 .splitbtn:hover>.btn:not(:disabled),.splitbtn>.more[aria-expanded="true"]{background:var(--hover)}
@@ -1980,6 +1980,16 @@ window.addEventListener('resize', () => {
   if (!show.el) return;
   clearTimeout(show.rT); show.rT = setTimeout(() => { show.cache.clear(); showPage(show.i, true); }, 120);
 });
+// Another monitor or screen scale: devicePixelRatio changed, so canvases made for the old one would be stretched
+// (ClearType fringes must never be). Draw the viewer again at the same zoom, and Present's page; listen for the new ratio.
+(function watchDpr(){
+  const mq = matchMedia(`(resolution: ${devicePixelRatio}dppx)`);
+  mq.addEventListener('change', () => {
+    watchDpr();
+    const d = active(); if (d) setZoom(d.zoom, d.fit, true);
+    if (show.el) { show.cache.clear(); showPage(show.i, true); }
+  }, { once: true });
+})();
 
 /* keyboard */
 document.addEventListener('keydown', e => {

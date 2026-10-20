@@ -539,6 +539,7 @@ function open({ doc, desk, toast, svg, parseRanges, savePdf: savePdfFile }){
         const c = document.createElement('canvas'); c.width = outW; c.height = outH;
         await drawSheet(getPage, doc.sizes, sh, px, c.getContext('2d'), { gray: S.gray, base: land ? [0, -1, 1, 0, 0, outH] : null, cancelled: () => cancelled });
         const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92)); c.width = c.height = 0;
+        if (!blob) throw new Error(`sheet ${k + 1} is too large to prepare at ${dpi} dpi`);   // toBlob gives null when the canvas is too big for memory
         return blob;
       };
       // the smart check: a few sample sheets at the top resolution tell how heavy the whole job is
@@ -569,7 +570,7 @@ function open({ doc, desk, toast, svg, parseRanges, savePdf: savePdfFile }){
     else toast(`Couldn't print: ${result?.reason || 'unknown error'}`, true);
   }
 
-  /* ---------- Save as PDF: exactly what prints — the same sheets at print resolution; a landscape sheet stays landscape ---------- */
+  /* ---------- Save as PDF: the same sheets as printing, but at 300 dpi (150 over 150 sheets) as JPEG, not print's 600 dpi / smart step-down; a landscape sheet stays landscape ---------- */
   async function savePdf(){
     if (running || !plan.sheets.length) return;
     begin();

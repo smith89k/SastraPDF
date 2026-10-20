@@ -25,7 +25,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        layouts, sheet drawing, the print screen (laid out like Bohpum's), the print run and
                        Save as PDF. See "Printing".
     app/pdfops.js      `window.SastraOps`, shared by index.html and task.html so both make the same files:
-                       pdf.js loading (`pdfjs()`, `PDFJS_OPTS`), `closePdf`, `baseName`, `rangeLabel`, `imageName`,
+                       pdf.js loading (`pdfjs()`, `PDFJS_OPTS`), `closePdf`, `baseName`, `rangeLabel`, `imageName`, `fmtBytes`,
                        `renderPage` (white page → JPG/PNG blob; dpi lowered past 16 384 px a side / 64 MP)
     app/images.js      `window.SastraImages` (main window only): pictures → PDF pages for the Explorer menu's
                        Make PDF / Combine. Type from the content (magic bytes); JPEG as it is (EXIF orientation
@@ -43,7 +43,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        protected/damaged/cancelled), `reducedName` → "<name>_reduced.pdf"
     app/notes.js       `window.SastraNotes`: What's new — every version's notes (newest first, kinds new / improved / fixed /
                        removed, text only) + `noteFor` / `earlierNotes` / `shouldShow`. Written by hand at release time
-    app/task.html|.js  The small "task window" for Explorer-menu Split / Images jobs. See "Explorer menu".
+    app/task.html|.js  The small "task window" for Explorer-menu Split / Images / Reduce file size jobs. See "Explorer menu".
     app/pdf-file.png   The task window's header icon: the .pdf file icon's page filling 98 × 128
                        (shown 26 × 34) — a file icon, since the window works on files
     explorer-menu/     File Explorer right-click menu for PDFs and pictures: menu.cpp/.def (C++ IExplorerCommand DLL),
@@ -299,8 +299,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `#prSides` (one / long / short; Booklet sets it and locks it — on a layout change only `S.mode` changes, else the
   forced value would be read back as the user's), `#prColor` (colour / grayscale). Preview zooms like Bohpum's
   (`.pv-zoom` bar 10–400 %, Ctrl+wheel at the mouse, Ctrl+0/+/−, Space or middle-drag; the wheel flips sheets only
-  while fitted). Footer: summary · Close · Save as PDF · Print. **Save as PDF** = exactly what prints (same sheets,
-  300/150 dpi JPEG, landscape sheets stay landscape) → `savePdf(name, bytes)` from index.html (`savePrintPdf`:
+  while fitted). Footer: summary · Close · Save as PDF · Print. **Save as PDF** = the same sheets as printing
+  (300 / 150 dpi JPEG; print itself is 600 dpi or the smart step-down; landscape sheets stay landscape) → `savePdf(name, bytes)` from index.html (`savePrintPdf`:
   `desk.saveDialog(…, 'pdf', the file's folder)`, title "Save as PDF"; browser: download), name `<name>-<paper>.pdf`.
   Settings live in localStorage `sastra-print` (not copies or page choice), same shape as before.
   `pickPages` and `planSheets` are pure (points, 5 mm margin) and exposed on `window.SastraPrint`, so
@@ -695,10 +695,12 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   File Explorer › Reduce file size (spec/plan 2026-10-20-reduce-size*). Passed from source: reduce-test (pack, pictures,
   the user's Khmer PDFs: the 2015 PwC report 33.6 MB → 9.7 MB, text identical), save-menu-test, reduce-menu-test,
   menu-sources unit, DLL harness 40 (built from Git Bash with `cmd //c ".\\build.bat"`), and the older nozip,
-  folders, close, controls, titlebar, images suites (tests in this session's `t\`). menu-test: 45 of 48 — the 3
+  folders, close, controls, titlebar, images suites (tests in this session's `t\`, …\c2983e9f-…\scratchpad\t). menu-test: 45 of 48 — the 3
   Combine "Couldn't read: …" toast checks fail the same way at 7e4d656 (before this work): the problems now show in
   the opening progress box (2026-10-19), not in the toast; the test is stale. The installed
   copy's right-click menu gets the entry only with a new release (new DLL); no UAC prompt (manifest unchanged).
+  The new right-click entry reaches users only with the next Microsoft Store release (the DLL ships in the package);
+  copies installed with the 1.2.0 installer never get it.
   Needs a What's new entry in app/notes.js at release time.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.

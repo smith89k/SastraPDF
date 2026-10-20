@@ -129,7 +129,7 @@
       show(`Reducing ${j.name}`, jobs.length > 1 ? `File ${k + 1} of ${jobs.length}` : '', 0);
       const bytes = await readBytes(j.path, j.name); if (!bytes) continue;
       let r;
-      try { r = await Reduce.reduce(bytes, { isCancelled: () => cancelled, onStep: ({ i, n }) => show(`Reducing ${j.name}`, `Picture ${i} of ${n}`, (i - 1) / n) }); }
+      try { r = await Reduce.reduce(bytes, { isCancelled: () => cancelled, onStep: ({ i, n }) => show(`Reducing ${j.name}`, `${jobs.length > 1 ? `File ${k + 1} of ${jobs.length} · picture` : 'Picture'} ${i} of ${n}`, (i - 1) / n) }); }
       catch (e) {
         if (e?.reason === 'cancelled') return;
         problem(e?.reason === 'protected' ? `${j.name}: it's password-protected` : `${j.name}: it may be damaged or not a PDF`); continue;

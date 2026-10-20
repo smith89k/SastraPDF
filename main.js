@@ -256,8 +256,10 @@ ipcMain.handle('write-file', async (_e, { filePath, data }) => {
   return filePath;
 });
 
-ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind, dir }) => {
-  const ext = (path.extname(defaultName).slice(1) || 'pdf').toLowerCase();
+// A folder from the page: a bare drive ("E:", the folder of E:\Report.pdf) becomes "E:\" (path.isAbsolute says no to "E:")
+const folderFrom = d => typeof d === 'string' && /^[a-z]:$/i.test(d) ? d + '\\' : d;
+ipcMain.handle('save-dialog', async (_e, { defaultName, data, kind, dir: pageDir }) => {
+  const dir = folderFrom(pageDir), ext = (path.extname(defaultName).slice(1) || 'pdf').toLowerCase();
   const names = { pdf: 'PDF document', png: 'PNG image', jpg: 'JPEG image' };
   // dir: where the doc came from (Combine from the Explorer menu), else the last folder used
   const start = typeof dir === 'string' && path.isAbsolute(dir) && await isDir(dir) ? dir : await startIn('save');
@@ -285,7 +287,7 @@ function nameGroups(groups) {
       while (seen.has(name.toLowerCase())) name = numbered(base, ++k);
       seen.add(name.toLowerCase()); return name;
     });
-    return { dir: String(g.dir), names, seen };
+    return { dir: String(folderFrom(g.dir)), names, seen };
   });
 }
 async function clashesOf(gs) {

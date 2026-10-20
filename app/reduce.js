@@ -87,7 +87,9 @@
   }
 
   // How a picture can be redone, or null: 8 bits a component, grey or RGB, JPEG or Flate (no predictor or a PNG one),
-  // no colour-key /Mask or /Decode array, stored in at least 20 KB (small icons and logos stay as they are).
+  // no colour-key /Mask, no real /Decode (an identity one, as pdf-lib writes on soft masks, counts as none and is dropped),
+  // stored in at least 20 KB (small icons and logos stay as they are). Left alone: grey ICCBased pictures (the profile
+  // can't ride in an RGB JPEG) and DCT pictures with /ColorTransform 0 (Chromium would apply YCbCr → RGB).
   // mask: a soft mask (no size floor; grey; may leave out its colour space).
   function plan(stream, { mask = false } = {}){
     const d = stream.dict;
@@ -139,6 +141,7 @@
   // the picture's pixels, resized to `size` with Chromium's high-quality resampling. EXIF orientation and a JPEG's own
   // colour profile are ignored, as PDF viewers do.
   async function bitmapOf(stream, p, size){
+    // (Electron 44 applies EXIF orientation even with imageOrientation:'none'; plainJpeg zeroing the EXIF is what stops it)
     const opts = { imageOrientation:'none', colorSpaceConversion:'none', resizeWidth:size.w, resizeHeight:size.h, resizeQuality:'high' };
     if (p.kind === 'jpeg') return createImageBitmap(new Blob([plainJpeg(stream.contents)], { type:'image/jpeg' }), opts);
     const raw = decodePDFRawStream(stream).decode(), px = p.png ? unPng(raw, p.w * p.comps, p.h, p.comps) : raw;
