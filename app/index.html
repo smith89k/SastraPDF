@@ -1143,12 +1143,13 @@ async function drawPage(d, i, el){
   try {
     const page = await d.pdf.getPage(i+1);
     if (gen !== d.viewGen || active() !== d) return;
-    const dpr = Math.min(window.devicePixelRatio||1, 2), s = d.sizes[i];
-    let scale = d.zoom * dpr; const MAX = 4800;
-    scale = Math.min(scale, MAX / s.w, MAX / s.h);
+    const dpr = window.devicePixelRatio||1, s = d.sizes[i], MAX = 4800, want = d.zoom * dpr;
+    const scale = Math.min(want, MAX / s.w, MAX / s.h);
     const vp = page.getViewport({ scale });
     const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
-    const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+    // Shown 1:1, the canvas is opaque, so Chromium draws the text with ClearType as Acrobat does. A canvas held to the
+    // 4800 px limit is stretched: it stays transparent (grey edges), since stretched colour fringes look worse.
+    const ctx = c.getContext('2d', scale < want ? undefined : { alpha:false }); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
     await page.render({ canvasContext:ctx, viewport:vp }).promise;
     if (gen !== d.viewGen) return;
     const old = el.querySelector('canvas'); if (old) old.replaceWith(c); else el.prepend(c);
@@ -1872,11 +1873,13 @@ function showCanvas(i){
   if (!cache.has(i)) cache.set(i, (async () => {
     try {
       const page = await d.pdf.getPage(i + 1), s = d.sizes[i];
-      const fit = Math.min(el.clientWidth / s.w, el.clientHeight / s.h), dpr = Math.min(devicePixelRatio || 1, 2);
-      const vp = page.getViewport({ scale: Math.min(fit * dpr, 4800 / s.w, 4800 / s.h) });
+      const fit = Math.min(el.clientWidth / s.w, el.clientHeight / s.h), dpr = devicePixelRatio || 1, want = fit * dpr;
+      const vp = page.getViewport({ scale: Math.min(want, 4800 / s.w, 4800 / s.h) }), oneToOne = vp.scale >= want;
       const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
-      c.style.width = Math.floor(s.w * fit) + 'px'; c.style.height = Math.floor(s.h * fit) + 'px';
-      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      // as in the viewer: 1:1 with the screen (CSS size = canvas pixels / dpr) and opaque, so the text gets ClearType
+      c.style.width = (oneToOne ? c.width / dpr : Math.floor(s.w * fit)) + 'px';
+      c.style.height = (oneToOne ? c.height / dpr : Math.floor(s.h * fit)) + 'px';
+      const ctx = c.getContext('2d', oneToOne ? { alpha:false } : undefined); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
       await page.render({ canvasContext:ctx, viewport:vp }).promise;
       return c;
     } catch { return null; }

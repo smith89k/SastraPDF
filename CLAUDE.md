@@ -153,6 +153,13 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Actions apply to selected pages, or the current page if nothing is selected (`targets(d)`).
 - Viewer: pages are placeholders sized from page dimensions; IntersectionObserver renders
   canvases lazily. Thumbnails render lazily too.
+- Sharp text (since 2026-10-20, the user: "acrobat look sharper"; spec 2026-10-20-sharper-pages-design.md): a page
+  canvas shown 1:1 (viewer, maximized slideshow, Present) is opaque — `getContext('2d', { alpha:false })` — so Chromium
+  draws pdf.js's glyphs with ClearType like Acrobat (it follows Windows' ClearType setting). Measured first: the canvas
+  was already 1:1 (Chromium pixel-snaps it; moving it by sub-pixels made it worse) — the difference was only grey vs
+  ClearType anti-aliasing. A canvas held to the 4800 px limit is stretched and stays transparent (grey); thumbnails,
+  print and exported images stay grey too. No devicePixelRatio cap (it was 2). Present sizes its canvas in CSS as
+  canvas pixels / dpr. Test: sharp-screen-test.js.
 - Pages panel width (since 2026-10-17, as in Bohpum): drag `#pagesResizer` (the panel's right edge, 7 px, red line on
   hover) 140–400 px, double-click = normal 186; `--pages-w` on <html>, kept in localStorage `sastra-pages-w` and set by
   the head script before first paint. Thumbnail boxes are sized by CSS (`--tw`/`--th` from the width, `--ar` = page
