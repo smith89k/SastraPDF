@@ -8,13 +8,20 @@
 /* ---------- paper and layout constants (points: 72 per inch) ---------- */
 const MM = 72 / 25.4;
 const PAPERS = { A4:[210,297], A3:[297,420], A5:[148,210], Letter:[215.9,279.4], Legal:[215.9,355.6] };   // mm, portrait
-// Print resolution by job size, in A4-sized sheets (A3 counts 2, A5 ½): 600 dpi PNG — lossless, the office printers'
-// own resolution, so letters come out as sharp as Acrobat's — up to 50; 300 dpi PNG up to 150; then 150 dpi JPEG so
-// very long jobs stay light. A sheet never passes 64 MP (pdfops.js's canvas limit): A3 prints at 575 dpi.
-function printQuality(sheets, paper){
-  const [w, h] = PAPERS[paper] || PAPERS.A4, a4 = sheets * (w * h) / (210 * 297);
-  const cap = Math.floor(Math.sqrt(64e6 / ((w / 25.4) * (h / 25.4))));
-  return a4 <= 50 ? { dpi: Math.min(600, cap), type: 'image/png' } : a4 <= 150 ? { dpi: 300, type: 'image/png' } : { dpi: 150, type: 'image/jpeg' };
+// Print resolution (2026-10-20, "acrobat look sharper"; for long jobs the user chose a smart check): JPEG 0.92 at
+// 600 dpi — the office printers' own resolution — unless the job is too heavy for Chromium's print step, which keeps
+// every sheet's data (50 noisy scans at 600 dpi PNG needed ~11 GB and failed). go() draws up to 3 sample sheets at the
+// top resolution and estimates the job from them; past PRINT_BUDGET the resolution goes down just enough (the data grows
+// with dpi²), never below 150. A sheet never passes 64 MP (pdfops.js's canvas limit), so A3's top is 575 dpi.
+const PRINT_TOP = 600, PRINT_FLOOR = 150, PRINT_BUDGET = 300e6;
+function printTopDpi(paper){
+  const [w, h] = PAPERS[paper] || PAPERS.A4;
+  return Math.min(PRINT_TOP, Math.floor(Math.sqrt(64e6 / ((w / 25.4) * (h / 25.4)))));
+}
+// sampleBytes: the sample sheets' JPEG sizes at printTopDpi(paper)
+function printDpi(paper, sheets, sampleBytes){
+  const top = printTopDpi(paper), est = sampleBytes.reduce((a, b) => a + b, 0) / Math.max(1, sampleBytes.length) * sheets;
+  return est <= PRINT_BUDGET ? top : Math.max(PRINT_FLOOR, Math.floor(top * Math.sqrt(PRINT_BUDGET / est)));
 }
 const M = 5 * MM;            // margin round the printable area (most printers can't print the last ~4 mm)
 const GAP = 3 * MM;          // between pages in Multiple
@@ -518,7 +525,6 @@ function open({ doc, desk, toast, svg, parseRanges, savePdf: savePdfFile }){
     if (running || !plan.sheets.length) return;
     begin();
     const sheets = plan.sheets, n = sheets.length, [pw, ph] = PAPERS[S.paper];
-    const { dpi, type } = printQuality(n, S.paper), outW = Math.round(pw / 25.4 * dpi), outH = Math.round(ph / 25.4 * dpi);
     const printer = desk ? q('#prPrinter').selectedOptions[0]?.querySelector('b')?.textContent || S.printer : '';
     const area = printArea(); area.textContent = '';
     let pageCss = document.getElementById('printPage');
@@ -527,14 +533,23 @@ function open({ doc, desk, toast, svg, parseRanges, savePdf: savePdfFile }){
     const urls = [];
     let result = null;
     try {
+      // one sheet as a JPEG at `dpi`; landscape sheets go on the portrait paper turned, top to the left edge, as a printer driver does
+      const sheetJpeg = async (k, dpi) => {
+        const sh = sheets[k], land = sh.w > sh.h, outW = Math.round(pw / 25.4 * dpi), outH = Math.round(ph / 25.4 * dpi), px = (land ? outH : outW) / sh.w;
+        const c = document.createElement('canvas'); c.width = outW; c.height = outH;
+        await drawSheet(getPage, doc.sizes, sh, px, c.getContext('2d'), { gray: S.gray, base: land ? [0, -1, 1, 0, 0, outH] : null, cancelled: () => cancelled });
+        const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92)); c.width = c.height = 0;
+        return blob;
+      };
+      // the smart check: a few sample sheets at the top resolution tell how heavy the whole job is
+      const top = printTopDpi(S.paper), samples = new Map();
+      status('Checking the pages…');
+      for (const k of new Set([0, n >> 1, n - 1])) { if (cancelled) break; samples.set(k, await sheetJpeg(k, top)); }
+      const dpi = printDpi(S.paper, n, [...samples.values()].map(b => b.size));
       for (let k = 0; k < n && !cancelled; k++) {
         status(`Preparing sheet ${k + 1} of ${n}…`);
-        const sh = sheets[k], land = sh.w > sh.h, px = (land ? outH : outW) / sh.w;
-        const c = document.createElement('canvas'); c.width = outW; c.height = outH;
-        // landscape sheets go on the portrait paper turned, top to the left edge, as a printer driver does
-        await drawSheet(getPage, doc.sizes, sh, px, c.getContext('2d'), { gray: S.gray, base: land ? [0, -1, 1, 0, 0, outH] : null, cancelled: () => cancelled });
-        const blob = await new Promise(r => c.toBlob(r, type, 0.92)); c.width = c.height = 0;   // quality: JPEG only
-        const img = new Image(); img.className = 'psheet'; img.dataset.pages = sh.tag; img.alt = '';
+        const blob = dpi === top && samples.has(k) ? samples.get(k) : await sheetJpeg(k, dpi);
+        const img = new Image(); img.className = 'psheet'; img.dataset.pages = sheets[k].tag; img.alt = '';
         img.src = URL.createObjectURL(blob); urls.push(img.src); area.appendChild(img);
       }
       if (!cancelled) {
@@ -592,5 +607,5 @@ function printArea(){
   return a;
 }
 
-window.SastraPrint = { PAPERS, pickPages, planSheets, printQuality, drawSheet, open };
+window.SastraPrint = { PAPERS, pickPages, planSheets, printTopDpi, printDpi, drawSheet, open };
 })();
