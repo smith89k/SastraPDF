@@ -68,7 +68,8 @@ is installed on this PC (its "Adobe PDF" printer is there), so the two can be co
   of a text block shows LCD colour (R ≠ B on edge pixels) where Windows' ClearType is on; thumbnails stay grey;
   Present's canvas is opaque and 1 : 1; with `--force-device-scale-factor=2.5` the canvas is 2.5 × its CSS size (no
   cap). Close-ups of the Khmer report are saved for the user, who compares them with Acrobat.
-- **print** (print-test.js with main's `print` swapped for `printToPDF`, as now): the sheet images in `#printArea` are PNG
-  at 600 dpi for a 10-page job, 300 dpi for 60 A4 pages (or 30 A3), JPEG 150 dpi past 150; output pages still the right
-  paper size; Cancel still works. Then the existing print 71 and print-screen 38 checks.
+- **print** (sharp-print-test.js, main's `print` swapped for a recorder): `printTopDpi` / `printDpi` table (600, A3 575,
+  the 500 MB edge, step-down, the 150 floor); a real 10-page run sends 600 dpi sheets; Save as PDF still 300 dpi.
+  print-memory-test.js (`printToPDF` recorder, minutes): 200 realistic text pages stay at 600 dpi, 50 heavy scans step
+  down and still print. Then the existing print 71 and print-screen 38 checks.
 - On paper (the user): one Khmer page from Acrobat and from Sastra PDF on the same printer.
