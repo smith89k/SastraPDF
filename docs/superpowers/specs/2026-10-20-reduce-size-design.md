@@ -1,6 +1,6 @@
 # Reduce file size: Save button list and File Explorer menu — design
 
-Date: 2026-10-20 · Status: approved by the user ("Yes, go ahead").
+Date: 2026-10-20 · Status: approved by the user ("Yes, go ahead"); built 2026-10-20 (plan 2026-10-20-reduce-size.md).
 
 The user's words: "save button with dropdown (save, save as, save reduce file size)" and "right click to reduce file size
 (filename_reduced.pdf)". The right-click is the **File Explorer** menu (the user's choice over the app's own right-click

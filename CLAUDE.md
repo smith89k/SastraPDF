@@ -31,6 +31,16 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        Make PDF / Combine. Type from the content (magic bytes); JPEG as it is (EXIF orientation
                        applied by the drawing matrix), PNG lossless, BMP/GIF/WebP via createImageBitmap → PNG;
                        page = the picture's own size (dpi from JFIF/EXIF/pHYs/BMP header, else 96; max 14 400 pt)
+    app/reduce.js      `window.SastraReduce` (main window + task window): Reduce file size as Acrobat's — pictures over
+                       225 ppi → 150 ppi, JPEG 0.75 when ≥ 10 % smaller; RGB pictures keep their colour space
+                       (DeviceRGB or ICCBased), DeviceGray ones become RGB JPEG, ICCBased grey and /ColorTransform 0
+                       ones are left alone; a JPEG's own EXIF + ICC segments are zeroed before decoding (as pdf.js
+                       does: Electron 44's createImageBitmap turns EXIF-tagged JPEGs even with imageOrientation:
+                       'none'); soft masks resized with their picture, kept Flate; CMYK/Indexed/JPX/JBIG2/CCITT/
+                       1-bit and pictures under 20 KB untouched. Prune first (no /Thumb, /PieceInfo, unused objects),
+                       then pictures, then Flate for plain streams, object streams; no copy unless ≥ 1 % smaller.
+                       `reduce(bytes, { onStep, isCancelled })` → { bytes|null, before, after } (throws .reason
+                       protected/damaged/cancelled), `reducedName` → "<name>_reduced.pdf"
     app/notes.js       `window.SastraNotes`: What's new — every version's notes (newest first, kinds new / improved / fixed /
                        removed, text only) + `noteFor` / `earlierNotes` / `shouldShow`. Written by hand at release time
     app/task.html|.js  The small "task window" for Explorer-menu Split / Images jobs. See "Explorer menu".
@@ -333,10 +343,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   2026-10-17-explorer-images-design.md). Right-click PDFs and/or pictures (.jpg .jpeg .jfif .png .bmp .gif .webp
   — `EXTS` in explorer-menu.js = the manifest's ItemTypes = menu.cpp's list; the build script checks) →
   Sastra PDF ▸ Make PDF (exactly 1 picture) / Combine N files (2+ files, any mix) / Split here / Split to
-  "name\" / Images here (JPG) / Images to "name\" (JPG) (Split and Images only for the PDFs in the
-  selection; they act on the PDFs only). Make PDF = task `combine` with the one picture. The DLL (CLSID {47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}) gets ALL selected items
+  "name\" / Images here (JPG) / Images to "name\" (JPG) / Reduce file size (since 2026-10-20: `<name>_reduced.pdf` next
+  to each PDF, task `reduce`, `reduceBatch` in task.js; DLL-only change, no manifest or package version change) (Split,
+  Images and Reduce only for the PDFs in the selection; they act on the PDFs only). Make PDF = task `combine` with the one picture. The DLL (CLSID {47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}) gets ALL selected items
   in one Invoke, writes them to `%TEMP%\Sastra PDF\menu-*.txt` (UTF-8, a line each) and starts
-  `Sastra PDF.exe --sastra-task=<combine|split-here|split-folder|images-here|images-folder> --sastra-list=<file>`
+  `Sastra PDF.exe --sastra-task=<combine|split-here|split-folder|images-here|images-folder|reduce> --sastra-list=<file>`
   through Explorer (IShellDispatch2, so the app doesn't run inside the package identity). main.js
   `handleTask` (first launch and `second-instance`): `readTaskList` reads only that folder/name pattern,
   deletes the file and sorts by name like Explorer (01, 02, 10). Combine → main window `combine-paths`
@@ -680,6 +691,15 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   copied there from 4e4e0838; titlebar-test also needs the `*.ps1` helpers copied from there): sharp-screen, sharp-print,
   print-memory (text200 at 600 dpi, scan50 steps down), print 71, print-screen 38, controls 15, titlebar 43, pages-panel 15,
   ops 10. Not yet: the user's side-by-side check with Acrobat on screen and on paper.
+- **Reduce file size (2026-10-20, on main, not released)**: Save ▾ (Save / Save As… / Save as Reduced Size PDF…) and
+  File Explorer › Reduce file size (spec/plan 2026-10-20-reduce-size*). Passed from source: reduce-test (pack, pictures,
+  the user's Khmer PDFs: the 2015 PwC report 33.6 MB → 9.7 MB, text identical), save-menu-test, reduce-menu-test,
+  menu-sources unit, DLL harness 40 (built from Git Bash with `cmd //c ".\\build.bat"`), and the older nozip,
+  folders, close, controls, titlebar, images suites (tests in this session's `t\`). menu-test: 45 of 48 — the 3
+  Combine "Couldn't read: …" toast checks fail the same way at 7e4d656 (before this work): the problems now show in
+  the opening progress box (2026-10-19), not in the toast; the test is stale. The installed
+  copy's right-click menu gets the entry only with a new release (new DLL); no UAC prompt (manifest unchanged).
+  Needs a What's new entry in app/notes.js at release time.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
