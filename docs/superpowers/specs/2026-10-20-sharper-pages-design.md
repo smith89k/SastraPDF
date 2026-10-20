@@ -38,7 +38,9 @@ is installed on this PC (its "Adobe PDF" printer is there), so the two can be co
 ## B. Print (app/print.js `go`)
 - Sheets are drawn at **600 dpi** and stored as **PNG** (lossless: no JPEG fuzz around letters), as long as the job is
   at most **50 A4-sized sheets** (A3 counts 2, A5 ½, Letter / Legal by area); up to 150 A4-sized sheets: 300 dpi PNG;
-  more: 150 dpi JPEG 0.92 as today (keeps memory and the spool sane on very long jobs).
+  more: 150 dpi JPEG 0.92 as today (keeps memory and the spool sane on very long jobs). A sheet never passes
+  64 MP (pdfops.js's limit: past it a canvas fails or eats gigabytes), so A3 at "600" is 575 dpi.
+- `SastraPrint.printQuality(sheets, paper) → { dpi, type }` holds that rule (pure, exposed like `pickPages`).
 - Everything else stays: pdf.js `intent:'print'`, grey mode, landscape sheets turned onto portrait paper, the summary,
   Cancel.
 - **Save as PDF** is not changed (300 / 150 dpi JPEG) — a 600 dpi PNG PDF would be many times bigger, and it is made to
@@ -52,7 +54,8 @@ is installed on this PC (its "Adobe PDF" printer is there), so the two can be co
 - **sharp-screen** (Playwright, the Khmer report + ten.pdf): page canvases are opaque (`getContextAttributes().alpha`
   false) and 1 : 1 at 100 % / fit width / 125 %; at 800 % (past the 4800 px limit) the canvas is transparent; a capture
   of a text block shows LCD colour (R ≠ B on edge pixels) where Windows' ClearType is on; thumbnails stay grey;
-  Present's canvas is opaque. Compared with a screenshot of the same page in Acrobat (by eye, saved for the user).
+  Present's canvas is opaque and 1 : 1; with `--force-device-scale-factor=2.5` the canvas is 2.5 × its CSS size (no
+  cap). Close-ups of the Khmer report are saved for the user, who compares them with Acrobat.
 - **print** (print-test.js with main's `print` swapped for `printToPDF`, as now): the sheet images in `#printArea` are PNG
   at 600 dpi for a 10-page job, 300 dpi for 60 A4 pages (or 30 A3), JPEG 150 dpi past 150; output pages still the right
   paper size; Cancel still works. Then the existing print 71 and print-screen 38 checks.
