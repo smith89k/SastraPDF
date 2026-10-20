@@ -666,6 +666,12 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   information" — it switches the answer to Yes itself); IARC 3+ / Everyone; English listing from docs/store-listing.md
   with the 3 store-shots screenshots; runFullTrust reason ≤ 500 characters; testing notes on Additional Testing
   Information. Status "In certification" (usually hours, up to 3 business days); publishes as soon as it passes.
+- **Sharper pages (2026-10-20, on main, not released)**: ClearType text on screen and 600 dpi print (JPEG 0.92, smart size
+  check: up to 3 sample sheets estimate the job, past 500 MB the dpi steps down, never below 150; A3 575) (spec/plan
+  2026-10-20-sharper-pages*). Tests in this session's scratchpad `t\` (…\c2983e9f-…\scratchpad\t; the older suites were
+  copied there from 4e4e0838; titlebar-test also needs the `*.ps1` helpers copied from there): sharp-screen, sharp-print,
+  print-memory (text200 at 600 dpi, scan50 steps down), print 71, print-screen 38, controls 15, titlebar 43, pages-panel 15,
+  ops 10. Not yet: the user's side-by-side check with Acrobat on screen and on paper.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
