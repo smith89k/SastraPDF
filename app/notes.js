@@ -10,6 +10,14 @@ const KINDS = Object.freeze(['new', 'improved', 'fixed', 'removed']);   // the w
 const N = (version, date, notes) => Object.freeze({ version, date, notes: Object.freeze(notes.map(([kind, text]) => Object.freeze({ kind, text }))) });
 
 const NOTES = Object.freeze([
+  N('1.3.0', '2026-10-20', [
+    ['new', 'Make a PDF smaller: click the arrow next to Save, then Save as Reduced Size PDF… (also in ☰ › File). As in Acrobat, large pictures are brought down to 150 ppi and the file is packed tighter; the text stays exactly as it is. The copy is saved next to the original by default (Report.pdf → Report_reduced.pdf), and the open file is not changed. If the PDF can\'t get any smaller, no copy is made.'],
+    ['new', 'Right-click PDFs in File Explorer → Sastra PDF → Reduce file size. Each PDF gets a smaller copy next to it (Report.pdf → Report_reduced.pdf).'],
+    ['new', 'The arrow next to Save lists Save, Save As… and Save as Reduced Size PDF…, as in Acrobat.'],
+    ['improved', 'Sharper text on screen: letters are drawn with Windows ClearType, as in Acrobat. Pages stay sharp when you move the window to another screen or change the display scale.'],
+    ['improved', 'Sharper printing: pages go to the printer at 600 dpi (was 300). Very heavy jobs, such as hundreds of scanned pages, step down a little so the printer still gets them.'],
+    ['fixed', 'Save as PDF on the Print screen and Save As for a combined file now start in the file\'s folder when it is at the top of a drive (for example E:\\Report.pdf).']
+  ]),
   N('1.2.0', '2026-10-19', [
     ['new', 'Sastra PDF is now in the Microsoft Store, signed by Microsoft, so Windows no longer warns when you install it. New versions now come only from the Store. If you installed Sastra PDF from an installer: open the Microsoft Store app, search for Sastra PDF (or go to apps.microsoft.com/detail/9P768LL4RTVP), install it, then uninstall this copy in Settings › Apps. The Store version starts with fresh settings.'],
     ['new', 'Drag PDFs and pictures from File Explorer onto the Pages panel to add them where the red line shows. Pictures keep their own size. One Ctrl+Z takes it all back.'],
