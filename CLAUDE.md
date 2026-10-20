@@ -286,8 +286,11 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   `desk.saveDialog(…, 'pdf', the file's folder)`, title "Save as PDF"; browser: download), name `<name>-<paper>.pdf`.
   Settings live in localStorage `sastra-print` (not copies or page choice), same shape as before.
   `pickPages` and `planSheets` are pure (points, 5 mm margin) and exposed on `window.SastraPrint`, so
-  tests call them directly. Printing draws every sheet with pdf.js (intent 'print') at 300 dpi
-  (150 over 150 sheets) as JPEG into `#printArea`; landscape sheets are turned onto portrait paper
+  tests call them directly. Printing draws every sheet with pdf.js (intent 'print') into `#printArea` at the resolution
+  `printQuality(sheets, paper)` picks (since 2026-10-20, "acrobat look sharper"): 600 dpi PNG up to 50 A4-sized sheets
+  (A3 counts 2; never past 64 MP a sheet, so A3 = 575 dpi), 300 dpi PNG up to 150, then 150 dpi JPEG. Acrobat prints the
+  page itself (vector); that was tried — a PDF in an Electron 44 window printed silently gives "Print job canceled" /
+  "Failed to convert PDF: … PdfToEmfConverter" — so the sheets stay pictures. Save as PDF keeps 300 / 150 dpi JPEG; landscape sheets are turned onto portrait paper
   (top to the left edge), so the printer always gets portrait pages of the chosen paper; `@media print`
   shows only `#printArea`. main.js `print` = `webContents.print({ silent:true, margins none,
   landscape:false, … })` with every option validated; Booklet "both sides" forces short-edge duplex.
