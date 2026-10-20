@@ -36,14 +36,25 @@ is installed on this PC (its "Adobe PDF" printer is there), so the two can be co
   pictures shown 1 : 1 on this screen.
 
 ## B. Print (app/print.js `go`)
-- Sheets are drawn at **600 dpi** and stored as **PNG** (lossless: no JPEG fuzz around letters), as long as the job is
-  at most **50 A4-sized sheets** (A3 counts 2, A5 ½, Letter / Legal by area); up to 150 A4-sized sheets: 300 dpi PNG;
-  more: 150 dpi JPEG 0.92 as today (keeps memory and the spool sane on very long jobs). A sheet never passes
-  64 MP (pdfops.js's limit: past it a canvas fails or eats gigabytes), so A3 at "600" is 575 dpi.
-- `SastraPrint.printQuality(sheets, paper) → { dpi, type }` holds that rule (pure, exposed like `pickPages`).
+- **Changed after measuring (2026-10-20, the user chose "smart" — "what if i have 200page?"):** the first version
+  (600 dpi PNG up to 50 A4-sized sheets, 300 PNG up to 150, then 150 JPEG) failed on heavy jobs: 50 full-page noisy
+  scans at 600 dpi PNG = 85 MB a sheet, renderer ~8.4 GB, all processes ~11.5 GB, and Chromium's print step failed
+  ("Printing failed"). Measured, 50 A4 sheets (all processes / printed data): scans 600 JPEG 3.4 GB / 665 MB; dense text
+  600 PNG 1.8 GB / 105 MB (62 s), 600 JPEG 1.9 GB / 219 MB (20 s); old 300 JPEG text 1.0 GB / 87 MB, scans 1.8 GB / 215 MB.
+  Chromium keeps the sheets' encoded data, not every decoded bitmap, so the cost follows the bytes, not the page count.
+  A real page of the user's Khmer reports at 600 dpi JPEG 0.92 is ~0.6 MB (a 200-page job ≈ 120 MB).
+- So: sheets are **JPEG 0.92 at 600 dpi** (the office printers' own resolution; at 600 dpi JPEG's fuzz is half today's
+  size), unless the job would be too heavy. **Smart check:** before printing, up to 3 sample sheets (first, middle, last)
+  are drawn at the top resolution and the job's data is estimated as their average size × the number of sheets. Up to
+  **300 MB** → the top resolution; above it the resolution goes down just enough (data grows with dpi²):
+  `dpi = floor(top × √(300 MB / estimate))`, never below **150**. Sample sheets drawn at the resolution finally used are
+  reused, not drawn twice. A sheet never passes 64 MP (pdfops.js's limit: past it a canvas fails or eats gigabytes), so
+  A3's top resolution is 575 dpi.
+- Pure and exposed like `pickPages`: `SastraPrint.printTopDpi(paper) → dpi` (600, or less where 64 MP binds) and
+  `SastraPrint.printDpi(paper, sheets, sampleBytes[]) → dpi`.
 - Everything else stays: pdf.js `intent:'print'`, grey mode, landscape sheets turned onto portrait paper, the summary,
   Cancel.
-- **Save as PDF** is not changed (300 / 150 dpi JPEG) — a 600 dpi PNG PDF would be many times bigger, and it is made to
+- **Save as PDF** is not changed (300 / 150 dpi JPEG) — a 600 dpi PDF would be several times bigger, and it is made to
   be sent, not printed.
 
 ## Not in this work
