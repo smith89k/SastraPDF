@@ -702,6 +702,12 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   The new right-click entry reaches users only with the next Microsoft Store release (the DLL ships in the package);
   copies installed with the 1.2.0 installer never get it.
   Needs a What's new entry in app/notes.js at release time.
+- **Released v1.3.0 on 2026-10-20** (Store-only; run 39430445491, every step passed): Reduce file size (Save ▾ and the
+  Explorer menu), sharper screen and print, the drive-root Save folder fix. Built from branch
+  claude/ms-store-release-notes-r9jaux (main + the version bump and What's new entry; merge it into main). GitHub release
+  v1.3.0 has Sastra-PDF-Store-1.3.0.msix (167 279 379 bytes, SHA-256 e2d0f0c9…25548ee). The older Playwright suites
+  were not run for this release (they live on the user's PC). Still to do: submit the .msix in Partner Center (Start update
+  → Packages), once 1.2.0 has passed certification.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
