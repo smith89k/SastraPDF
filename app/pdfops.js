@@ -35,5 +35,8 @@
     return { blob, dpi: use };
   }
 
-  window.SastraOps = { PDFJS_OPTS, pdfjs, closePdf, baseName, rangeLabel, imageName, renderPage };
+  // 512 B, 980 KB, 12.4 MB
+  const fmtBytes = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+
+  window.SastraOps = { PDFJS_OPTS, pdfjs, closePdf, baseName, rangeLabel, imageName, renderPage, fmtBytes };
 })();

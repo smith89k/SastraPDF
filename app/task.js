@@ -1,12 +1,12 @@
-// Sastra PDF — the small window for File Explorer menu jobs (Split / Images). main.js sends one batch per menu
-// click ({ task, paths }); batches run one after another. Per click: open the PDFs (page counts decide the names),
-// ask ONE Replace / Keep both / Cancel question, then write each file as soon as it is made.
+// Sastra PDF — the small window for File Explorer menu jobs (Split / Images / Reduce file size). main.js sends one batch
+// per menu click ({ task, paths }); batches run one after another. Per click: open the PDFs (page counts decide the
+// names), ask ONE Replace / Keep both / Cancel question, then write each file as soon as it is made.
 (() => {
-  const desk = window.sastra, Ops = window.SastraOps, { PDFDocument } = window.PDFLib;
+  const desk = window.sastra, Ops = window.SastraOps, Reduce = window.SastraReduce, { PDFDocument } = window.PDFLib;
   const $ = s => document.querySelector(s);
   const DPI = 300, JPG_QUALITY = 0.92;
   const queue = [];
-  let running = false, cancelled = false, saved = 0, problemCount = 0, closeTimer = null;
+  let running = false, cancelled = false, saved = 0, problemCount = 0, closeTimer = null, sizeBefore = 0, sizeAfter = 0;
 
   const dirOf = p => p.replace(/[\\/][^\\/]*$/, '');
   const fileOf = p => p.split(/[\\/]/).pop();
@@ -59,7 +59,10 @@
     const files = plural(saved, 'file');
     if (cancelled) show('Cancelled', `${files} saved`, 1);
     else if (problemCount) show('Done, with problems', `${files} saved · ${plural(problemCount, 'problem')} below`, 1);
-    else { show('Done', `${files} saved`, 1); closeTimer = setTimeout(() => window.close(), 2000); }
+    else {   // Reduce file size adds the sizes: "2 files saved · 18.6 MB → 4.9 MB"
+      show('Done', `${files} saved${sizeAfter ? ` · ${Ops.fmtBytes(sizeBefore)} → ${Ops.fmtBytes(sizeAfter)}` : ''}`, 1);
+      closeTimer = setTimeout(() => window.close(), 2000);
+    }
     $('#bClose').focus();
   }
 
@@ -77,6 +80,7 @@
   }
 
   async function batch({ task, paths }) {
+    if (task === 'reduce') return reduceBatch(paths);
     const split = task.startsWith('split'), inFolder = task.endsWith('-folder');
     const verb = split ? 'Splitting' : 'Making images of';
     const jobs = [];
@@ -104,6 +108,34 @@
       j.names = final[k];
       if (inFolder) { const r = await desk.makeDir(j.dir); if (r.error) { problem(`${j.name}: couldn't make the folder "${fileOf(j.dir)}" (${r.error})`); continue; } }
       try { await (split ? splitOne(j, verb) : imagesOne(j, verb)); }
+      catch (e) { problem(`${j.name}: ${why(e)}`); }
+    }
+  }
+
+  // Reduce file size: "<name>_reduced.pdf" next to each PDF (reduce.js, as the main window's Save as Reduced Size PDF).
+  // The "already there" question first, from the names alone; then each file is reduced and written at once.
+  async function reduceBatch(paths) {
+    const jobs = paths.map(p => ({ path: p, name: fileOf(p), dir: dirOf(p) }));
+    const groups = jobs.map(j => ({ dir: j.dir, names: [Reduce.reducedName(j.name)] })), q = await desk.nameClashes(groups);
+    let choice = null;
+    if (q.count) {
+      show('Some files are already there', '', 0);
+      choice = await ask(q.message, q.detail);
+      if (!choice) { problem(`Cancelled: nothing saved for ${jobs.length === 1 ? jobs[0].name : plural(jobs.length, 'PDF')}`); return; }
+    }
+    const final = await desk.resolveNames(groups, choice);
+    for (const [k, j] of jobs.entries()) {
+      if (cancelled) return;
+      show(`Reducing ${j.name}`, jobs.length > 1 ? `File ${k + 1} of ${jobs.length}` : '', 0);
+      const bytes = await readBytes(j.path, j.name); if (!bytes) continue;
+      let r;
+      try { r = await Reduce.reduce(bytes, { isCancelled: () => cancelled, onStep: ({ i, n }) => show(`Reducing ${j.name}`, `Picture ${i} of ${n}`, (i - 1) / n) }); }
+      catch (e) {
+        if (e?.reason === 'cancelled') return;
+        problem(e?.reason === 'protected' ? `${j.name}: it's password-protected` : `${j.name}: it may be damaged or not a PDF`); continue;
+      }
+      if (!r.bytes) { problem(`${j.name} is already as small as it can be — no copy made`); continue; }
+      try { await desk.writeFile(join(j.dir, final[k][0]), r.bytes); saved++; sizeBefore += r.before; sizeAfter += r.after; }
       catch (e) { problem(`${j.name}: ${why(e)}`); }
     }
   }
