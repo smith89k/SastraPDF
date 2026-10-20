@@ -74,8 +74,9 @@ Pictures are done one at a time and each bitmap is closed at once, so a 500-page
   1. `busy('Reducing file size…')`, the status bar showing "Reducing file size · picture 3 of 40";
   2. not smaller → toast "<name> is already as small as it can be — no copy made", nothing else;
   3. else the Save dialog (`desk.saveDialog(reducedName, bytes, 'reduced', folder)`; main.js titles kind `'reduced'`
-     "Save as Reduced Size PDF" and remembers it as the save folder), starting in the open file's own folder
-     (`d.path`'s folder, else `d.saveDir`, else the remembered one);
+     "Save as Reduced Size PDF" and remembers it as the save folder). It ALWAYS starts in the open file's own folder
+     (the user, 2026-10-20: "same save as open directory the same opened file") — `d.path`'s folder, not the remembered
+     save folder; a file with no path yet (Combine result, split part) uses `d.saveDir`, else the remembered one;
   4. saved → toast "Saved Report_reduced.pdf · 12.4 MB → 3.1 MB (75 % smaller)". The open tab stays the original file
      (not switched to the copy, its dirty state unchanged).
   Protected / damaged → error toast "Couldn't reduce <name>: it's password-protected" / "…: it may be damaged".
