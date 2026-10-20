@@ -10,7 +10,7 @@ const PKG_VERSION = '1.1.0.0';        // = explorer-menu/AppxManifest.xml (the b
 const CLSID = '{47a2af3d-bd25-4ebd-949f-d0e6b6bd5004}';
 const CLASSES = 'HKCU\\Software\\Classes';
 const STATE_KEY = 'HKCU\\Software\\Sastra PDF\\ExplorerMenu';
-const TASKS = ['combine', 'split-here', 'split-folder', 'images-here', 'images-folder'];
+const TASKS = ['combine', 'split-here', 'split-folder', 'images-here', 'images-folder', 'reduce'];
 // The file types the menu is shown for: = the ItemTypes in AppxManifest.xml and the list in menu.cpp (the build script checks)
 const EXTS = ['.pdf', '.jpg', '.jpeg', '.jfif', '.png', '.bmp', '.gif', '.webp'];
 const LIST_DIR = () => path.join(os.tmpdir(), 'Sastra PDF');

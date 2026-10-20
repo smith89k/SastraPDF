@@ -1,4 +1,4 @@
-// Sastra PDF — File Explorer right-click menu: "Sastra PDF ▸ Make PDF / Combine / Split / Images" for PDFs and pictures.
+// Sastra PDF — File Explorer right-click menu: "Sastra PDF ▸ Make PDF / Combine / Split / Images / Reduce file size" for PDFs and pictures.
 // An IExplorerCommand with sub-commands. Windows 11 loads it through the SastraPDF.ExplorerMenu package
 // (first menu, in a dllhost); Windows 10 and the fallback through HKCU\Software\Classes (classic menu, in
 // explorer.exe). A click writes the chosen files to a list file and starts Sastra PDF with
@@ -26,7 +26,7 @@
 using namespace Microsoft::WRL;
 
 static HMODULE g_module = nullptr;
-enum class Act { MakePdf, Combine, Sep1, SplitHere, SplitFolder, Sep2, ImagesHere, ImagesFolder };
+enum class Act { MakePdf, Combine, Sep1, SplitHere, SplitFolder, Sep2, ImagesHere, ImagesFolder, Sep3, Reduce };
 
 static std::string Utf8(const std::wstring& s) {
   if (s.empty()) return {};
@@ -77,11 +77,12 @@ static std::wstring Title(Act a, const Selection& s) {
     case Act::SplitFolder: return one ? L"Split to \"" + ShortBase(s.pdfs[0]) + L"\\\"" : L"Split to folders";
     case Act::ImagesHere: return L"Images here (JPG)";
     case Act::ImagesFolder: return one ? L"Images to \"" + ShortBase(s.pdfs[0]) + L"\\\" (JPG)" : L"Images to folders (JPG)";
+    case Act::Reduce: return L"Reduce file size";
     default: return L"";
   }
 }
 
-// Make PDF: exactly one picture. Combine: 2+ files of any kind. Split / Images (and the lines around them): the PDFs only.
+// Make PDF: exactly one picture. Combine: 2+ files of any kind. Split / Images / Reduce (and the lines around them): the PDFs only.
 static bool Shown(Act a, const Selection& s) {
   switch (a) {
     case Act::MakePdf: return s.all.size() == 1 && s.pdfs.empty();
@@ -99,6 +100,7 @@ static const wchar_t* TaskName(Act a) {
     case Act::SplitFolder: return L"split-folder";
     case Act::ImagesHere: return L"images-here";
     case Act::ImagesFolder: return L"images-folder";
+    case Act::Reduce: return L"reduce";
     default: return L"";
   }
 }
@@ -217,7 +219,7 @@ static HRESULT Launch(Act a, const std::vector<std::wstring>& paths) {
 
 class Item : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IExplorerCommand> {
   Act act_;
-  bool Separator() const { return act_ == Act::Sep1 || act_ == Act::Sep2; }
+  bool Separator() const { return act_ == Act::Sep1 || act_ == Act::Sep2 || act_ == Act::Sep3; }
 public:
   explicit Item(Act a) : act_(a) {}
   IFACEMETHODIMP GetTitle(IShellItemArray* items, LPWSTR* name) override {
@@ -232,7 +234,7 @@ public:
   IFACEMETHODIMP Invoke(IShellItemArray* items, IBindCtx*) override {
     if (Separator()) return S_OK;
     Selection s = Scan(items);
-    return Launch(act_, act_ == Act::MakePdf || act_ == Act::Combine ? s.all : s.pdfs);   // Split / Images: the PDFs only
+    return Launch(act_, act_ == Act::MakePdf || act_ == Act::Combine ? s.all : s.pdfs);   // Split / Images / Reduce: the PDFs only
   }
   IFACEMETHODIMP GetFlags(EXPCMDFLAGS* flags) override { *flags = Separator() ? ECF_ISSEPARATOR : ECF_DEFAULT; return S_OK; }
   IFACEMETHODIMP EnumSubCommands(IEnumExplorerCommand** e) override { *e = nullptr; return E_NOTIMPL; }
@@ -242,7 +244,7 @@ class Enum : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IEnumExplorerCom
   std::vector<ComPtr<IExplorerCommand>> cmds_; ULONG pos_ = 0;
 public:
   Enum() {
-    for (Act a : { Act::MakePdf, Act::Combine, Act::Sep1, Act::SplitHere, Act::SplitFolder, Act::Sep2, Act::ImagesHere, Act::ImagesFolder })
+    for (Act a : { Act::MakePdf, Act::Combine, Act::Sep1, Act::SplitHere, Act::SplitFolder, Act::Sep2, Act::ImagesHere, Act::ImagesFolder, Act::Sep3, Act::Reduce })
       cmds_.push_back(Make<Item>(a));
   }
   IFACEMETHODIMP Next(ULONG celt, IExplorerCommand** out, ULONG* fetched) override {

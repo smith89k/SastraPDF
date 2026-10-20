@@ -10,10 +10,10 @@ const PF86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
 const fail = msg => { console.error('build-explorer-menu: ' + msg); process.exit(1); };
 
 // CLSID, package version and file types must be the same in the DLL, both manifests and explorer-menu.js
-const { CLSID, PKG, PKG_VERSION, EXTS } = require('../explorer-menu.js');
+const { CLSID, PKG, PKG_VERSION, EXTS, TASKS } = require('../explorer-menu.js');
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
 const problems = require('./menu-sources').menuProblems({ cpp: read('explorer-menu', 'menu.cpp'), sparse: read('explorer-menu', 'AppxManifest.xml'),
-  store: read('build', 'store-manifest.xml'), CLSID, PKG, PKG_VERSION, EXTS });
+  store: read('build', 'store-manifest.xml'), CLSID, PKG, PKG_VERSION, EXTS, TASKS });
 if (problems.length) fail(problems[0]);
 
 function vcvars() {
