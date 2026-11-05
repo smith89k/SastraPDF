@@ -110,14 +110,14 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:defau
 .menubar .btn .lbl{display:inline}
 /* the logo row holds everything, so it sheds the least-needed bits as the window narrows;
    all stay reachable (tooltips, zoom dropdown, right-click menu, shortcuts) */
-@media (max-width:1638px){#app:not(.focus) .menubar .btn .lbl{display:none}}
-@media (max-width:1384px){#bFitW,#bFitP{display:none}}
+@media (max-width:1674px){#app:not(.focus) .menubar .btn .lbl{display:none}}
+@media (max-width:1420px){#bFitW,#bFitP,#bTwo{display:none}}
 @media (max-width:1316px){.menubar .brand-km{display:none}}
 @media (max-width:1263px){#bZoomOut,#bZoomIn{display:none}}
 @media (max-width:1195px){#bPrev,#bNext{display:none}}
 /* The Store copy's update badge (app/update-panel.js) needs 116 px while it shows: each step above comes that much sooner */
-@media (max-width:1754px){#app.has-update:not(.focus) .menubar .btn .lbl{display:none}}
-@media (max-width:1500px){#app.has-update #bFitW,#app.has-update #bFitP{display:none}}
+@media (max-width:1790px){#app.has-update:not(.focus) .menubar .btn .lbl{display:none}}
+@media (max-width:1536px){#app.has-update #bFitW,#app.has-update #bFitP,#app.has-update #bTwo{display:none}}
 @media (max-width:1432px){#app.has-update .menubar .brand-km{display:none}}
 @media (max-width:1379px){#app.has-update #bZoomOut,#app.has-update #bZoomIn{display:none}}
 @media (max-width:1311px){#app.has-update #bPrev,#app.has-update #bNext{display:none}}
@@ -191,6 +191,11 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .page{background:#fff;box-shadow:var(--page-shadow);position:relative;flex:none}
 .page canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .page.sel{outline:3px solid var(--accent);outline-offset:3px}
+/* Two-page view: pairs 1-2, 3-4 around one middle gap; TWO_GAP in the script */
+#pages.two{display:grid;grid-template-columns:max-content max-content;justify-content:center;align-items:center;gap:18px 8px}
+#pages.two .page:nth-child(odd){justify-self:end}
+#pages.two .page:nth-child(even){justify-self:start}
+#pages.two .page:nth-child(odd) .pg-lbl{left:auto;right:100%;margin:0 10px 0 0}
 .page .pg-lbl{position:absolute;left:100%;top:0;margin-left:10px;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;opacity:.8}
 
 .empty{position:absolute;inset:0;display:grid;place-items:center;padding:24px}
@@ -454,7 +459,8 @@ select.big option{padding:8px 10px}
 #app:not(.focus) #bNewTab{display:none}   /* + only while maximized: the normal view has Open */
 /* ...and it is a slideshow in the window: only the current page, fitted whole and centred */
 #app.focus #pages{box-sizing:border-box;min-height:100%;justify-content:center;padding:12px}
-#app.focus .page:not(.current){display:none}
+#app.focus:not(.flow) #pages.two{align-content:center}
+#app.focus:not(.flow) .page:not(.current):not(.pair){display:none}   /* zoomed in, the pages flow: see setFlow */
 #app.focus .page .pg-lbl{display:none}
 #app.focus .page.sel{outline:none}   /* no red selection frame on the slide; the selection stays for Restore */
 
@@ -490,6 +496,7 @@ select.big option{padding:8px 10px}
         <button class="btn icon" id="bZoomIn" title="Zoom in (Ctrl+=)"><svg class="i" data-i="zin"></svg></button>
         <button class="btn icon" id="bFitW" title="Fit width"><svg class="i" data-i="fitw"></svg></button>
         <button class="btn icon" id="bFitP" title="Fit page (Ctrl+0)"><svg class="i" data-i="fitp"></svg></button>
+        <button class="btn icon" id="bTwo" title="Two-page view: left and right"><svg class="i" data-i="two"></svg></button>
         <span class="sep"></span>
         <button class="btn icon" id="bPrev" title="Previous page"><svg class="i" data-i="up"></svg></button>
         <div class="pagebox"><input id="pageIn" inputmode="numeric" aria-label="Page number" value="1"><span id="pageOf">/ 1</span></div>
@@ -609,6 +616,7 @@ const ICONS = {
   zout:'<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M8 11h6"/>',
   fitw:'<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>',
   fitp:'<rect x="6" y="3" width="12" height="18" rx="1.5"/><path d="M9.5 9h5M9.5 12.5h5"/>',
+  two:'<rect x="3" y="5" width="8" height="14" rx="1.2"/><rect x="13" y="5" width="8" height="14" rx="1.2"/>',
   up:'<path d="M6 15l6-6 6 6"/>', down:'<path d="M6 9l6 6 6-6"/>',
   rotl:'<path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 3.5V9h5.5"/>',
   rotr:'<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3.5V9h-5.5"/>',
@@ -743,7 +751,7 @@ const CREDITS = [
   ['IBM Plex Sans & Mono','','IBM','SIL OFL 1.1','https://github.com/IBM/plex'],
   ['Noto Sans Khmer','','Google','SIL OFL 1.1','https://github.com/notofonts/khmer']
 ];
-const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib: UPNG and tslib (MIT and 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. electron-updater (automatic updates) comes with builder-util-runtime, fs-extra, jsonfile, universalify, js-yaml, lazy-val, lodash.escaperegexp, lodash.isequal, tiny-typed-emitter, debug and ms (MIT), graceful-fs and semver (ISC), argparse (Python-2.0) and sax (Blue Oak 1.0.0). The installer is made with electron-builder (MIT) and NSIS (zlib). The font files are packaged by Fontsource (MIT).';
+const CREDITS_NOTE = 'Inside pdf.js: OpenJPEG (BSD-2), PDFium\'s JBIG2 decoder and Foxit fonts (BSD-3), qcms (MIT), Adobe character maps (BSD-3), Liberation Sans (GPL-2.0 with font exception). Inside pdf-lib: UPNG and tslib (MIT and 0BSD). Electron includes Chromium, Node.js and FFmpeg; their licences are in LICENSES.chromium.html in the app folder. electron-updater (automatic updates) comes with builder-util-runtime, fs-extra, jsonfile, universalify, js-yaml, lazy-val, lodash.escaperegexp, lodash.isequal, tiny-typed-emitter, debug and ms (MIT), graceful-fs and semver (ISC), argparse (Python-2.0) and sax (Blue Oak 1.0.0). The Microsoft Store update helper is built with C++/WinRT (MIT). The installer is made with electron-builder (MIT) and NSIS (zlib). The font files are packaged by Fontsource (MIT).';
 function openAbout(){
   if ($('.modal-bg')) return;
   const back = document.activeElement, A = AUTHOR, out = 'target="_blank" rel="noopener"';   // links open in the normal browser
@@ -1145,23 +1153,45 @@ function switchTab(dir){   // Ctrl+Tab / Ctrl+Shift+Tab, wrapping round like a b
 
 /* ---------- viewer ---------- */
 let io = null;
+// Two-page view (the user: always 1-2, 3-4): pages i and i^1 are a pair, the odd-numbered one on the left.
+const TWO_GAP = 8;   // #pages.two's middle gap
+let two = false; try { two = localStorage.getItem('sastra-two-page') === '1'; } catch {}
+const partner = (d, i) => { const j = i ^ 1; return two && j < d.n ? j : -1; };
+function setTwo(on){
+  two = on; try { localStorage.setItem('sastra-two-page', on ? '1' : '0'); } catch {}
+  $('#bTwo').classList.toggle('on', on);
+  renderViewer(); const d = active(); if (d) goTo(d.current, true);
+  updateZoomUI();
+}
+// Next or previous: one page, or one pair.
+function stepPage(dir){
+  const d = active(); if (!d) return;
+  const to = two ? d.current - d.current % 2 + 2 * dir : d.current + dir;
+  if (to < d.n) goTo(to);
+}
 function fitZoom(d, mode){
   const f = app.classList.contains('focus'), pad = f ? 24 : 48;   // maximized: slim margins, no page numbers
-  const vw = viewer.clientWidth - pad - (!f && window.innerWidth>820 ? 60 : 0), vh = viewer.clientHeight - pad;
-  const maxW = Math.max(...d.sizes.map(s=>s.w)); const s = d.sizes[d.current] || d.sizes[0];
-  let z = vw / maxW; if (mode === 'page') z = Math.min(z, vh / s.h);
+  const vw = viewer.clientWidth - pad - (!f && window.innerWidth>820 ? 60 : 0) - (two ? TWO_GAP : 0), vh = viewer.clientHeight - pad;
+  const s = d.sizes[d.current] || d.sizes[0], other = partner(d, d.current), o = d.sizes[other];
+  let maxW = Math.max(...d.sizes.map(s=>s.w));
+  if (two) {
+    if (f && mode === 'page') maxW = s.w + (o ? o.w : 0);   // only this pair shows
+    else { maxW = 0; for (const c of [0, 1]) maxW += Math.max(0, ...d.sizes.filter((_, i) => i % 2 === c).map(p => p.w)); }
+  }
+  let z = vw / maxW; if (mode === 'page') z = Math.min(z, vh / Math.max(s.h, o ? o.h : 0));
   return Math.max(0.1, Math.min(z, 8));
 }
 function renderViewer(restore){
-  if (io) io.disconnect(); pagesEl.innerHTML = '';
+  if (io) io.disconnect(); pagesEl.innerHTML = ''; pagesEl.classList.toggle('two', two);
   const d = active(); $('#empty').hidden = !!d;
   if (!d) { if (app.classList.contains('focus')) toggleFocus(false); return; }
   focusFit(d);
   if (d.fit) d.zoom = fitZoom(d, d.fit);
+  setFlow(d);
   d.viewGen++;
   io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) drawPage(d, +e.target.dataset.i, e.target); }, { root:viewer, rootMargin:'800px 400px' });
   d.sizes.forEach((s,i) => {
-    const el = document.createElement('div'); el.className = 'page' + (i === d.current ? ' current' : ''); el.dataset.i = i;
+    const el = document.createElement('div'); el.className = 'page' + (i === d.current ? ' current' : '') + (i === partner(d, d.current) ? ' pair' : ''); el.dataset.i = i;
     el.style.width = s.w*d.zoom+'px'; el.style.height = s.h*d.zoom+'px';
     el.innerHTML = `<span class="pg-lbl">${i+1}</span>`;
     pagesEl.appendChild(el); io.observe(el);
@@ -1169,6 +1199,17 @@ function renderViewer(restore){
   markViewerSel();
   if (restore && d.scroll) { viewer.scrollTop = d.scroll.t; viewer.scrollLeft = d.scroll.l; }
   else { viewer.scrollTop = 0; centerH(); }
+}
+const maxed = () => app.classList.contains('focus'), flowing = () => app.classList.contains('flow');
+// Maximized shows one page while it fits. Zoomed in past that, every page shows, so the hand tool and the wheel move
+// straight across them.
+function setFlow(d){ app.classList.toggle('flow', maxed() && !!d && d.fit !== 'page' && d.zoom > fitZoom(d, 'page') + 0.001); }
+// Maximized: the page at the view's middle and how far down it the middle is, so changing the layout keeps it in view.
+function viewAnchor(d){
+  const mid = viewer.scrollTop + viewer.clientHeight / 2;
+  let el = pagesEl.children[d.current];
+  if (flowing()) for (const p of pagesEl.children) if (p.offsetTop <= mid) el = p; else break;
+  return el && { el, at: (mid - el.offsetTop) / Math.max(1, el.offsetHeight) };
 }
 function focusFit(d){   // maximized shows one page fitted whole; restoring brings the old zoom back
   if (app.classList.contains('focus')) { if (!d.preFocus) { d.preFocus = { fit:d.fit, zoom:d.zoom }; d.fit = 'page'; } }
@@ -1198,9 +1239,11 @@ function setZoom(z, fit=null, keepTop=false){
   const ay = keepTop ? 0 : viewer.clientHeight/2;   // zoom around the view's centre, or keep its top edge (refit)
   const cy = (viewer.scrollTop + ay) / Math.max(1, viewer.scrollHeight);
   const cx = (viewer.scrollLeft + viewer.clientWidth/2) / Math.max(1, viewer.scrollWidth);
-  d.zoom = nz; d.viewGen++;
+  const anchor = maxed() ? viewAnchor(d) : null;
+  d.zoom = nz; d.viewGen++; setFlow(d);
   [...pagesEl.children].forEach((el,i) => { const s=d.sizes[i]; el.style.width=s.w*nz+'px'; el.style.height=s.h*nz+'px'; io.unobserve(el); io.observe(el); });
   if (fit === 'page') goTo(d.current, true);
+  else if (anchor) { viewer.scrollTop = anchor.el.offsetTop + anchor.at * anchor.el.offsetHeight - viewer.clientHeight/2; viewer.scrollLeft = cx*viewer.scrollWidth - viewer.clientWidth/2; }
   else { viewer.scrollTop = cy*viewer.scrollHeight - ay; viewer.scrollLeft = cx*viewer.scrollWidth - viewer.clientWidth/2; }
   updateZoomUI();
 }
@@ -1213,20 +1256,22 @@ function stepZoom(dir){
 function goTo(i, instant){
   const d = active(); if (!d) return; i = Math.max(0, Math.min(i, d.n-1));
   const el = pagesEl.children[i]; if (!el) return;
-  if (app.classList.contains('focus')) {   // maximized: one page at a time, fitted whole
+  if (maxed() && !flowing()) {   // maximized: one page at a time, fitted whole
     setCurrent(i);
     if (d.fit === 'page' && Math.abs(fitZoom(d, 'page') - d.zoom) > 0.001) setZoom(0, 'page');   // a page of another size
     viewer.scrollTop = 0; centerH();
-    for (const j of [i+1, i-1]) if (pagesEl.children[j]) drawPage(d, j, pagesEl.children[j]);   // flips without a blank flash
+    for (const j of two ? [i+2, i+3, i-2, i-1] : [i+1, i-1]) if (pagesEl.children[j]) drawPage(d, j, pagesEl.children[j]);   // flips without a blank flash
     return;
   }
-  viewer.scrollTo({ top: el.offsetTop - 14, behavior: instant ? 'auto' : 'auto' });
+  const other = pagesEl.children[partner(d, i)];
+  viewer.scrollTo({ top: Math.min(el.offsetTop, other ? other.offsetTop : el.offsetTop) - 14, behavior: instant ? 'auto' : 'auto' });
   setCurrent(i);
 }
 function setCurrent(i){
   const d = active(); if (!d || d.current === i) { updatePageUI(); return; }
   d.current = i; updatePageUI();
   pagesEl.querySelector('.page.current')?.classList.remove('current'); pagesEl.children[i]?.classList.add('current');
+  pagesEl.querySelector('.page.pair')?.classList.remove('pair'); pagesEl.children[partner(d, i)]?.classList.add('pair');
   thumbsEl.querySelectorAll('.thumb.current').forEach(t => t.classList.remove('current'));
   const t = thumbsEl.querySelector(`.thumb[data-i="${i}"]`); if (t) { t.classList.add('current'); t.scrollIntoView({block:'nearest'}); }
 }
@@ -1234,9 +1279,11 @@ let scrollRaf = 0;
 viewer.addEventListener('scroll', () => {
   if (scrollRaf) return;
   scrollRaf = requestAnimationFrame(() => {
-    scrollRaf = 0; const d = active(); if (!d || app.classList.contains('focus')) return;   // maximized: page keys set it
+    scrollRaf = 0; const d = active(); if (!d || (maxed() && !flowing())) return;   // one page at a time: page keys set it
     const mid = viewer.scrollTop + viewer.clientHeight * 0.35; let best = 0;
     for (const el of pagesEl.children) { if (el.offsetTop <= mid) best = +el.dataset.i; else break; }
+    if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 2) best = d.n - 1;   // the very end: a short last page never reaches the line
+    if (two) best = (best | 1) === (d.current | 1) ? d.current : best - best % 2;   // inside a pair the current page stays; else its left page
     setCurrent(best);
   });
 });
@@ -1278,8 +1325,8 @@ function wheelFlipper(){   // one flick of the wheel or trackpad (momentum inclu
 }
 const focusFlip = wheelFlipper();
 viewer.addEventListener('wheel', e => {   // maximized with the page fitted: the wheel flips pages
-  if (!app.classList.contains('focus') || e.ctrlKey || e.metaKey || !active() || viewer.scrollHeight > viewer.clientHeight + 2) return;
-  focusFlip(e, dir => goTo(active().current + dir));
+  if (!maxed() || flowing() || e.ctrlKey || e.metaKey || !active() || viewer.scrollHeight > viewer.clientHeight + 2) return;
+  focusFlip(e, stepPage);
 }, { passive:false });
 
 function setTool(t){
@@ -1649,7 +1696,7 @@ async function saveReducedActive(){
 function updatePageUI(){
   const d = active();
   $('#pageIn').value = d ? d.current+1 : ''; $('#pageOf').textContent = '/ ' + (d ? d.n : 0);
-  $('#bPrev').disabled = !d || d.current <= 0; $('#bNext').disabled = !d || d.current >= d.n-1;
+  $('#bPrev').disabled = !d || d.current <= 0; $('#bNext').disabled = !d || d.current >= d.n-1 || (two && d.current - d.current % 2 + 2 >= d.n);
 }
 function updateZoomUI(){
   const d = active(), sel = $('#zoomSel'); sel.disabled = !d;
@@ -1702,8 +1749,10 @@ $('#tSelect').onclick = () => setTool('select'); $('#tHand').onclick = () => set
 $('#bZoomIn').onclick = () => stepZoom(1); $('#bZoomOut').onclick = () => stepZoom(-1);
 $('#bFitW').onclick = () => setZoom(0,'width'); $('#bFitP').onclick = () => setZoom(0,'page');
 $('#zoomSel').onchange = e => { const v = e.target.value; if (v.startsWith('fit:')) setZoom(0, v.slice(4)); else if (v !== 'custom') setZoom(+v); };
-$('#bPrev').onclick = () => goTo((active()?.current ?? 0) - 1);
-$('#bNext').onclick = () => goTo((active()?.current ?? 0) + 1);
+$('#bPrev').onclick = () => stepPage(-1);
+$('#bNext').onclick = () => stepPage(1);
+$('#bTwo').onclick = () => setTwo(!two);
+$('#bTwo').classList.toggle('on', two);
 $('#pageIn').addEventListener('keydown', e => { if (e.key==='Enter') { const v = parseInt(e.target.value,10); if (v) goTo(v-1); viewer.focus(); } });
 $('#pageIn').addEventListener('blur', updatePageUI);
 $('#oRotL').onclick = () => rotate(-90);
@@ -1821,13 +1870,13 @@ window.addEventListener('dragend', endPageDrag, true);   // a dragged thumbnail 
 const CMENU = [
   ['tSelect','Select tool','V'], ['tHand','Hand tool','H'], '-',
   ['zoom'], ['bZoomIn','Zoom in','Ctrl+='], ['bZoomOut','Zoom out','Ctrl+−'], ['actual','Actual size','Ctrl+1'],
-  ['bFitW','Fit width','Ctrl+2'], ['bFitP','Fit page','Ctrl+0'], '-',
+  ['bFitW','Fit width','Ctrl+2'], ['bFitP','Fit page','Ctrl+0'], ['bTwo','Two-page view',''], '-',
   ['page'], ['bPrev','Previous page','PgUp'], ['bNext','Next page','PgDn'], '-',
   ['oRotL','Rotate left','Ctrl+Shift+L'], ['oRotR','Rotate right','Ctrl+Shift+R'], ['oDel','Delete page','Del'], '-',
   ['bThumbs','Page thumbnails',''], ['bTools','Tools panel',''], ['bFocus','Maximize page area','F'],
   ['bPresent','Present from this page','Shift+F5'], ['bPrint','Print…','Ctrl+P']
 ];
-const CHECKABLE = ['tSelect','tHand','bFitW','bFitP','bThumbs','bTools'];
+const CHECKABLE = ['tSelect','tHand','bFitW','bFitP','bTwo','bThumbs','bTools'];
 let cmenu = null;
 function closeMenu(refocus){
   if (!cmenu) return;
@@ -2044,7 +2093,7 @@ document.addEventListener('keydown', e => {
   if (mod && (k==='a'||k==='A') && active()) { e.preventDefault(); $('#oAll').click(); return; }
   if (mod) return;
   if (app.classList.contains('focus') && active() && ['ArrowRight','ArrowDown','PageDown','ArrowLeft','ArrowUp','PageUp'].includes(k)) {
-    e.preventDefault(); goTo(active().current + (['ArrowRight','ArrowDown','PageDown'].includes(k) ? 1 : -1)); return;   // maximized: arrows only flip pages
+    e.preventDefault(); stepPage(['ArrowRight','ArrowDown','PageDown'].includes(k) ? 1 : -1); return;   // maximized: arrows only flip pages
   }
   if (k===' ' && !state.space) { e.preventDefault(); state.space = true; viewer.classList.add('hand'); return; }
   if (k==='h'||k==='H') setTool('hand');
@@ -2052,8 +2101,8 @@ document.addEventListener('keydown', e => {
   else if (k==='f'||k==='F') toggleFocus();
   else if (k==='Escape') { if (app.classList.contains('focus')) toggleFocus(false); else { const d=active(); if (d){ d.sel.clear(); updateSel(); } } }
   else if ((k==='Delete'||k==='Backspace') && active()) { e.preventDefault(); deletePages(); }
-  else if (k==='PageDown' || k==='ArrowRight' && state.tool==='hand') { e.preventDefault(); goTo((active()?.current??0)+1); }
-  else if (k==='PageUp' || k==='ArrowLeft' && state.tool==='hand') { e.preventDefault(); goTo((active()?.current??0)-1); }
+  else if (k==='PageDown' || k==='ArrowRight' && state.tool==='hand') { e.preventDefault(); stepPage(1); }
+  else if (k==='PageUp' || k==='ArrowLeft' && state.tool==='hand') { e.preventDefault(); stepPage(-1); }
   else if (k==='Home') { e.preventDefault(); goTo(0); }
   else if (k==='End') { e.preventDefault(); goTo((active()?.n??1)-1); }
 });
@@ -2084,7 +2133,7 @@ if (desk) {
       open:openCmd, save:saveActive, saveAs:saveAsActive, saveReduced:saveReducedActive, closeTab:() => d && closeDoc(d.id), undo, redo,
       selectAll:() => $('#oAll').click(), delete:() => d && deletePages(), rotL:() => d && rotate(-90), rotR:() => d && rotate(90),
       zoomIn:() => stepZoom(1), zoomOut:() => stepZoom(-1), actual:() => setZoom(1), fitPage:() => setZoom(0,'page'), fitWidth:() => setZoom(0,'width'),
-      hand:() => setTool('hand'), select:() => setTool('select'), focus:() => toggleFocus(),
+      hand:() => setTool('hand'), select:() => setTool('select'), focus:() => toggleFocus(), twoPage:() => setTwo(!two),
       themeSystem:() => setTheme('system', true), themeLight:() => setTheme('light', true), themeDark:() => setTheme('dark', true),
       present:() => presentCmd(false), presentStart:() => presentCmd(true),
       nextTab:() => switchTab(1), prevTab:() => switchTab(-1),

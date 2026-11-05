@@ -196,6 +196,7 @@ function buildMenu() {
       k('&Hand Tool', 'H', 'hand'),
       k('&Select Tool', 'V', 'select'),
       { type: 'separator' },
+      { label: '&Two-Page View', click: () => send('twoPage') },
       k('&Maximize Page Area', 'F', 'focus'),
       k('P&resent from This Page', 'Shift+F5', 'present'),
       k('Present from the &Beginning', 'F5', 'presentStart'),

@@ -10,6 +10,10 @@ const KINDS = Object.freeze(['new', 'improved', 'fixed', 'removed']);   // the w
 const N = (version, date, notes) => Object.freeze({ version, date, notes: Object.freeze(notes.map(([kind, text]) => Object.freeze({ kind, text }))) });
 
 const NOTES = Object.freeze([
+  N('1.4.0', '2026-11-05', [
+    ['new', 'See new versions coming: when a new version is in the Microsoft Store, a small badge appears in the top bar. Click it to watch the download go from your version to the new one, then click Install. Sastra PDF closes to install; if it doesn\'t open again by itself, start it from the Start menu.'],
+    ['improved', '☰ › Help › Check for Updates now answers inside Sastra PDF instead of opening the Store.']
+  ]),
   N('1.3.0', '2026-10-20', [
     ['new', 'Make a PDF smaller: click the arrow next to Save, then Save as Reduced Size PDF… (also in ☰ › File). As in Acrobat, large pictures are brought down to 150 ppi and the file is packed tighter; the text stays exactly as it is. The copy is saved next to the original by default (Report.pdf → Report_reduced.pdf), and the open file is not changed. If the PDF can\'t get any smaller, no copy is made.'],
     ['new', 'Right-click PDFs in File Explorer → Sastra PDF → Reduce file size. Each PDF gets a smaller copy next to it (Report.pdf → Report_reduced.pdf).'],
