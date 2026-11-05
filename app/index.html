@@ -203,6 +203,18 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .marks .pv *{pointer-events:none}
 #viewer.drawing .marks *,#viewer.hand .marks *,#app.focus .marks *{pointer-events:none!important}
 #viewer.drawing .page{cursor:crosshair}
+/* Crop (app/crop.js): the box on the page, the rest of the page dimmed; clip holds the dimming to the page, the box and its handles may stand over its edge */
+#viewer.cropping .marks *{pointer-events:none!important}
+#viewer.cropping .page{cursor:crosshair}
+.crop-clip{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.crop-clip i{position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
+.crop-box{position:absolute;box-sizing:border-box;border:1.5px dashed var(--accent);cursor:move}
+.crop-h{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;box-sizing:border-box;background:#fff;border:1.5px solid var(--accent);border-radius:2px}
+.crop-h.nw{left:0;top:0;cursor:nwse-resize}.crop-h.n{left:50%;top:0;cursor:ns-resize}.crop-h.ne{left:100%;top:0;cursor:nesw-resize}.crop-h.e{left:100%;top:50%;cursor:ew-resize}
+.crop-h.se{left:100%;top:100%;cursor:nwse-resize}.crop-h.s{left:50%;top:100%;cursor:ns-resize}.crop-h.sw{left:0;top:100%;cursor:nesw-resize}.crop-h.w{left:0;top:50%;cursor:ew-resize}
+#oCrop.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+#cropOpts{display:flex;flex-direction:column;gap:8px}
+#cropOpts[hidden]{display:none}
 .mk-sel{fill:none;stroke:var(--accent);stroke-width:1px;vector-effect:non-scaling-stroke;stroke-dasharray:4 3}
 .mk-h{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;box-sizing:border-box;background:#fff;border:1.5px solid var(--accent);border-radius:2px;cursor:nwse-resize}
 .drawbar{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
@@ -281,6 +293,24 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:14px;box-shadow:0 16px 48px rgba(0,0,0,.3)}
 .modal p{margin:0;line-height:1.5}
 .modal .acts{display:flex;justify-content:flex-end;gap:8px}
+.modal.crop-panel{width:min(640px,calc(100vw - 32px));max-width:none;max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box}
+.crop-panel h2{margin:0;font-size:16px;font-weight:600}
+.crop-panel .acts{position:sticky;bottom:-20px;margin:0 -20px -20px;padding:12px 20px 20px;background:var(--panel)}   /* in a small window the fields scroll, Crop and Cancel stay */
+.cp-main{display:flex;gap:20px;align-items:flex-start}
+.cp-look{flex:none;width:230px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.cp-frame{position:relative;overflow:hidden;background:#fff;box-shadow:0 0 0 1px var(--line-strong)}
+.cp-frame canvas{display:block;width:100%;height:100%}
+.cp-dim{position:absolute;box-sizing:border-box;box-shadow:0 0 0 999px rgba(0,0,0,.5);border:1px dashed #fff}
+.cp-cap{font-size:12px;color:var(--muted)}
+.cp-set{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+.cp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cp-btns{display:flex;flex-wrap:wrap;gap:6px}
+.cp-pages{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;border:0;min-width:0}
+.cp-pages legend{padding:0 0 4px}
+.cp-pages>label{display:flex;align-items:center;gap:8px;font-size:13px}
+.cp-pages>label input[type=number]{width:64px;height:28px;box-sizing:border-box;border:1px solid var(--line-strong);border-radius:6px;background:var(--chrome);padding:0 6px;color:inherit;font:inherit}
+.modal p.cp-err{color:var(--err);font-size:13px}
+@media (max-width:640px){.cp-main{flex-direction:column;align-items:center}.cp-set{width:100%}}
 .modal p.detail{color:var(--muted);font-size:13px}
 .modal.checking p{display:flex;align-items:center;gap:10px}
 /* The Store copy's update panel (app/update-panel.js), as AI Hub's */
@@ -562,7 +592,12 @@ select.big option{padding:8px 10px}
           <button class="tbtn danger" id="oDel"><svg class="i" data-i="trash"></svg><span>Delete</span></button>
           <button class="tbtn" id="oExtract"><svg class="i" data-i="extract"></svg><span>Extract</span></button>
           <button class="tbtn" id="oInsert"><svg class="i" data-i="insert"></svg><span>Insert file</span></button>
+          <button class="tbtn" id="oCrop"><svg class="i" data-i="crop"></svg><span>Crop</span></button>
           <button class="tbtn" id="oAll"><svg class="i" data-i="cursor"></svg><span>Select all</span></button>
+        </div>
+        <div id="cropOpts" hidden>
+          <p class="hint">Drag a box on the page, then double-click it or press Enter. Esc stops.</p>
+          <button class="btn outline full" id="oCropSet">Type margins…</button>
         </div>
       </section>
 
@@ -636,6 +671,7 @@ select.big option{padding:8px 10px}
 <script src="update-panel.js"></script>
 <script src="marks.js"></script>
 <script src="draw.js"></script>
+<script src="crop.js"></script>
 <script>
 (() => {
 const ICONS = {
@@ -656,6 +692,7 @@ const ICONS = {
   shcircle:'<circle cx="12" cy="12" r="8"/>',
   shline:'<path d="M5 19L19 5"/>',
   sharrow:'<path d="M5 19L19 5M10 5h9v9"/>',
+  crop:'<path d="M7 2v13a2 2 0 0 0 2 2h13"/><path d="M2 7h13a2 2 0 0 1 2 2v13"/>',
   two:'<rect x="3" y="5" width="8" height="14" rx="1.2"/><rect x="13" y="5" width="8" height="14" rx="1.2"/>',
   up:'<path d="M6 15l6-6 6 6"/>', down:'<path d="M6 9l6 6 6-6"/>',
   rotl:'<path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 3.5V9h5.5"/>',
@@ -1120,6 +1157,7 @@ function activate(id){
   const prev = active(); if (prev) prev.scroll = { t:viewer.scrollTop, l:viewer.scrollLeft };
   state.activeId = id;
   if (draw.isDrawTool(state.tool) && !draw.canDraw()) setTool('select');   // a tool left on must not reach a protected file
+  if (state.tool === 'crop') setTool('select');
   renderTabs(); renderThumbs(); renderViewer(true); updateUI();
 }
 async function closeDoc(id){
@@ -1289,7 +1327,7 @@ function fitZoom(d, mode){
 function renderViewer(restore){
   if (io) io.disconnect(); pagesEl.innerHTML = ''; pagesEl.classList.toggle('two', two);
   const d = active(); $('#empty').hidden = !!d;
-  if (!d) { if (app.classList.contains('focus')) toggleFocus(false); draw.sync(null); if (draw.isDrawTool(state.tool)) setTool('select'); return; }
+  if (!d) { if (app.classList.contains('focus')) toggleFocus(false); draw.sync(null); if (draw.isDrawTool(state.tool) || state.tool === 'crop') setTool('select'); return; }
   focusFit(d);
   if (d.fit) d.zoom = fitZoom(d, d.fit);
   setFlow(d);
@@ -1302,7 +1340,7 @@ function renderViewer(restore){
     el.innerHTML = `<span class="pg-lbl">${i+1}</span>`;
     pagesEl.appendChild(el); io.observe(el);
   });
-  markViewerSel(); draw.sync(d);
+  markViewerSel(); draw.sync(d); crop.sync();
   if (restore && d.scroll) { viewer.scrollTop = d.scroll.t; viewer.scrollLeft = d.scroll.l; }
   else { viewer.scrollTop = 0; centerH(); }
 }
@@ -1460,6 +1498,7 @@ viewer.addEventListener('pointerdown', e => {
     pan = { x:e.clientX, y:e.clientY, l:viewer.scrollLeft, t:viewer.scrollTop, id:e.pointerId };
     viewer.setPointerCapture(e.pointerId); viewer.classList.add('grabbing'); e.preventDefault(); return;
   }
+  if (crop.pointerDown(e)) return;
   if (draw.pointerDown(e)) return;
   const pg = e.target.closest('.page'); const d = active();
   if (pg && d) { selectPage(+pg.dataset.i, e); }
@@ -1490,13 +1529,32 @@ viewer.addEventListener('wheel', e => {   // maximized with the page fitted: the
 }, { passive:false });
 
 const draw = SastraDraw.init({ active:() => active(), viewer, pages:pagesEl, busy:() => state.busy, change:changeMarks, tool:() => state.tool, setTool:t => setTool(t), maxed:() => maxed(), toast:(m, bad) => toast(m, bad) });
+const crop = SastraCrop.init({ active:() => active(), viewer, pages:pagesEl, busy:() => state.busy, tool:() => state.tool, setTool:t => setTool(t), toast:(m, bad) => toast(m, bad), refuse:d => refuseProtected(d), marksOn:(d, i) => marksOn(d, i), apply:cropPages });
+// Sets each page's visible part; nothing is deleted, so it undoes, and zero margins bring the page back even after saving.
+async function cropPages(d, pages, margins, i){
+  const n = pages.length;
+  await busy('Cropping…', async () => {
+    const doc = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
+    SastraCrop.cropPages(doc, pages, margins);
+    const signed = SastraMarks.isSigned(d.bytes);
+    await commit(d, await doc.save(), { sel:[...d.sel], current:i, msg:`Cropped ${n} page${n>1?'s':''} · Ctrl+Z to undo${signed ? ' · Saving will break its digital signature' : ''}` });
+    if (active() === d) goTo(i);
+  });
+}
+async function cropCmd(){
+  const d = active(); if (!d) return;
+  if (state.tool === 'crop') { setTool('select'); return; }
+  if (await refuseProtected(d)) return;
+  if (maxed()) toggleFocus(false);   // the Tools panel is hidden there
+  setTool('crop');
+}
 function setTool(t){
   if (draw.isDrawTool(t) && !draw.canDraw()) return;
   state.tool = t;
-  draw.toolChanged(t);
+  draw.toolChanged(t); crop.toolChanged(t);
   $('#tSelect').classList.toggle('on', t==='select'); $('#tHand').classList.toggle('on', t==='hand');
   viewer.classList.toggle('hand', t==='hand' || state.space);
-  $('#stTool').textContent = t==='hand' ? 'Hand tool — drag to move the page' : draw.isDrawTool(t) ? `${SastraDraw.NAMES[t]} — drag on the page · Esc to stop` : 'Select tool';
+  $('#stTool').textContent = t==='hand' ? 'Hand tool — drag to move the page' : draw.isDrawTool(t) ? `${SastraDraw.NAMES[t]} — drag on the page · Esc to stop` : t==='crop' ? 'Crop — drag a box on the page · Esc to stop' : 'Select tool';
 }
 
 /* ---------- thumbnails ---------- */
@@ -1958,6 +2016,7 @@ $('#oRotL').onclick = () => rotate(-90);
 $('#oRotR').onclick = () => rotate(90);
 $('#oDel').onclick = deletePages;
 $('#oExtract').onclick = extractPages;
+$('#oCrop').onclick = cropCmd;
 $('#oAll').onclick = () => { const d=active(); if (!d) return; d.sel = new Set([...Array(d.n).keys()]); updateSel(); };
 $('#cGo').onclick = combine; $('#sGo').onclick = split; $('#eGo').onclick = exportImages;
 // Tools sections fold on their own, as in Acrobat; the folded ones are remembered (restored before first paint, after </aside>)
@@ -2003,12 +2062,13 @@ resizer.addEventListener('pointerdown', e => {
 resizer.addEventListener('dblclick', () => { setPagesW(null); savePagesW(null); redrawThumbs(); });
 function toggleFocus(force){
   const on = force ?? !app.classList.contains('focus'); if (on && !active()) return;   // nothing to maximize
-  if (on && draw.isDrawTool(state.tool)) setTool('select');   // the Tools panel is hidden there
+  if (on && (draw.isDrawTool(state.tool) || state.tool === 'crop')) setTool('select');   // the Tools panel is hidden there
   app.classList.toggle('focus', on);
   // Maximized, the tabs sit beside the logo so the tab row's height goes to the page.
   if (on) $('.brand').after(tabsEl); else $('.menubar').after(tabsEl);
   stripEl.querySelector('.tab.active')?.scrollIntoView({block:'nearest',inline:'nearest'}); updateTabArrows();   // moving the row resets its scroll
   renderViewer(); const d = active(); if (d) goTo(d.current, true);   // one fitted page / the old zoom again
+  if (!on) thumbsEl.querySelector('.thumb.current')?.scrollIntoView({ block:'nearest' });   // the panel was hidden while the page moved: it catches up
   updateZoomUI();
   const b = $('#bFocus'); b.classList.toggle('on', on);
   b.title = on ? 'Restore the panels (F or Esc)' : 'Maximize the page area (F)';
@@ -2079,11 +2139,11 @@ const CMENU = [
   ['zoom'], ['bZoomIn','Zoom in','Ctrl+='], ['bZoomOut','Zoom out','Ctrl+−'], ['actual','Actual size','Ctrl+1'],
   ['bFitW','Fit width','Ctrl+2'], ['bFitP','Fit page','Ctrl+0'], ['bTwo','Two-page view',''], '-',
   ['page'], ['bPrev','Previous page','PgUp'], ['bNext','Next page','PgDn'], '-',
-  ['oRotL','Rotate left','Ctrl+Shift+L'], ['oRotR','Rotate right','Ctrl+Shift+R'], ['oDel','Delete page','Del'], '-',
+  ['oRotL','Rotate left','Ctrl+Shift+L'], ['oRotR','Rotate right','Ctrl+Shift+R'], ['oDel','Delete page','Del'], ['oCrop','Crop pages',''], '-',
   ['bThumbs','Page thumbnails',''], ['bTools','Tools panel',''], ['bFocus','Maximize page area','F'],
   ['bPresent','Present from this page','Shift+F5'], ['bPrint','Print…','Ctrl+P']
 ];
-const CHECKABLE = ['tSelect','tHand','bFitW','bFitP','bTwo','bThumbs','bTools'];
+const CHECKABLE = ['tSelect','tHand','oCrop','bFitW','bFitP','bTwo','bThumbs','bTools'];
 let cmenu = null;
 function closeMenu(refocus){
   if (!cmenu) return;
@@ -2277,7 +2337,7 @@ window.addEventListener('resize', () => {
 
 /* keyboard */
 document.addEventListener('keydown', e => {
-  if (draw.dragging() && e.key !== 'Escape') { e.preventDefault(); return; }   // mid-stroke, the page and file under the mouse must stay put
+  if ((draw.dragging() || crop.dragging()) && e.key !== 'Escape') { e.preventDefault(); return; }   // mid-stroke, the page and file under the mouse must stay put
   if (e.ctrlKey && !e.altKey && ['Tab','PageDown','PageUp'].includes(e.key) && !$('.modal-bg')) {   // switch tabs, as in a browser
     e.preventDefault(); switchTab(e.key === 'PageUp' || (e.key === 'Tab' && e.shiftKey) ? -1 : 1); return;
   }
@@ -2308,8 +2368,9 @@ document.addEventListener('keydown', e => {
   if (k==='h'||k==='H') setTool('hand');
   else if (k==='v'||k==='V') setTool('select');
   else if (k==='f'||k==='F') toggleFocus();
-  else if (k==='Escape') { if (draw.cancel() || draw.deselect()) return; if (draw.isDrawTool(state.tool)) { setTool('select'); return; } if (app.classList.contains('focus')) toggleFocus(false); else { const d=active(); if (d){ d.sel.clear(); updateSel(); } } }
-  else if ((k==='Delete'||k==='Backspace') && active()) { e.preventDefault(); if (!draw.removeSelected() && !draw.isDrawTool(state.tool)) deletePages(); }   // a drawing tool on: Delete never takes a page
+  else if (k==='Enter' && crop.enter()) e.preventDefault();
+  else if (k==='Escape') { if (crop.cancelDrag() || crop.removeBox()) return; if (state.tool === 'crop') { setTool('select'); return; } if (draw.cancel() || draw.deselect()) return; if (draw.isDrawTool(state.tool)) { setTool('select'); return; } if (app.classList.contains('focus')) toggleFocus(false); else { const d=active(); if (d){ d.sel.clear(); updateSel(); } } }
+  else if ((k==='Delete'||k==='Backspace') && active()) { e.preventDefault(); if (state.tool === 'crop') crop.removeBox(); else if (!draw.removeSelected() && !draw.isDrawTool(state.tool)) deletePages(); }   // a drawing tool on: Delete never takes a page
   else if (k==='PageDown' || k==='ArrowRight' && state.tool==='hand') { e.preventDefault(); stepPage(1); }
   else if (k==='PageUp' || k==='ArrowLeft' && state.tool==='hand') { e.preventDefault(); stepPage(-1); }
   else if (k==='Home') { e.preventDefault(); goTo(0); }
@@ -2340,7 +2401,7 @@ if (desk) {
     const d = active();
     const map = {
       open:openCmd, save:saveActive, saveAs:saveAsActive, saveReduced:saveReducedActive, closeTab:() => d && closeDoc(d.id), undo, redo,
-      selectAll:() => $('#oAll').click(), delete:() => d && deletePages(), rotL:() => d && rotate(-90), rotR:() => d && rotate(90),
+      selectAll:() => $('#oAll').click(), delete:() => d && deletePages(), rotL:() => d && rotate(-90), rotR:() => d && rotate(90), crop:() => d && $('#oCrop').click(),
       zoomIn:() => stepZoom(1), zoomOut:() => stepZoom(-1), actual:() => setZoom(1), fitPage:() => setZoom(0,'page'), fitWidth:() => setZoom(0,'width'),
       hand:() => setTool('hand'), select:() => setTool('select'), focus:() => toggleFocus(), twoPage:() => setTwo(!two),
       themeSystem:() => setTheme('system', true), themeLight:() => setTheme('light', true), themeDark:() => setTheme('dark', true),

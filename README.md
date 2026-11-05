@@ -8,6 +8,7 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
 - Opens maximized; Maximize page area (F) and Full screen (F11)
 - Page thumbnails: click to select, Ctrl/Shift-click for more, drag to reorder
 - Rotate, delete, extract and insert pages, with Undo/Redo (Ctrl+Z / Ctrl+Y)
+- Crop pages as in Acrobat: drag a box or type margins, on one page or many, or remove white margins. What is cut is only hidden, so it can be brought back
 - Combine files; Split every N pages, by ranges, or one file per page, into new tabs or a folder
 - Export pages as PNG or JPG at 72 / 150 / 300 dpi (several pages: one file each, in a folder)
 - Print (Ctrl+P) on a full-window print screen (big dropdowns, zoomable preview, Save as PDF of exactly what

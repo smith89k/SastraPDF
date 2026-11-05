@@ -184,7 +184,9 @@ function buildMenu() {
       k('&Delete Pages', 'Delete', 'delete'),
       { type: 'separator' },
       k('Rotate &Left', 'Ctrl+Shift+L', 'rotL'),
-      k('Rotate &Right', 'Ctrl+Shift+R', 'rotR')
+      k('Rotate &Right', 'Ctrl+Shift+R', 'rotR'),
+      { type: 'separator' },
+      k('&Crop Pages', undefined, 'crop')
     ]},
     { label: '&View', submenu: [
       k('Zoom &In', 'Ctrl+=', 'zoomIn'),

@@ -13,7 +13,7 @@ Your files stay on your computer. Sastra PDF has no account, no ads and sends no
 ## Features
 
 - Open many PDFs as tabs; zoom, hand tool, full-window and presentation views
-- Organize pages: move, rotate, delete, insert files and pictures, drag pages between files
+- Organize pages: move, rotate, crop, delete, insert files and pictures, drag pages between files
 - Combine and split PDFs; save pages as JPG or PNG pictures
 - Print with a preview: poster, several pages per sheet, booklets, both sides
 - Right-click PDFs and pictures in File Explorer: Make PDF, Combine, Split, Save as images
