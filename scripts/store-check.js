@@ -1,5 +1,5 @@
-// After electron-builder made the Microsoft Store package (build/store.config.js): the app inside it has store.js and
-// the menu DLL, and none of what only the installer may carry — the update key (anyone can download a Store package and
+// After electron-builder made the Microsoft Store package (build/store.config.js): the app inside it has store.js, the
+// menu DLL and the update panel's helpers, and none of what only the installer may carry — the update key (anyone can download a Store package and
 // open it), app-update.yml, the sparse menu package.
 // `node scripts/store-check.js <dist-store> <msix name>`; run by .github/workflows/release.yml.
 const fs = require('fs'), path = require('path');
@@ -22,6 +22,7 @@ function storeProblems(dist, msix) {
   const res = path.join(dist, 'win-unpacked', 'resources'), there = (...p) => fs.existsSync(path.join(...p)), problems = [];
   if (!there(dist, msix)) problems.push(`there is no ${msix}`);
   if (!there(res, 'explorer-menu', 'SastraMenu.dll')) problems.push('the menu DLL is not inside (resources/explorer-menu/SastraMenu.dll)');
+  for (const f of ['SastraStoreUpdate.exe', 'SastraRestart.node']) if (!there(res, 'store-update', f)) problems.push(`${f} is not inside (resources/store-update/${f}; the update panel needs it)`);
   if (there(res, 'explorer-menu', 'SastraPDF.ExplorerMenu.msix')) problems.push('the sparse menu package is inside (the Store package has its own menu)');
   if (there(res, 'app-update.yml')) problems.push('app-update.yml is inside (the Store updates this copy)');
   let files = [];

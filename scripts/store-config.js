@@ -11,7 +11,10 @@ function storeBuildConfig({ base, id, storeJson }) {
     ...base,
     directories: { ...(base.directories || {}), output: 'dist-store' },
     files: [...base.files.filter(f => !NOT_IN_STORE.includes(f)), ...(storeJson ? ['store.json'] : [])],
-    extraResources: [{ from: 'explorer-menu/out', to: 'explorer-menu', filter: ['SastraMenu.dll'] }],
+    extraResources: [
+      { from: 'explorer-menu/out', to: 'explorer-menu', filter: ['SastraMenu.dll'] },
+      { from: 'store-update/out', to: 'store-update', filter: ['SastraStoreUpdate.exe', 'SastraRestart.node'] }   // the update panel: Store copy only
+    ],
     win: { ...base.win, target: 'appx' },
     publish: null,   // no app-update.yml: the Store updates this copy
     appx: {

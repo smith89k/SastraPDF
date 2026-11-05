@@ -1,6 +1,7 @@
 // Builds the File Explorer right-click menu: SastraMenu.dll (C++, MSVC) and the unsigned sparse package
 // SastraPDF.ExplorerMenu.msix, into explorer-menu/out/ (gitignored; electron-builder copies them to
-// resources/explorer-menu). Needs Visual Studio Build Tools ("Desktop development with C++", x64) and the
+// resources/explorer-menu). Also the Store copy's update helpers, SastraStoreUpdate.exe and SastraRestart.node, into
+// store-update/out/ (gitignored; only the Store package's config takes them). Needs Visual Studio Build Tools ("Desktop development with C++", x64) and the
 // Windows 10/11 SDK. Run by `pnpm run dist`; alone: `pnpm run build:menu`.
 const { spawnSync } = require('child_process');
 const fs = require('fs'), path = require('path');
@@ -36,8 +37,11 @@ function makeappx() {
 }
 const run = (exe, args, opts = {}) => { const r = spawnSync(exe, args, { stdio: 'inherit', ...opts }); if (r.status !== 0) fail(`${path.basename(exe)} failed (${r.status ?? r.error})`); };
 
+const STORE_SRC = path.join(ROOT, 'store-update'), STORE_OUT = path.join(STORE_SRC, 'out');
 fs.rmSync(OUT, { recursive: true, force: true });
+fs.rmSync(STORE_OUT, { recursive: true, force: true });
 fs.mkdirSync(OBJ, { recursive: true });
+fs.mkdirSync(STORE_OUT, { recursive: true });
 
 // 1) the DLL. /MT: no Visual C++ runtime needed on the user's PC. A .bat because vcvars sets the environment.
 const bat = path.join(OBJ, 'build.bat');
@@ -45,7 +49,10 @@ fs.writeFileSync(bat, [
   '@echo off',
   `call "${vcvars()}" >nul 2>&1 || exit /b 1`,
   `cd /d "${OBJ}"`,
-  `cl /nologo /std:c++17 /EHsc /O2 /MT /LD /W3 /utf-8 /DUNICODE /D_UNICODE "${path.join(SRC, 'menu.cpp')}" /Fe"${path.join(OUT, 'SastraMenu.dll')}" /link /DEF:"${path.join(SRC, 'menu.def')}" /IMPLIB:SastraMenu.lib || exit /b 1`
+  `cl /nologo /std:c++17 /EHsc /O2 /MT /LD /W3 /utf-8 /DUNICODE /D_UNICODE "${path.join(SRC, 'menu.cpp')}" /Fe"${path.join(OUT, 'SastraMenu.dll')}" /link /DEF:"${path.join(SRC, 'menu.def')}" /IMPLIB:SastraMenu.lib || exit /b 1`,
+  // C++20: this C++/WinRT needs the standard <coroutine>
+  `cl /nologo /std:c++20 /EHsc /O2 /MT /W3 /utf-8 "${path.join(STORE_SRC, 'update.cpp')}" /Fe"${path.join(STORE_OUT, 'SastraStoreUpdate.exe')}" /link windowsapp.lib ole32.lib || exit /b 1`,
+  `cl /nologo /std:c++17 /EHsc /O2 /MT /LD /W3 /utf-8 "${path.join(STORE_SRC, 'restart.cpp')}" /Fe"${path.join(STORE_OUT, 'SastraRestart.node')}" /link /IMPLIB:SastraRestart.lib || exit /b 1`
 ].join('\r\n'));
 run('cmd.exe', ['/d', '/s', '/c', `""${bat}""`], { windowsVerbatimArguments: true });
 
@@ -57,4 +64,4 @@ for (const f of fs.readdirSync(path.join(SRC, 'Assets'))) fs.copyFileSync(path.j
 run(makeappx(), ['pack', '/o', '/nv', '/d', stage, '/p', path.join(OUT, `${PKG}.msix`)], { stdio: ['ignore', 'ignore', 'inherit'] });
 
 fs.rmSync(OBJ, { recursive: true, force: true });
-console.log(`build-explorer-menu: ${path.relative(ROOT, OUT)}\\SastraMenu.dll and ${PKG}.msix ready`);
+console.log(`build-explorer-menu: ${path.relative(ROOT, OUT)}\\SastraMenu.dll and ${PKG}.msix ready; ${path.relative(ROOT, STORE_OUT)}\SastraStoreUpdate.exe and SastraRestart.node ready`);

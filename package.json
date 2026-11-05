@@ -39,6 +39,7 @@
       "explorer-menu.js",
       "updater.js",
       "store.js",
+      "store-update.js",
       "update-config.json",
       "app/**/*",
       "build/icon.png",

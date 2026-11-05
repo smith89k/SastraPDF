@@ -3,4 +3,5 @@ dist/
 dist-store/
 app/vendor/
 explorer-menu/out/
+store-update/out/
 update-config.json
