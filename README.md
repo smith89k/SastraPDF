@@ -22,8 +22,8 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
   On Windows 11 the installer asks once for permission to put it in the first right-click menu;
   without it, the same items are under "Show more options". On Windows 10 they show right away.
 - Works fully offline; files never leave the computer (only updates need the internet)
-- Updates itself: a new version downloads quietly, then it asks to restart (or installs when you close it);
-  ☰ › Help › Check for Updates checks by hand
+- Updates: when a new version is found, a small badge appears in the top bar. Click it to see the download go from
+  version to version, then click Install. ☰ › Help › Check for Updates checks by hand
 
 ## Download
 Sastra PDF is in the Microsoft Store (Windows 10 or 11, 64-bit), signed by Microsoft: open the Microsoft Store app and
@@ -36,7 +36,7 @@ The Microsoft Store version is signed by Microsoft. Installers up to 1.2.0 are u
 warn about them: "More info" > "Run anyway".
 
 **Privacy policy:** Sastra PDF sends nothing about you or your files anywhere. Your PDFs stay on your computer; the app
-has no telemetry and no online fonts. The Store version makes no internet requests of its own (the Store updates it).
+has no telemetry and no online fonts. The Store version asks the Microsoft Store, through Windows, whether a newer version exists, when it starts and every 6 hours; the app adds nothing about you or your files.
 Copies installed from an installer up to 1.2.0 check https://sastra-update.smith89k.com/ for a newer version when they
 start and every 6 hours; those requests carry nothing about you or your files.
 
@@ -74,7 +74,9 @@ Double-click **run.bat**, or run `pnpm start`.
     explorer-menu/     The File Explorer right-click menu: C++ source (menu.cpp) and its
                        Windows 11 package manifest; built into explorer-menu/out/
     explorer-menu.js   Adds/removes that menu (run by the installer) and reads what it asked for
-    updater.js         Automatic updates: when to check, what to tell the app (uses electron-updater)
+    updater.js         Automatic updates of installer copies: when to check, what to tell the app (uses electron-updater)
+    store-update.js    The Store copy's update state, behind the badge and panel (app/update-panel.js)
+    store-update/      The small programs the Store copy uses to talk to the Store and to reopen after an update
     build/installer.nsh  Installer steps for the Explorer menu
     build/icon.ico     App and installer icon (made from build/logo.png)
     build/logo.png     The Sastra logo, 1024 px master

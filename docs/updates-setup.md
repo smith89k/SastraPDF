@@ -124,6 +124,15 @@ Store keeps it up to date. Since 1.2.0, releases make only the Store package (as
    question (most likely about `runFullTrust` or the right-click menu), answer it in **Notes for certification** and
    submit again.
 
+**The update panel on a real update.** It only works on a copy from the Store, and a copy shows it only for updates that
+come after the one that added it. Two things can be checked on this PC as soon as a new version is published, before the
+Store updates the installed copy. In PowerShell, with the path of a built `SastraStoreUpdate.exe`:
+`Invoke-CommandInDesktopPackage -PackageFamilyName smith89k.SastraPDF_d9wvxw143ha0g -AppId SastraPDF -Command cmd.exe -Args '/c "<path>\SastraStoreUpdate.exe" check > "%TEMP%\store-check.txt"' -PreventBreakaway`
+then read that file: `count` 1 means the Store offers the update, and `version` shows whether Windows gives the NEW
+version's number (the panel then shows it; if not, the panel says "New version" with no number). Still to see on the first
+real update: the download bar, Install, and whether Windows opens the app again by itself. A Partner Center package flight
+can limit a test release to chosen accounts.
+
 **Trying the Store package on this PC first** (before a first submission, or after changing the manifest): in
 PowerShell `Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue; $env:SASTRA_STORE_SIDELOAD='1'; pnpm run dist:store`,
 then in an administrator PowerShell `Add-AppxPackage -Path dist-store\Sastra-PDF-Store-<version>.msix -AllowUnsigned`.

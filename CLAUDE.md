@@ -41,6 +41,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        then pictures, then Flate for plain streams, object streams; no copy unless ≥ 1 % smaller.
                        `reduce(bytes, { onStep, isCancelled })` → { bytes|null, before, after } (throws .reason
                        protected/damaged/cancelled), `reducedName` → "<name>_reduced.pdf"
+    app/update-panel.js  `window.SastraUpdatePanel`: the Store copy's update badge and panel. See "Store update panel".
     app/notes.js       `window.SastraNotes`: What's new — every version's notes (newest first, kinds new / improved / fixed /
                        removed, text only) + `noteFor` / `earlierNotes` / `shouldShow`. Written by hand at release time
     app/task.html|.js  The small "task window" for Explorer-menu Split / Images / Reduce file size jobs. See "Explorer menu".
@@ -99,13 +100,18 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        0.2.5): Store package only — three jobs (check / build with no token / publish), no secret,
                        nothing to R2; the GitHub release carries Sastra-PDF-Store-<version>.msix for Partner Center.
                        1.2.0 was the last installer release (R2 keeps serving it to installed copies)
+    store-update.js    The Store copy's update state, no Electron inside: `makeRun` (starts the helper, reads JSON lines),
+                       `createStoreUpdater` (10 s, then every 6 h), `nextVersion`. See "Store update panel"
+    store-update/      update.cpp → SastraStoreUpdate.exe (C++/WinRT; the only code that talks to the Store), restart.cpp →
+                       SastraRestart.node (asks Windows to reopen the app). Built by scripts/build-explorer-menu.js into
+                       store-update/out/ (gitignored); only the Store package's config ships them
     updater.js         Automatic updates, no Electron inside (main.js hands in electron-updater's autoUpdater):
                        `updatesRunHere`, `checkAnswer`, `installBlock`, `logTo`, `createUpdater` (10 s, then every 6 h)
     store.js           The Microsoft Store copy's rules, no Electron inside: `isStoreCopy` (process.windowsStore, or
                        SASTRA_STORE_TEST=1 from source), `readStoreInfo` (store.json = Partner Center identity),
                        `SIDELOAD` (unsigned test identity SastraPDF.StoreTest), `storePageUrl`. In the Store copy main.js
-                       never updates, never sets up/repairs the menu (`--explorer-menu=` exits 0), Check for Updates opens
-                       the Store, and userData is "Sastra PDF Store" (own single-instance lock)
+                       never runs updater.js, never sets up/repairs the menu (`--explorer-menu=` exits 0), Check for Updates opens
+                       the update panel, and userData is "Sastra PDF Store" (own single-instance lock)
     store.json         Partner Center › Product identity (committed, not secret); the release refuses without it
     build/store.config.js + scripts/store-config.js  electron-builder config of the Store package (`pnpm run dist:store`,
                        SASTRA_STORE_SIDELOAD=1 = test package): appx into dist-store/, no update-config.json, only
@@ -219,7 +225,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   every step, so each threshold moved down 113. The measurement now comes out ~10 px under the old numbers,
   which were kept as a margin. At 175 % screen scaling the viewport is fractional (1618.29 for a "1618" window),
   so a test right at a threshold can land on the other side. 2026-10-20: the Save ▾ arrow (20 px) moved every threshold up 20
-  (save-menu-test.js measures the row at each step).
+  (save-menu-test.js measures the row at each step). 2026-11-05: while the Store copy's update badge shows (`#app.has-update`), each
+  step comes 116 px sooner.
 - Title bar = the logo row (since 2026-10-16; Windows' own bar was 8 px shorter maximized — its edge goes
   off-screen — so everything jumped). main.js `titleBarStyle: 'hidden'` + `titleBarOverlay` (height
   `BAR_H` 44 = the 45 px row minus its line; colours `BAR_COLORS` = --chrome / --fg, KEEP IN SYNC with the
@@ -435,6 +442,20 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   explorer-menu.js `repairNeeded` (Windows 11, .msix present, Mode=classic, not Declined, `Asked` ≠ this version) → after
   What's new, "The right-click menu needs to be set up again." Not now (records `Asked`) / Set up (main runs
   `Sastra PDF.exe --explorer-menu=install` as a child, UAC, then reads the state) → toast.
+- Store update panel (since 2026-11-05, Store copy only, as AI Hub's; the user: "download progress and than click install by
+  showing the panel from version to version"; spec/plan docs/superpowers/*/2026-11-05-store-update-panel*). Electron can't reach
+  Windows.Services.Store, so main.js starts SastraStoreUpdate.exe as a child (it inherits the package identity) with `check`,
+  `download` or `install` and `--hwnd=`, and reads JSON lines. store-update.js keeps one state { stage none | available |
+  downloading | ready, current, next, silent, percent, transferred, total, bytesPerSecond, failed }, pushed on `store-update`
+  and answered by the `store-update` handler (null when not the Store copy, so nothing runs elsewhere; first asked by the page,
+  so a right-click job alone never checks). Quiet download when Windows allows it (`CanSilentlyDownloadStorePackageUpdates`:
+  Store's automatic updates on, not metered), else `available` and a Download button → Windows' own box. Badge `#bUpdate`
+  (112 px, before Present, kept when Maximized): "↓ Update 45%", "Update available", "Update ready". The panel opens ONLY from it or
+  Help › Check for Updates. Install: `askUnsaved` first, then `allowClose`, SastraRestart.node (`process.dlopen`; loading it calls
+  RegisterApplicationRestart, flags 11 = only an update reopens it), then `install`; a failure or 60 s still alive sets `allowClose`
+  back. No What's new in the panel (the Store has no notes, and no server of ours). From source `SASTRA_STORE_TEST=1` with
+  `SASTRA_STORE_HELPER=<js>` runs a fake helper. Log: %TEMP%\Sastra PDF\update.log. Trying the real thing without a release:
+  `Invoke-CommandInDesktopPackage` runs a program inside the installed Store copy's identity (docs/updates-setup.md section 7).
 - Design: IBM Plex Sans/Mono. All UI fonts SHIP INSIDE THE APP (no Google Fonts, no network: the
   README's privacy policy promises the app sends nothing anywhere on its own except the update check — keep it that
   way). copy-vendor.js builds app/vendor/fonts/fonts.css from @fontsource packages: Plex Sans
@@ -708,6 +729,13 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   v1.3.0 has Sastra-PDF-Store-1.3.0.msix (167 279 379 bytes, SHA-256 e2d0f0c9…25548ee). The older Playwright suites
   were not run for this release (they live on the user's PC). Still to do: submit the .msix in Partner Center (Start update
   → Packages), once 1.2.0 has passed certification.
+- **Store update panel (2026-11-05, on main, not released)**: see "Store update panel". Tests in this session's scratchpad `t\`
+  (…\f96e53666c5936a7\8f90f5a1-…\scratchpad\t): unit (store-update, store-config) 38, store-panel-test 106 with fake-helper.js.
+  Real, on this PC, read-only: this build run with `Invoke-CommandInDesktopPackage` in the installed 1.3.0's identity asked the real
+  Store and showed "You have the latest version"; the helper did the same in Bohpum's identity; Windows' record reads flags 11 after
+  loading SastraRestart.node. NOT seen yet (needs a real newer version in the Store): the download bar, Install, the new version's
+  number, the app reopening. The older suites (close, titlebar, controls…) were not re-run: their scripts are gone from this PC.
+  At release: What's new entry, new privacy text in Partner Center (docs/store-listing.md).
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 

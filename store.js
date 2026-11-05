@@ -27,7 +27,7 @@ const SIDELOAD = Object.freeze({
 // Windows sets process.windowsStore in an app started from its MSIX package; tests say so with SASTRA_STORE_TEST.
 function isStoreCopy({ windowsStore, test = false }) { return windowsStore === true || test === true; }
 
-// Help › Check for Updates in the Store copy: Sastra PDF's page in the Store app (its Update button), or the Store's
+// The update panel's Open in Store button (app/update-panel.js): Sastra PDF's page in the Store app, or the Store's
 // Downloads and updates when the copy has no Store ID (the sideloaded test package).
 function storePageUrl(info) {
   return info && info.storeId ? `ms-windows-store://pdp/?ProductId=${info.storeId}` : 'ms-windows-store://downloadsandupdates';

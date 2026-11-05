@@ -29,9 +29,12 @@ from its own suggestions.)
 ## Privacy policy
 
 Sastra PDF does not collect, store or send any personal information. Your PDFs and pictures stay on your computer and
-are never uploaded. Sastra PDF has no account, no analytics and no ads. Updates come from the Microsoft Store.
+are never uploaded. Sastra PDF has no account, no analytics and no ads. Updates come from the Microsoft Store: the app
+asks the Microsoft Store, through Windows, whether a newer version exists, when it starts and every 6 hours; the app
+adds nothing about you or your files.
 
-(Partner Center takes this as text: Properties › Privacy policy › Provide privacy policy text. A URL is not needed.)
+(Partner Center takes this as text: Properties › Privacy policy › Provide privacy policy text. A URL is not needed.
+Changed 2026-11-05 for the update panel: paste the new text in the next submission.)
 
 ## Short description
 
@@ -45,7 +48,7 @@ Open, organize, combine, split and print PDF files. Your files stay on your comp
 
 Sastra PDF is a classic desktop app (Electron). It needs full trust to open and save PDF files the user picks anywhere
 on the PC, to save several files into a folder the user picks, to print, and to add "Sastra PDF" (Make PDF, Combine,
-Split, Images) to the File Explorer menu for PDF files and pictures. The app makes no network requests.
+Split, Images) to the File Explorer menu for PDF files and pictures. Its only network use is asking the Store for updates.
 
 (Partner Center allows 500 characters here: this text only. The notes below go on Supplemental info › Additional
 Testing Information.)
@@ -54,4 +57,5 @@ Testing Information.)
 
 To try it: open any PDF with Sastra PDF (☰ › File › Open, or right-click a PDF › Open with › Sastra PDF). In File
 Explorer, select a PDF or a picture and right-click › Sastra PDF to see the menu (it acts only on the selected files and
-asks before replacing any file). The app makes no network requests.
+asks before replacing any file). The app's only network use is asking the Microsoft Store, through Windows, for a newer
+version; a small badge in the top bar shows when one is found.
