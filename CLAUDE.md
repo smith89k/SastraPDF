@@ -41,6 +41,8 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
                        then pictures, then Flate for plain streams, object streams; no copy unless ≥ 1 % smaller.
                        `reduce(bytes, { onStep, isCancelled })` → { bytes|null, before, after } (throws .reason
                        protected/damaged/cancelled), `reducedName` → "<name>_reduced.pdf"
+    app/marks.js       `window.SastraMarks`: marks as real PDF annotations, no DOM (node --test works): `has`, `take`, `put`, `paint`, `svg`, and the geometry. See "Marks".
+    app/draw.js        `window.SastraDraw`: the Draw section of the Tools panel, drawing and changing marks over the page. See "Marks".
     app/update-panel.js  `window.SastraUpdatePanel`: the Store copy's update badge and panel. See "Store update panel".
     app/notes.js       `window.SastraNotes`: What's new — every version's notes (newest first, kinds new / improved / fixed /
                        removed, text only) + `noteFor` / `earlierNotes` / `shouldShow`. Written by hand at release time
@@ -211,6 +213,16 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   listed and the box turns `.failed` — "Couldn't open <name>" or "Couldn't open N files", "N problems below", Close.
   `openBytes` (split parts, Combine result, samples) still toasts. Right-click Combine uses the same box.
 - Hand tool: pointer drag scrolls `#viewer` (tool H, hold Space, or middle mouse).
+- Marks (since 2026-11-05; the user: highlight with Shift for a straight line, shapes with fill and border, "add pen too", "stay changeable"; spec/plan
+  docs/superpowers/*/2026-11-05-view-and-marks*). `d.bytes` holds no marks of ours while a file is open; `d.marks` is an immutable list (`{ id, page, kind, pts, color, fill, width }` in
+  PDF user space) drawn in an SVG per page (`d.sizes[i].t` = the viewport's matrix, so rotation and crop boxes just work). So a stroke runs no `commit`/`reload`, and an undo step
+  (`{ bytes, marks }`) shares the bytes. **Anything that takes bytes out of the working copy must use `await marksIn(d)`** (Save, every page edit, split, combine, Reduce); `outPdf(d)` is the same as a
+  pdf.js document (print, export); thumbnails and Present use `SastraMarks.paint`. `commit` empties `d.marks`: its bytes came through `marksIn` and `loadPdf` takes them back out. `take` runs only when `has` finds `/SastraMark`,
+  a key in each appearance stream's dictionary (stream dictionaries are never compressed), so a file with no marks pays nothing and is untouched. In the PDF: highlight and pen `/Ink`, rectangle
+  `/Square`, circle `/Circle`, line and arrow `/Line`, each with `/AP` (BBox = Rect), `/F 4` (prints) and tag `/SastraKind`, no `/P`; highlight's appearance multiplies. The standard keys are the truth when reading back (Acrobat may have changed them);
+  other apps' annotations stay as they are. Protected PDFs refuse the tools; a signed PDF warns once. No drawing while Maximized. Real Acrobat (its COM interface, `AcroExch.PDDoc`) read a file with every kind: Ink, Ink, Square, Circle, Line, Line, all valid.
+- Maximized + zoomed in (since 2026-11-05): `setFlow` puts `#app.flow` on when the page no longer fits (`d.fit !== 'page'`, zoom past page fit): every page shows, so the hand tool and the wheel move across them; `viewAnchor` keeps the page in view when that changes; arrows jump a page; Ctrl+0 is the one-page view again.
+- Two-page view (since 2026-11-05, the user: always 1-2, 3-4): `two` (localStorage `sastra-two-page`), `#pages.two` grid, `.page.pair` = the current page's partner `partner(d, i)`, `stepPage` moves a pair, `fitZoom` fits a pair. Present stays one page. `#bTwo` goes with Fit width / Fit page as the row narrows.
 - Layout: `#app` is a grid with named areas (menu/tabs/work/status), so hiding a bar never
   shifts the workspace into an `auto` row. The view toolbar (`.toolbar`) sits inside the logo
   row (menubar) between Undo/Redo and Present; the right end is Present, Maximize, Theme, then
@@ -226,7 +238,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   which were kept as a margin. At 175 % screen scaling the viewport is fractional (1618.29 for a "1618" window),
   so a test right at a threshold can land on the other side. 2026-10-20: the Save ▾ arrow (20 px) moved every threshold up 20
   (save-menu-test.js measures the row at each step). 2026-11-05: while the Store copy's update badge shows (`#app.has-update`), each
-  step comes 116 px sooner.
+  step comes 116 px sooner; `#bTwo` moved the labels and Fit steps up 36 px and hides at the Fit step.
 - Title bar = the logo row (since 2026-10-16; Windows' own bar was 8 px shorter maximized — its edge goes
   off-screen — so everything jumped). main.js `titleBarStyle: 'hidden'` + `titleBarOverlay` (height
   `BAR_H` 44 = the 45 px row minus its line; colours `BAR_COLORS` = --chrome / --fg, KEEP IN SYNC with the
@@ -737,6 +749,7 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
   loading SastraRestart.node. NOT seen yet (needs a real newer version in the Store): the download bar, Install, the new version's
   number, the app reopening. The older suites (close, titlebar, controls…) were not re-run: their scripts are gone from this PC.
   At release: What's new entry, new privacy text in Partner Center (docs/store-listing.md).
+- **Hand tool across pages, two-page view, marks (2026-11-05, on main)**: tests in the same scratchpad `t\`: flow-test 23, two-test 41, draw-test 50, marks-out-test 27, unit/marks 20. The user's own look in Acrobat at a full edit is still to come.
 - Next steps: keep Electron on a supported version (each major gets about 6 months of fixes);
   re-run the Playwright checks after every upgrade. Code signing would stop SmartScreen warnings.
 
