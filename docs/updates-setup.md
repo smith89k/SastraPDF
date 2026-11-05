@@ -75,8 +75,10 @@ checks this by itself, and that the update key opens it (step "The update addres
 ## 6. Releasing a version
 
 1. `pnpm version 1.3.0 --no-git-tag-version --no-git-checks` (only edits package.json).
-2. Write the version's entry at the top of `app/notes.js` (What's new) with today's date — the build refuses to run
-   without it, and it becomes the GitHub release notes.
+2. **Every release needs notes on what is new** (the user's rule, 2026-11-05). Write the version's entry at the top of `app/notes.js`
+   (What's new) with today's date, listing everything someone would notice: the build refuses to run without it, and it becomes
+   the GitHub release notes. Then write the shorter text for the Store in `docs/store-listing.md` ("What's new in this version") and
+   paste it in Partner Center when submitting.
 3. Commit and push main.
 4. GitHub → **Actions** → **Release** → **Run workflow** → type `1.3.0` → Run
    (or `gh workflow run release.yml -f version=1.3.0`).

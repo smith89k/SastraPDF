@@ -538,6 +538,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   were built locally (`npm run dist`) and uploaded with `gh release create`; the v1.0.1 tag's
   workflow run failed for that reason (re-running it would now fail anyway: the release exists).
   Until billing is fixed, release by hand the same way (now `pnpm run dist`), after running the Playwright checks.
+- **Every release needs notes on what is new** (the user, 2026-11-05: "every release need note what new"): the entry in app/notes.js, which the app shows and the build checks, must list everything someone would notice in that version; and the Store's "What's new in this version" text in docs/store-listing.md, pasted in Partner Center, is written for each release.
 - **Releasing since 2026-10-17** (the user upgraded GitHub to Pro that day to clear the billing block): to Cloudflare R2
   through GitHub Actions, by hand only (docs/updates-setup.md). `pnpm version X.Y.Z --no-git-tag-version
   --no-git-checks` (unlike npm, pnpm refuses a dirty working tree without `--no-git-checks`; it only edits package.json)

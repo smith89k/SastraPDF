@@ -2,6 +2,30 @@
 
 Copy these into Partner Center (docs/updates-setup.md section 7). Written for people who find Sastra PDF in the Store.
 
+## What's new in this version
+
+Paste into Partner Center › Store listings › English › "What's new in this version" (1500 characters at most). Every release
+gets its own, written from that version's entry in `app/notes.js`; replace this one each time.
+
+Version 1.4.0:
+
+```text
+New in this version:
+- Crop pages: drag a box or type the margins, on one page or many. What you cut is only hidden, so you can bring it back.
+- Mark up your PDFs: highlight, pen, rectangle, circle, line and arrow, with colours, fill and border. Marks can still be changed after saving.
+- Two-page view: see pages left and right, in pairs 1-2, 3-4.
+- Update badge: see a new version coming, watch it download, then click Install.
+
+Improved:
+- Zoomed in while maximized, the hand tool and the mouse wheel move smoothly from one page to the next.
+- Check for Updates now answers inside Sastra PDF.
+
+Fixed:
+- Rotating, deleting or moving pages in a protected PDF could leave a file that would not open. Sastra PDF now says the file is protected and leaves it as it was.
+- Long PDFs no longer freeze or close when you spin the mouse wheel very fast.
+- After Restore, the Pages panel shows the page you reached while maximized.
+```
+
 ## Description
 
 Sastra PDF (សាស្ត្រា PDF) is a PDF tool for Windows. Open several PDFs as tabs, put pages in order, and combine, split,
