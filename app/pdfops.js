@@ -38,5 +38,24 @@
   // 512 B, 980 KB, 12.4 MB
   const fmtBytes = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
 
-  window.SastraOps = { PDFJS_OPTS, pdfjs, closePdf, baseName, rangeLabel, imageName, renderPage, fmtBytes };
+  // A protected (encrypted) PDF opens with no password here, but pdf-lib can't read or write it: its pages come out as a file
+  // that won't open, or the load throws. The word is plain text in a file's structure, so only files that have it pay for the
+  // full check (a file may just mention the word). One pdf-lib can't even load (newer protected files keep their structure
+  // encrypted) counts as protected.
+  const WORD = '/Encrypt';
+  function mentionsEncrypt(bytes){
+    const first = WORD.charCodeAt(0);
+    for (let i = bytes.indexOf(first); i !== -1 && i <= bytes.length - WORD.length; i = bytes.indexOf(first, i + 1)) {
+      let k = 1; while (k < WORD.length && bytes[i + k] === WORD.charCodeAt(k)) k++;
+      if (k === WORD.length) return true;
+    }
+    return false;
+  }
+  async function isProtected(bytes){
+    if (!mentionsEncrypt(bytes)) return false;
+    try { return (await PDFLib.PDFDocument.load(bytes, { ignoreEncryption:true, updateMetadata:false })).isEncrypted; }
+    catch { return true; }
+  }
+
+  window.SastraOps = { PDFJS_OPTS, pdfjs, closePdf, baseName, rangeLabel, imageName, renderPage, fmtBytes, isProtected };
 })();

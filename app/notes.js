@@ -13,6 +13,7 @@ const NOTES = Object.freeze([
   N('1.4.0', '2026-11-05', [
     ['new', 'Mark up your PDFs: open the Draw section in the Tools panel for Highlight, Pen, Rectangle, Circle, Line and Arrow, with colours, fill, border and thickness. Hold Shift for straight lines, squares and circles. Click a mark with the Select tool to move it, resize it, change it or delete it, even after saving and reopening the file. Marks also show in Acrobat and other PDF readers, and they print.'],
     ['new', 'Two-page view: the new button in the top bar shows pages left and right, in pairs 1-2, 3-4. It is also in the right-click menu and ☰ › View.'],
+    ['fixed', 'Rotating, deleting or moving pages in a protected PDF could leave a file that would not open. Sastra PDF now says the file is protected and leaves it as it was.'],
     ['fixed', 'Long PDFs no longer freeze or close when you spin the mouse wheel very fast. Sastra PDF now draws only the pages near where you stop, and uses far less memory.'],
     ['improved', 'Zoomed in while maximized, the hand tool and the mouse wheel now move smoothly from one page to the next.'],
     ['new', 'See new versions coming: when a new version is in the Microsoft Store, a small badge appears in the top bar. Click it to watch the download go from your version to the new one, then click Install. Sastra PDF closes to install; if it doesn\'t open again by itself, start it from the Start menu.'],

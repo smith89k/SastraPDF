@@ -223,9 +223,9 @@
   // Pictures are done one at a time and each bitmap is closed at once, so a long scan doesn't fill memory.
   async function reduce(bytes, { onStep = () => {}, isCancelled = () => false } = {}){
     const before = bytes.byteLength;
+    if (await SastraOps.isProtected(bytes)) throw fail('protected');
     let doc;
     try { doc = await PDFDocument.load(bytes, { ignoreEncryption:true, updateMetadata:false }); } catch { throw fail('damaged'); }
-    if (doc.isEncrypted) throw fail('protected');
     try {
       prune(doc);
       const sides = pageSides(doc), largest = Math.max(72, ...doc.getPages().map(p => { const s = p.getSize(); return Math.max(s.width, s.height); }));

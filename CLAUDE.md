@@ -211,6 +211,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   files skipped. Problems (`openDoc` throws `.reason` / `.userReason`: password / damaged / engine; read errors) are
   listed and the box turns `.failed` — "Couldn't open <name>" or "Couldn't open N files", "N problems below", Close.
   `openBytes` (split parts, Combine result, samples) still toasts. Right-click Combine uses the same box.
+- Protected PDFs (encrypted, opening with no password; fixed 2026-11-05): they read and print, but pdf-lib can't write them: on older files rotate, delete, move, extract and split made a file that won't open, and `commit` had already put it in `d.bytes`, so Save overwrote the original; on newer ones (structure in encrypted object streams) the load threw. So every page action calls `refuseProtected(...docs)` first (`SastraOps.isProtected`: `/Encrypt` in the bytes, then pdf-lib; a load that throws counts as protected), as Reduce, Split and Combine do. They are refused, not unlocked: a file's owner may forbid changes, and Acrobat refuses too. And `commit` goes back to the file as it was if the result won't open.
 - Hand tool: pointer drag scrolls `#viewer` (tool H, hold Space, or middle mouse).
 - Marks (since 2026-11-05; the user: highlight with Shift for a straight line, shapes with fill and border, "add pen too", "stay changeable"; spec/plan
   docs/superpowers/*/2026-11-05-view-and-marks*). `d.bytes` holds no marks of ours while a file is open; `d.marks` is an immutable list (`{ id, page, kind, pts, color, fill, width }` in

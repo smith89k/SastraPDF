@@ -1132,9 +1132,23 @@ async function closeDoc(id){
   else { renderTabs(); updateUI(); }
 }
 async function commit(d, bytes, { sel=[], current, msg }={}){
+  const was = { bytes:d.bytes, marks:d.marks, history:[...d.history], future:d.future, dirty:d.dirty };
   pushHistory(d);
   d.future = []; d.bytes = bytes; d.marks = []; d.dirty = true;   // bytes came through marksIn: loadPdf takes the marks back out
-  await reload(d, sel, current); if (msg) toast(msg);
+  try { await reload(d, sel, current); }
+  catch(e){   // a result that won't open must never reach Save, which would overwrite the file with it
+    console.error(e); Object.assign(d, was); await reload(d);
+    throw new Error("the result couldn't be opened, so your file wasn't changed");
+  }
+  if (msg) toast(msg);
+}
+// Pages can't be written into or copied out of a protected PDF: say so before anything happens (as Acrobat, it stays readable).
+async function refuseProtected(...docs){
+  for (const d of docs) if (await SastraOps.isProtected(d.bytes)) {
+    toast(`${d.name} is protected, so its pages can't be changed or copied. You can still read and print it.`, true);
+    return true;
+  }
+  return false;
 }
 // One undo step = the file and its marks. A change to marks alone shares the same bytes, so it costs no copy of the file.
 function pushHistory(d){ d.history.push({ bytes:d.bytes, marks:d.marks }); if (d.history.length > 40) d.history.shift(); }
@@ -1605,6 +1619,7 @@ async function movePages(ins){
   const pos = rest.filter(i => i < ins).length;
   const order = [...rest.slice(0,pos), ...moving, ...rest.slice(pos)];
   if (order.every((v,k)=>v===k)) return;
+  if (await refuseProtected(d)) return;
   await busy('Reordering pages…', async () => {
     const src = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     const out = await PDFDocument.create();
@@ -1619,6 +1634,7 @@ async function copyPagesTo(from, d, at){
   const s = state.docs.find(x => x.id === from.docId); if (!s) return;
   const pages = from.pages.filter(i => i < s.n); if (!pages.length) return;
   const n = pages.length, what = `${n} page${n>1?'s':''}`;
+  if (await refuseProtected(s, d)) return;
   await busy('Copying pages…', async () => {
     const src = await PDFDocument.load(await marksIn(s), { ignoreEncryption:true }), doc = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     let k = at; (await doc.copyPages(src, pages)).forEach(p => doc.insertPage(k++, p));
@@ -1630,6 +1646,7 @@ async function copyPagesTo(from, d, at){
 }
 async function rotate(delta){
   const d = active(); if (!d) return; const tg = targets(d);
+  if (await refuseProtected(d)) return;
   await busy('Rotating…', async () => {
     const doc = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     for (const i of tg) { const p = doc.getPage(i); p.setRotation(degrees(((p.getRotation().angle + delta) % 360 + 360) % 360)); }
@@ -1639,6 +1656,7 @@ async function rotate(delta){
 async function deletePages(){
   const d = active(); if (!d) return; const tg = targets(d);
   if (tg.length >= d.n) { toast('A PDF needs at least one page. Select fewer pages to delete.', true); return; }
+  if (await refuseProtected(d)) return;
   await busy('Deleting pages…', async () => {
     const doc = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     [...tg].reverse().forEach(i => doc.removePage(i));
@@ -1647,6 +1665,7 @@ async function deletePages(){
 }
 async function extractPages(){
   const d = active(); if (!d) return; const tg = targets(d);
+  if (await refuseProtected(d)) return;
   await busy('Extracting pages…', async () => {
     const src = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     const out = await PDFDocument.create(); (await out.copyPages(src, tg)).forEach(p => out.addPage(p));
@@ -1661,6 +1680,7 @@ const byName = new Intl.Collator(undefined, { numeric:true, sensitivity:'base' }
 // (one Ctrl+Z). Insert file and files dropped on the Pages panel. Files that can't be used (password-protected,
 // damaged, not a PDF or picture) are skipped and named in one toast; none usable → nothing changes.
 async function insertItems(d, at, items){
+  if (await refuseProtected(d)) return;
   const list = [...items].sort((a,b) => byName(a.name, b.name));
   await busy('Inserting pages…', async () => {
     const doc = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
@@ -1668,8 +1688,8 @@ async function insertItems(d, at, items){
     for (const it of list) {
       try {
         if (SastraImages.kind(it.bytes) === 'pdf') {
+          if (await SastraOps.isProtected(it.bytes)) { skipped.push(it.name); continue; }
           const src = await PDFDocument.load(it.bytes, { ignoreEncryption:true });
-          if (src.isEncrypted) { skipped.push(it.name); continue; }
           (await doc.copyPages(src, src.getPageIndices())).forEach(p => doc.insertPage(k++, p));
         } else { await SastraImages.addImagePage(doc, it.bytes, k); k++; }
       } catch { skipped.push(it.name); }   // bytes null, damaged, or not a PDF or picture
@@ -1711,6 +1731,7 @@ function renderCombine(){
 async function combine(){
   const picks = state.combine.filter(c=>c.on).map(c => state.docs.find(d=>d.id===c.id)).filter(Boolean);
   if (picks.length < 2) { toast('Tick at least two files to combine', true); return; }
+  if (await refuseProtected(...picks)) return;
   await busy('Combining files…', async () => {
     const out = await PDFDocument.create();
     for (const d of picks) { const src = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true }); (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p)); }
@@ -1741,8 +1762,8 @@ async function combinePaths(paths){
         const bytes = new Uint8Array(f.data);
         try {
           if (SastraImages.kind(bytes) === 'pdf') {
+            if (await SastraOps.isProtected(bytes)) { job.problem(`${f.name} — it's protected, so its pages can't be copied`); continue; }
             const src = await PDFDocument.load(bytes, { ignoreEncryption:true });
-            if (src.isEncrypted) { job.problem(`${f.name} — ${OPEN_REASONS.password}`); continue; }
             (await out.copyPages(src, src.getPageIndices())).forEach(pg => out.addPage(pg));
           } else await SastraImages.addImagePage(out, bytes);
           used++;
@@ -1786,6 +1807,7 @@ async function split(){
     else groups = [...Array(d.n).keys()].map(i=>[i]);
   } catch(e){ err.textContent = e.message; err.hidden = false; return; }
   if (groups.length < 2 && mode !== 'ranges') { err.textContent = 'That split gives only one file. Use fewer pages per file.'; err.hidden = false; return; }
+  if (await refuseProtected(d)) return;
   const names = groups.map(g => `${baseName(d.name)}-${rangeLabel(g)}.pdf`), label = `Splitting into ${groups.length} files…`;
   let src = null;
   const part = async k => {

@@ -142,8 +142,8 @@
 
   async function splitOne(j, verb) {
     const bytes = await readBytes(j.path, j.name); if (!bytes) return;
+    if (await SastraOps.isProtected(bytes)) { problem(`${j.name}: it's protected, so it can't be split`); return; }
     const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
-    if (src.isEncrypted) { problem(`${j.name}: it's protected, so it can't be split`); return; }
     for (let i = 0; i < j.n; i++) {
       if (cancelled) return;
       show(`${verb} ${j.name}`, `Page ${i + 1} of ${j.n}`, i / j.n);
