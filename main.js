@@ -8,6 +8,7 @@ const { execFile } = require('child_process');
 const menu = require('./explorer-menu');
 const updates = require('./updater');
 const store = require('./store');
+const storeUpdates = require('./store-update');
 
 const APP_NAME = 'Sastra PDF';
 // Window title: "Sastra PDF v1.0.0", plus " (dev)" when run from source (pnpm start / run.bat).
@@ -16,6 +17,7 @@ let win = null;
 let pendingPaths = [];      // PDFs passed before the window was ready
 let allowClose = false;
 let up = null;              // automatic updates (updater.js), only in the installed app
+let storeUp = null;         // the Store copy's update state (store-update.js), started when its window first asks
 
 // The Microsoft Store copy (store.js): Windows says so (process.windowsStore). Tests only (never in the installed app):
 // SASTRA_STORE_TEST=1 makes `electron .` act as one.
@@ -399,11 +401,7 @@ ipcMain.handle('app-version', () => app.getVersion());
 
 /* Automatic updates (updater.js). The page asks about unsaved changes BEFORE install-update: quitAndInstall starts the
    installer at once and it closes the app by force, so nothing may be left to ask by then. */
-// The Store copy: the Store updates it, so Check for Updates opens Sastra PDF's page there (store.js storePageUrl).
-ipcMain.handle('check-updates', () => {
-  if (STORE) { shell.openExternal(store.storePageUrl(STORE_INFO)).catch(() => {}); return { kind: 'store' }; }
-  return up ? up.checkNow() : { kind: 'dev' };
-});
+ipcMain.handle('check-updates', () => up ? up.checkNow() : { kind: 'dev' });
 ipcMain.handle('install-update', () => {
   const block = updates.installBlock({ downloaded: up && up.downloaded(), taskOpen: !!taskWin });
   if (block) return { ok: false, reason: block };
@@ -411,6 +409,39 @@ ipcMain.handle('install-update', () => {
   if (up.install()) return { ok: true };
   allowClose = false;  // it didn't start: closing must ask about unsaved changes again
   return { ok: false, reason: 'failed' };
+});
+/* The Store copy's update badge and panel (store-update.js, app/update-panel.js). Starting here, at the main window's
+   first question, means a right-click job alone never checks. The helper program does the talking to the Store. */
+function startStoreUpdates() {
+  const log = updates.logTo(path.join(os.tmpdir(), 'Sastra PDF', 'update.log'));
+  const fake = !app.isPackaged && process.env.SASTRA_STORE_HELPER;   // tests only, never in the installed app
+  const run = storeUpdates.makeRun(fake
+    ? { command: process.execPath, prefix: [fake], env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, log }
+    : { command: path.join(process.resourcesPath, 'store-update', 'SastraStoreUpdate.exe'), log });
+  storeUp = storeUpdates.createStoreUpdater({
+    run, log, current: app.getVersion(),
+    send: s => { if (win) win.webContents.send('store-update', s); },
+    hwnd: () => win ? win.getNativeWindowHandle().readBigUInt64LE(0).toString() : null,
+    taskOpen: () => !!taskWin,
+    // Loading it is what asks Windows to open the app again after the update closes it (store-update/restart.cpp)
+    registerRestart: () => { if (app.isPackaged) process.dlopen({ exports: {} }, path.join(process.resourcesPath, 'store-update', 'SastraRestart.node')); }
+  });
+  storeUp.start();
+}
+ipcMain.handle('store-update', async (_e, action) => {
+  if (!STORE) return null;
+  if (!storeUp) startStoreUpdates();
+  if (action === 'state') return storeUp.state();
+  if (action === 'check') return storeUp.checkNow();
+  if (action === 'download') return storeUp.download();
+  if (action === 'open-store') { shell.openExternal(store.storePageUrl(STORE_INFO)).catch(() => {}); return {}; }
+  if (action === 'install') {
+    allowClose = true;   // before: Windows closes the app to install, and the page has already asked about unsaved changes
+    const r = await storeUp.install();
+    if (!r.ok) allowClose = false;   // it didn't happen: closing must ask again
+    return r;
+  }
+  return null;
 });
 // After a silent update the right-click menu may have fallen back to "Show more options" (explorer-menu.js
 // repairNeeded): 'check' → { needed }, 'later' → not again for this version, 'fix' → the installer's own setup step,
@@ -456,3 +487,4 @@ app.whenReady().then(() => {
   }
 });
 app.on('window-all-closed', () => app.quit());
+app.on('will-quit', () => { if (storeUp) storeUp.stop(); });

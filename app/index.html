@@ -115,6 +115,16 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:defau
 @media (max-width:1316px){.menubar .brand-km{display:none}}
 @media (max-width:1263px){#bZoomOut,#bZoomIn{display:none}}
 @media (max-width:1195px){#bPrev,#bNext{display:none}}
+/* The Store copy's update badge (app/update-panel.js) needs 116 px while it shows: each step above comes that much sooner */
+@media (max-width:1754px){#app.has-update:not(.focus) .menubar .btn .lbl{display:none}}
+@media (max-width:1500px){#app.has-update #bFitW,#app.has-update #bFitP{display:none}}
+@media (max-width:1432px){#app.has-update .menubar .brand-km{display:none}}
+@media (max-width:1379px){#app.has-update #bZoomOut,#app.has-update #bZoomIn{display:none}}
+@media (max-width:1311px){#app.has-update #bPrev,#app.has-update #bNext{display:none}}
+.updbadge{flex:none;width:112px;margin:0 2px;padding:0;justify-content:center;white-space:nowrap;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;background:var(--accent-soft);color:var(--accent)}
+.updbadge:hover:not(:disabled){background:var(--accent-soft);filter:brightness(1.07)}
+.updbadge.ready{background:var(--accent);color:var(--accent-fg)}
+.updbadge.ready:hover:not(:disabled){background:var(--accent)}
 
 /* tabs */
 .tabbar{display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);min-width:0}
@@ -248,6 +258,19 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 .modal .acts{display:flex;justify-content:flex-end;gap:8px}
 .modal p.detail{color:var(--muted);font-size:13px}
 .modal.checking p{display:flex;align-items:center;gap:10px}
+/* The Store copy's update panel (app/update-panel.js), as AI Hub's */
+.modal.update-panel{width:min(460px,calc(100vw - 32px));max-width:none}
+.update-panel h2{display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600}
+.u-versions{display:flex;align-items:center;justify-content:space-around;margin:4px 0;text-align:center}
+.u-k{font-size:12px;font-weight:600;color:var(--muted)}
+.u-v{font-size:30px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.u-old .u-v{color:var(--muted)}
+.u-arrow{font-size:26px;color:var(--muted)}
+.u-bar{height:6px;margin-bottom:-8px;border-radius:3px;background:var(--accent-soft);overflow:hidden}
+.u-bar i{display:block;width:0;height:100%;background:var(--accent);transition:width .3s}
+.u-prog{display:flex;justify-content:space-between;gap:12px;min-height:16px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.modal .u-hint{margin:-4px 0 0;text-align:right;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.u-bar i{transition:none}}
 /* the progress box while PDFs open (startProgress): Bohpum's reading box, the look of the right-click window (task.html) */
 .modal.progress{width:min(440px,calc(100vw - 32px));max-width:none;gap:12px;padding:16px 18px 14px;background:var(--chrome);font-size:14px;line-height:1.45;cursor:default}
 .progress .p-head{display:flex;gap:12px;align-items:center}
@@ -420,7 +443,7 @@ select.big option{padding:8px 10px}
    (the view tools are then in the right-click menu) */
 /* 45px = the normal bar (6 + 32px logo + 6 + border), so the bar, logo and Restore don't jump when switching */
 #app.focus .menubar{padding-top:0;padding-bottom:0;height:45px;box-sizing:border-box;align-items:stretch}
-#app.focus .menubar>:not(#bMenu,.brand,.tabbar,#bFocus){display:none}
+#app.focus .menubar>:not(#bMenu,.brand,.tabbar,#bFocus,#bUpdate){display:none}
 #app.focus .menubar>.brand,#app.focus .menubar>.btn{align-self:center}   /* centred on the bar's full height */
 #app.focus .menubar>.tabbar{flex:1;padding:0;border-bottom:0}   /* tabs sit on the bar's bottom edge */
 /* dividers keep the tabs apart from the logo block and from Restore */
@@ -475,6 +498,7 @@ select.big option{padding:8px 10px}
       <div class="grp"><button class="btn" id="bTools" title="Organize tools"><svg class="i" data-i="panel"></svg><span class="lbl">Tools</span></button></div>
     </div>
     <span class="sep"></span>
+    <button class="btn updbadge" id="bUpdate" title="About this update" hidden></button>
     <button class="btn" id="bPresent" title="Present from this page (Shift+F5) · from the start: F5"><svg class="i" data-i="play"></svg><span class="lbl">Present</span></button>
     <button class="btn" id="bFocus" title="Maximize the page area (F)"><svg class="i" data-i="max"></svg><span class="lbl">Maximize</span></button>
     <button class="btn icon" id="bTheme" title="Theme"><svg class="i" data-i="sys"></svg></button>
@@ -569,6 +593,7 @@ select.big option{padding:8px 10px}
 <script src="images.js"></script>
 <script src="reduce.js"></script>
 <script src="notes.js"></script>
+<script src="update-panel.js"></script>
 <script>
 (() => {
 const ICONS = {
@@ -952,6 +977,8 @@ async function runOpen(j){
 // Help > Check for Updates: "Checking…" (Esc or a click outside closes it and drops the answer), then the answer.
 async function checkUpdatesCmd(){
   if (!screenFree()) return;
+  if (await SastraUpdatePanel.active()) return SastraUpdatePanel.check();   // the Store copy
+  if (!screenFree()) return;
   const bg = document.createElement('div'); bg.className='modal-bg';
   bg.innerHTML = `<div class="modal ask checking" role="dialog" aria-modal="true" aria-busy="true"><p><span class="spin"></span>Checking for updates…</p><div class="acts"></div></div>`;
   let open = true;
@@ -963,7 +990,6 @@ async function checkUpdatesCmd(){
   let a; try { a = await desk.checkUpdates(); } catch { a = { kind:'failed' }; }
   if (!open) return;
   done();
-  if (a.kind === 'store') return;   // main opened Sastra PDF's page in the Store, which updates this copy
   if (a.kind === 'ready') return readyBox(a.version);
   const failed = ["Couldn't check for updates. Check the internet connection and try again.", ''];
   const [msg, detail] = {
@@ -2068,6 +2094,7 @@ if (desk) {
   desk.onOpenPaths(openPaths);
   desk.onCombinePaths(combinePaths);
   desk.onUpdateReady(updateReady);
+  SastraUpdatePanel.init({ desk, askUnsaved, askChoice, screenFree });
   // ☰: the File / Edit / View / Help menu, since the window has no Windows title bar or menu row (main.js).
   // Alt pressed and let go on its own, or F10, opens it too — as with a menu row.
   const bMenu = $('#bMenu'), menuBlocked = () => !!($('.modal-bg') || show.el);

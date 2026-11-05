@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('sastra', {
   installUpdate: () => ipcRenderer.invoke('install-update'),
   menuRepair: action => ipcRenderer.invoke('menu-repair', action),
   onUpdateReady: fn => ipcRenderer.on('update-ready', (_e, v) => fn(String(v))),
+  // the Store copy's update badge and panel (store-update.js): main answers null in any other copy
+  storeUpdate: action => ipcRenderer.invoke('store-update', action),
+  onStoreUpdate: fn => ipcRenderer.on('store-update', (_e, s) => fn(s)),
   onMenu: fn => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
   onOpenPaths: fn => ipcRenderer.on('open-paths', (_e, paths) => fn(paths)),
   onCombinePaths: fn => ipcRenderer.on('combine-paths', (_e, paths) => fn(paths)),
