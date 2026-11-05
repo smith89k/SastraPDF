@@ -452,8 +452,9 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
   Store's automatic updates on, not metered), else `available` and a Download button → Windows' own box. Badge `#bUpdate`
   (112 px, before Present, kept when Maximized): "↓ Update 45%", "Update available", "Update ready". The panel opens ONLY from it or
   Help › Check for Updates. Install: `askUnsaved` first, then `allowClose`, SastraRestart.node (`process.dlopen`; loading it calls
-  RegisterApplicationRestart, flags 11 = only an update reopens it), then `install`; a failure or 60 s still alive sets `allowClose`
-  back. No What's new in the panel (the Store has no notes, and no server of ours). From source `SASTRA_STORE_TEST=1` with
+  RegisterApplicationRestart, flags 11 = only an update reopens it), then `install`; a failure, 60 s still alive after "completed" (20 s after the helper
+  ended with nothing said: Windows may end it first) or 5 min in all sets `allowClose` back. A quiet download passes `--silent-only`, so only the
+  Download button can raise Windows' box; a stalled download is stopped after 30 min. On ready the focus is on Later and Install ignores clicks for 500 ms. No What's new in the panel (the Store has no notes, and no server of ours). From source `SASTRA_STORE_TEST=1` with
   `SASTRA_STORE_HELPER=<js>` runs a fake helper. Log: %TEMP%\Sastra PDF\update.log. Trying the real thing without a release:
   `Invoke-CommandInDesktopPackage` runs a program inside the installed Store copy's identity (docs/updates-setup.md section 7).
 - Design: IBM Plex Sans/Mono. All UI fonts SHIP INSIDE THE APP (no Google Fonts, no network: the

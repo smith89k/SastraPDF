@@ -115,6 +115,12 @@ The permission path (no quiet download allowed), settled in the builder check:
 message, then set `allowClose`, ask Windows to reopen, start the install. If the install doesn't start or fails,
 `allowClose` goes back to false, so a later X still asks about unsaved changes.
 
+**Install, from the final review.** Windows may end the helper before the app, since both are in the package: a helper
+that ends with nothing said keeps "Installing…" and `allowClose`, and only after 20 s still running is it `install failed`.
+An install is called off after 5 minutes, a download after 30 minutes with no news. A download nobody pressed passes
+`--silent-only`, so it can never raise Windows' box. On `ready` the focus is on Later, and Install ignores clicks for
+500 ms, because it takes Hide's place when a download ends.
+
 **Reopening.** Microsoft documents `RegisterApplicationRestart` for desktop apps updated by the package system
 ([page](https://learn.microsoft.com/en-us/windows/msix/non-store-developer-updates), written for non-Store updates; a
 [forum answer](https://learn.microsoft.com/en-za/answers/questions/5643670/update-app-from-code) says the same for Store

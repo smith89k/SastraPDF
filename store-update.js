@@ -7,6 +7,9 @@ const { FIRST_CHECK_MS, CHECK_EVERY_MS } = require('./updater');
 
 const CHECK_TIMEOUT_MS = 60000;   // a helper that never answers a check is stopped: "Couldn't check"
 const INSTALL_GRACE_MS = 60000;   // Windows closes the app to install; still running this long after "completed" = it didn't work
+const INSTALL_DIED_GRACE_MS = 20000;   // the helper lives in the package being updated, so Windows may end it just before the app
+const INSTALL_LIMIT_MS = 5 * 60 * 1000;   // an install still going after this (a hang, or Windows' box left open) is called off
+const DOWNLOAD_STALL_MS = 30 * 60 * 1000;   // a download with no news for this long is called off: the next check tries again
 
 // One line of the helper's output → the event, or null for anything else.
 function parseLine(text) {
@@ -52,16 +55,22 @@ function makeRun({ command, prefix = [], env, log }) {
 
 function createStoreUpdater({ run, current, send, log, hwnd, taskOpen, registerRestart, timers = { setTimeout, setInterval, clearTimeout, clearInterval }, now = Date.now }) {
   const s = { stage: 'none', current, next: null, silent: true, percent: 0, transferred: 0, total: 0, bytesPerSecond: 0, failed: false };
-  let active = null, checking = null, installing = null, first = null, every = null, stopped = false;
+  const live = new Set(); let checking = null, installing = null, first = null, every = null, stopped = false;
   const state = () => ({ ...s });
   const tell = () => { try { send(state()); } catch (e) { log('state not sent: ' + e.message); } };
   const withWindow = cmd => { let h = null; try { h = hwnd(); } catch {} return h ? [cmd, `--hwnd=${h}`] : [cmd]; };
 
-  function startDownload() {
+  // asked: the person pressed Download. Otherwise it must never raise a Windows box over their work (--silent-only).
+  function startDownload(asked) {
     Object.assign(s, { stage: 'downloading', percent: 0, transferred: 0, total: 0, bytesPerSecond: 0, failed: false });
     tell();
-    let base = null, last = null;
-    const r = run(withWindow('download'), e => {
+    let base = null, last = null, stall = null;
+    const arm = () => {
+      timers.clearTimeout(stall);
+      stall = timers.setTimeout(() => { log('download stalled'); r.kill(); }, DOWNLOAD_STALL_MS);
+    };
+    const r = run(asked ? withWindow('download') : ['download', '--silent-only'], e => {
+      arm();
       if (e.event === 'done') last = e.state;
       else if (e.event === 'error') log('download: ' + e.code);
       else if (e.event === 'progress' && s.stage === 'downloading') {
@@ -73,9 +82,11 @@ function createStoreUpdater({ run, current, send, log, hwnd, taskOpen, registerR
         tell();
       }
     });
-    active = r;
+    live.add(r);
+    arm();
     r.done.then(() => {
-      if (active === r) active = null;
+      timers.clearTimeout(stall);
+      live.delete(r);
       if (stopped) return;
       if (last === 'completed') Object.assign(s, { stage: 'ready', percent: 100 });
       else if (last === 'cancelled') s.stage = s.silent ? 'none' : 'available';
@@ -94,21 +105,21 @@ function createStoreUpdater({ run, current, send, log, hwnd, taskOpen, registerR
       if (e.event === 'check') answer = e;
       else if (e.event === 'error') log('check: ' + e.code);
     });
-    active = r;
+    live.add(r);
     const limit = timers.setTimeout(() => r.kill(), CHECK_TIMEOUT_MS);
     checking = r.done.then(() => {
       timers.clearTimeout(limit);
-      if (active === r) active = null;
+      live.delete(r);
       checking = null;
-      if (!answer) return { kind: 'failed' };
-      if (stopped) return { kind: 'failed' };
+      if (!answer || stopped) return { kind: 'failed' };
+      if (s.stage === 'downloading' || s.stage === 'ready') return { kind: 'update' };   // Download was pressed meanwhile
       if (!(answer.count > 0)) {
         if (s.stage !== 'none') { s.stage = 'none'; tell(); }
         return { kind: 'current' };
       }
       s.next = nextVersion(current, answer.version);
       s.silent = answer.silent === true;
-      if (s.silent) startDownload();
+      if (s.silent) startDownload(false);
       else { s.stage = 'available'; tell(); }
       return { kind: 'update' };
     });
@@ -117,7 +128,7 @@ function createStoreUpdater({ run, current, send, log, hwnd, taskOpen, registerR
 
   function download() {
     if (s.stage !== 'available') return Promise.resolve({ ok: false });
-    startDownload();
+    startDownload(true);
     return Promise.resolve({ ok: true });
   }
 
@@ -126,18 +137,23 @@ function createStoreUpdater({ run, current, send, log, hwnd, taskOpen, registerR
     if (s.stage !== 'ready') return Promise.resolve({ ok: false, reason: 'none' });
     if (taskOpen()) return Promise.resolve({ ok: false, reason: 'task' });
     try { registerRestart(); } catch (e) { log('reopen not set up: ' + e.message); }   // the panel warned; the update still goes in
-    let last = null;
+    let last = null, started = false, called = false;
     const r = run(withWindow('install'), e => {
-      if (e.event === 'done') last = e.state;
-      else if (e.event === 'error') log('install: ' + e.code);
+      if (e.event === 'start') started = true;
+      else if (e.event === 'done') last = e.state;
+      else if (e.event === 'error') { last = 'error'; log('install: ' + e.code); }
     });
+    const limit = timers.setTimeout(() => { called = true; log('install took too long'); r.kill(); }, INSTALL_LIMIT_MS);
     installing = r.done.then(() => {
+      timers.clearTimeout(limit);
       if (last === 'cancelled') return { ok: false, reason: 'cancelled' };
-      if (last !== 'completed') { log('install did not finish: ' + (last || 'no answer')); return { ok: false, reason: 'failed' }; }
+      // "completed", or a helper ended with nothing said: Windows may be closing everything, so keep going and wait to be closed
+      const closing = last === 'completed' || (last === null && started && !called);
+      if (!closing) { log('install did not finish: ' + (last || 'no answer')); return { ok: false, reason: 'failed' }; }
       return new Promise(res => timers.setTimeout(() => {
-        log('install said completed, but the app is still running');
+        log('install: Windows did not close the app');
         res({ ok: false, reason: 'failed' });
-      }, INSTALL_GRACE_MS));
+      }, last === 'completed' ? INSTALL_GRACE_MS : INSTALL_DIED_GRACE_MS));
     }).then(result => { installing = null; return result; });
     return installing;
   }
@@ -150,9 +166,9 @@ function createStoreUpdater({ run, current, send, log, hwnd, taskOpen, registerR
     stop() {
       stopped = true;
       timers.clearTimeout(first); timers.clearInterval(every);
-      if (active) active.kill();
+      for (const r of live) r.kill();
     }
   };
 }
 
-module.exports = { FIRST_CHECK_MS, CHECK_EVERY_MS, CHECK_TIMEOUT_MS, INSTALL_GRACE_MS, parseLine, nextVersion, makeRun, createStoreUpdater };
+module.exports = { FIRST_CHECK_MS, CHECK_EVERY_MS, CHECK_TIMEOUT_MS, INSTALL_GRACE_MS, INSTALL_DIED_GRACE_MS, INSTALL_LIMIT_MS, DOWNLOAD_STALL_MS, parseLine, nextVersion, makeRun, createStoreUpdater };

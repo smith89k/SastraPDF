@@ -66,7 +66,9 @@ function panelHtml(view) {
 }
 
 let desk = null, ask = null, screenFree = () => true, badge = null;
-let current = null, bg = null, view = null, turn = 0, ready = Promise.resolve();
+let current = null, bg = null, view = null, turn = 0, ready = Promise.resolve(), shownAt = 0;
+const INSTALL_SETTLE_MS = 500;   // Install takes Hide's place when a download ends: a click meant for Hide must not install
+const onTop = () => [...document.querySelectorAll('.modal-bg')].at(-1) === bg;   // a question over the panel keeps the keys
 
 function paintProgress(box, v) {
   const fill = box.querySelector('.u-bar i');
@@ -92,7 +94,11 @@ function show(v) {
   // Progress comes often: while the same download runs only the bar and its words change, so the focus stays.
   const same = view && view.stage === 'downloading' && v.stage === 'downloading' && view.next === v.next;
   view = v; box.dataset.stage = v.stage;
-  if (!same) { box.innerHTML = panelHtml(v); box.querySelector('.acts button:last-child')?.focus(); }
+  if (!same) {
+    box.innerHTML = panelHtml(v); shownAt = performance.now();
+    // Enter must never install: on ready the focus goes to Later
+    if (onTop()) box.querySelector(v.stage === 'ready' ? '.acts button' : '.acts button:last-child')?.focus();
+  }
   paintProgress(box, v);
 }
 function close() {
@@ -102,7 +108,7 @@ function close() {
 }
 function onKey(e) {
   if (e.key !== 'Escape') return;
-  if ([...document.querySelectorAll('.modal-bg')].at(-1) !== bg) return;   // a question over the panel answers Esc itself
+  if (!onTop()) return;
   e.stopPropagation();
   if (view.stage !== 'installing') close();
 }
@@ -137,7 +143,7 @@ async function install() {
 }
 function act(what) {
   if (what === 'close') return close();
-  if (what === 'install') return install();
+  if (what === 'install') return performance.now() - shownAt < INSTALL_SETTLE_MS ? undefined : install();
   if (what === 'download') return void desk.storeUpdate('download').catch(() => {});
   if (what === 'store') { desk.storeUpdate('open-store').catch(() => {}); close(); }
 }

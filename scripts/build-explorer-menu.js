@@ -51,7 +51,7 @@ fs.writeFileSync(bat, [
   `cd /d "${OBJ}"`,
   `cl /nologo /std:c++17 /EHsc /O2 /MT /LD /W3 /utf-8 /DUNICODE /D_UNICODE "${path.join(SRC, 'menu.cpp')}" /Fe"${path.join(OUT, 'SastraMenu.dll')}" /link /DEF:"${path.join(SRC, 'menu.def')}" /IMPLIB:SastraMenu.lib || exit /b 1`,
   // C++20: this C++/WinRT needs the standard <coroutine>
-  `cl /nologo /std:c++20 /EHsc /O2 /MT /W3 /utf-8 "${path.join(STORE_SRC, 'update.cpp')}" /Fe"${path.join(STORE_OUT, 'SastraStoreUpdate.exe')}" /link windowsapp.lib ole32.lib || exit /b 1`,
+  `cl /nologo /std:c++20 /EHsc /O2 /MT /W3 /utf-8 "${path.join(STORE_SRC, 'update.cpp')}" /Fe"${path.join(STORE_OUT, 'SastraStoreUpdate.exe')}" /link windowsapp.lib ole32.lib user32.lib || exit /b 1`,
   `cl /nologo /std:c++17 /EHsc /O2 /MT /LD /W3 /utf-8 "${path.join(STORE_SRC, 'restart.cpp')}" /Fe"${path.join(STORE_OUT, 'SastraRestart.node')}" /link /IMPLIB:SastraRestart.lib || exit /b 1`
 ].join('\r\n'));
 run('cmd.exe', ['/d', '/s', '/c', `""${bat}""`], { windowsVerbatimArguments: true });
@@ -64,4 +64,4 @@ for (const f of fs.readdirSync(path.join(SRC, 'Assets'))) fs.copyFileSync(path.j
 run(makeappx(), ['pack', '/o', '/nv', '/d', stage, '/p', path.join(OUT, `${PKG}.msix`)], { stdio: ['ignore', 'ignore', 'inherit'] });
 
 fs.rmSync(OBJ, { recursive: true, force: true });
-console.log(`build-explorer-menu: ${path.relative(ROOT, OUT)}\\SastraMenu.dll and ${PKG}.msix ready; ${path.relative(ROOT, STORE_OUT)}\SastraStoreUpdate.exe and SastraRestart.node ready`);
+console.log(`build-explorer-menu: ${path.relative(ROOT, OUT)}\\SastraMenu.dll and ${PKG}.msix ready; ${path.relative(ROOT, STORE_OUT)}\\SastraStoreUpdate.exe and SastraRestart.node ready`);
