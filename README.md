@@ -22,6 +22,9 @@ A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron
   On Windows 11 the installer asks once for permission to put it in the first right-click menu;
   without it, the same items are under "Show more options". On Windows 10 they show right away.
 - Works fully offline; files never leave the computer (only updates need the internet)
+- Mark up pages: highlight, pen, rectangle, circle, line and arrow, with colours, fill and border. Marks stay changeable after
+  saving, and show in Acrobat and other PDF readers
+- Two-page view (pairs 1-2, 3-4); zoomed in while maximized, the hand tool moves smoothly across pages
 - Updates: when a new version is found, a small badge appears in the top bar. Click it to see the download go from
   version to version, then click Install. ☰ › Help › Check for Updates checks by hand
 

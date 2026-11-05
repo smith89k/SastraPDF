@@ -196,6 +196,25 @@ body.pages-resizing,body.pages-resizing *{cursor:col-resize!important}
 #pages.two .page:nth-child(odd){justify-self:end}
 #pages.two .page:nth-child(even){justify-self:start}
 #pages.two .page:nth-child(odd) .pg-lbl{left:auto;right:100%;margin:0 10px 0 0}
+/* Marks over a page (app/draw.js): drawn in the PDF's own coordinates, so they scale with the page */
+.marks{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.marks .vis *{pointer-events:visiblePainted;cursor:move}
+.marks .hit *{stroke:transparent!important;stroke-width:12px;vector-effect:non-scaling-stroke;fill:none!important;mix-blend-mode:normal!important;pointer-events:stroke;cursor:move}
+.marks .pv *{pointer-events:none}
+#viewer.drawing .marks *,#viewer.hand .marks *,#app.focus .marks *{pointer-events:none!important}
+#viewer.drawing .page{cursor:crosshair}
+.mk-sel{fill:none;stroke:var(--accent);stroke-width:1px;vector-effect:non-scaling-stroke;stroke-dasharray:4 3}
+.mk-h{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;box-sizing:border-box;background:#fff;border:1.5px solid var(--accent);border-radius:2px;cursor:nwse-resize}
+.drawbar{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.drawbar .tbtn{justify-content:center;padding:0}
+.drawbar .tbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+#drawOpts{display:flex;flex-direction:column;gap:10px}
+#drawOpts:empty{display:none}
+.swatches{display:flex;flex-wrap:wrap;gap:5px}
+.swatch{width:22px;height:22px;padding:0;box-sizing:border-box;border:1px solid var(--line-strong);border-radius:5px;background:var(--c);cursor:pointer}
+.swatch.on{outline:2px solid var(--accent);outline-offset:1px}
+.swatch.none{background:linear-gradient(to top right,transparent 45%,#cc2229 45%,#cc2229 55%,transparent 55%),#fff}
+.swatch.custom{background:none;appearance:auto}
 .page .pg-lbl{position:absolute;left:100%;top:0;margin-left:10px;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;opacity:.8}
 
 .empty{position:absolute;inset:0;display:grid;place-items:center;padding:24px}
@@ -547,6 +566,19 @@ select.big option{padding:8px 10px}
         </div>
       </section>
 
+      <section class="tsec" data-sec="draw">
+        <h3><button class="tsec-head" aria-expanded="true"><svg class="i" data-i="pen"></svg><span>Draw</span><svg class="i chev" data-i="up"></svg></button></h3>
+        <div class="drawbar">
+          <button class="tbtn" id="dHighlight" title="Highlight"><svg class="i" data-i="marker"></svg></button>
+          <button class="tbtn" id="dPen" title="Pen"><svg class="i" data-i="pen"></svg></button>
+          <button class="tbtn" id="dRect" title="Rectangle"><svg class="i" data-i="shrect"></svg></button>
+          <button class="tbtn" id="dEllipse" title="Circle"><svg class="i" data-i="shcircle"></svg></button>
+          <button class="tbtn" id="dLine" title="Line"><svg class="i" data-i="shline"></svg></button>
+          <button class="tbtn" id="dArrow" title="Arrow"><svg class="i" data-i="sharrow"></svg></button>
+        </div>
+        <p class="hint" id="drawHint">Choose a tool, then drag on the page. Hold Shift for straight lines, squares and circles. To change a mark, click it with the Select tool.</p>
+        <div id="drawOpts"></div>
+      </section>
       <section class="tsec" data-sec="split">
         <h3><button class="tsec-head" aria-expanded="true"><svg class="i" data-i="split"></svg><span>Split document</span><svg class="i chev" data-i="up"></svg></button></h3>
         <div class="field"><label for="sMode">Split by</label>
@@ -602,6 +634,8 @@ select.big option{padding:8px 10px}
 <script src="reduce.js"></script>
 <script src="notes.js"></script>
 <script src="update-panel.js"></script>
+<script src="marks.js"></script>
+<script src="draw.js"></script>
 <script>
 (() => {
 const ICONS = {
@@ -616,6 +650,12 @@ const ICONS = {
   zout:'<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M8 11h6"/>',
   fitw:'<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>',
   fitp:'<rect x="6" y="3" width="12" height="18" rx="1.5"/><path d="M9.5 9h5M9.5 12.5h5"/>',
+  pen:'<path d="M4 20l1-4L16 5l3 3L8 19z"/>',
+  marker:'<path d="M14 4l6 6-9 9H7l-2-2v-4z"/><path d="M4 21h16"/>',
+  shrect:'<rect x="4" y="6" width="16" height="12" rx="1"/>',
+  shcircle:'<circle cx="12" cy="12" r="8"/>',
+  shline:'<path d="M5 19L19 5"/>',
+  sharrow:'<path d="M5 19L19 5M10 5h9v9"/>',
   two:'<rect x="3" y="5" width="8" height="14" rx="1.2"/><rect x="13" y="5" width="8" height="14" rx="1.2"/>',
   up:'<path d="M6 15l6-6 6 6"/>', down:'<path d="M6 9l6 6 6-6"/>',
   rotl:'<path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 3.5V9h5.5"/>',
@@ -1028,6 +1068,11 @@ const targets = d => d.sel.size ? [...d.sel].sort((a,b)=>a-b) : [d.current];
 async function loadPdf(d, { onTask, onPage, isCancelled } = {}){
   if (d.pdf) SastraOps.closePdf(d.pdf);   // free the previous copy (each edit re-opens the document)
   await pdfReady;
+  // Marks of ours are kept apart from the working copy while it is open: they go back in through marksIn
+  d.marks ??= [];
+  if (SastraMarks.has(d.bytes)) {
+    try { const t = await SastraMarks.take(d.bytes); d.bytes = t.bytes; if (t.marks.length) d.marks = t.marks; } catch(e){ console.warn(e); }   // then they just show as part of the page
+  }
   const task = pdfjsLib.getDocument({ data: d.bytes.slice(), ...PDFJS_OPTS });
   onTask?.(task);
   const stopped = () => isCancelled?.() ? Object.assign(new Error('cancelled'), { cancelled:true }) : null;
@@ -1036,7 +1081,7 @@ async function loadPdf(d, { onTask, onPage, isCancelled } = {}){
     d.n = d.pdf.numPages; d.sizes = [];
     for (let i=1;i<=d.n;i++){
       if (stopped()) throw stopped();
-      const v=(await d.pdf.getPage(i)).getViewport({scale:1}); d.sizes.push({w:v.width,h:v.height});
+      const v=(await d.pdf.getPage(i)).getViewport({scale:1}); d.sizes.push({w:v.width,h:v.height,t:v.transform});
       onPage?.(i, d.n);
     }
   } catch(e){ const s = stopped(); if (s) { task.destroy(); throw s; } throw e; }   // a destroyed task rejects: still a cancel
@@ -1080,16 +1125,49 @@ async function closeDoc(id){
   const d = state.docs.find(x => x.id===id); if (!d) return;
   if (d.dirty && !d.sample && !(await askConfirm(`${d.name} has changes that haven't been saved. Close it anyway?`))) return;
   const idx = state.docs.indexOf(d);
-  SastraOps.closePdf(d.pdf);
+  SastraOps.closePdf(d.pdf); if (d.outPdf) SastraOps.closePdf(d.outPdf.pdf);
   state.docs.splice(idx,1); state.combine = state.combine.filter(c => c.id!==id);
   if (state.activeId === id) { const nx = state.docs[Math.min(idx, state.docs.length-1)]; state.activeId = null; if (nx) activate(nx.id); else { renderTabs(); renderThumbs(); renderViewer(); updateUI(); } }
   else { renderTabs(); updateUI(); }
 }
 async function commit(d, bytes, { sel=[], current, msg }={}){
-  d.history.push(d.bytes); if (d.history.length > 40) d.history.shift();
-  d.future = []; d.bytes = bytes; d.dirty = true;
+  pushHistory(d);
+  d.future = []; d.bytes = bytes; d.marks = []; d.dirty = true;   // bytes came through marksIn: loadPdf takes the marks back out
   await reload(d, sel, current); if (msg) toast(msg);
 }
+// One undo step = the file and its marks. A change to marks alone shares the same bytes, so it costs no copy of the file.
+function pushHistory(d){ d.history.push({ bytes:d.bytes, marks:d.marks }); if (d.history.length > 40) d.history.shift(); }
+function changeMarks(d, next){
+  const old = d.marks;
+  pushHistory(d); d.future = []; d.marks = next; d.dirty = true;
+  redrawMarkThumbs(d, old, next); renderTabs(); updateUI();
+}
+function redrawMarkThumbs(d, a, b){
+  for (const i of new Set([...a, ...b].map(m => m.page))) {
+    d.thumbCanvas[i] = null;
+    const box = thumbsEl.querySelector(`.thumb[data-i="${i}"] .tbox`);
+    if (box) { box.querySelector('canvas')?.remove(); if (active() === d) drawThumb(d, i, box); }
+  }
+}
+// The file's bytes with its marks in, for anything that leaves the working copy.
+async function marksIn(d){
+  if (!d.marks.length) return d.bytes;
+  if (d.sealed?.bytes === d.bytes && d.sealed.marks === d.marks) return d.sealed.out;
+  const out = await SastraMarks.put(d.bytes, d.marks);
+  d.sealed = { bytes:d.bytes, marks:d.marks, out };
+  return out;
+}
+// The same as a pdf.js document, for print and exports, which draw from one.
+async function outPdf(d){
+  if (!d.marks.length) return d.pdf;
+  const bytes = await marksIn(d);
+  if (d.outPdf?.bytes === bytes) return d.outPdf.pdf;
+  if (d.outPdf) SastraOps.closePdf(d.outPdf.pdf);
+  const pdf = await pdfjsLib.getDocument({ data: bytes.slice(), ...PDFJS_OPTS }).promise;
+  d.outPdf = { bytes, pdf };
+  return pdf;
+}
+const marksOn = (d, i) => d.marks.filter(m => m.page === i);
 async function reload(d, sel=[], current){
   const keep = { t:viewer.scrollTop, l:viewer.scrollLeft };
   await loadPdf(d);
@@ -1097,10 +1175,21 @@ async function reload(d, sel=[], current){
   d.current = Math.max(0, Math.min(current ?? d.current, d.n-1));
   if (active() === d) { d.scroll = keep; renderTabs(); renderThumbs(); renderViewer(true); updateUI(); }
 }
-async function undo(){ const d=active(); if (!d?.history.length) return;
-  await busy('Undoing…', async () => { d.future.push(d.bytes); d.bytes = d.history.pop(); d.dirty = true; await reload(d); toast('Undone'); }); }
-async function redo(){ const d=active(); if (!d?.future.length) return;
-  await busy('Redoing…', async () => { d.history.push(d.bytes); d.bytes = d.future.pop(); d.dirty = true; await reload(d); toast('Redone'); }); }
+async function stepHistory(d, from, to, label, said){
+  if (from.at(-1).bytes === d.bytes) {   // only marks changed: nothing to reopen
+    const e = from.pop(), old = d.marks;
+    to.push({ bytes:d.bytes, marks:old }); d.marks = e.marks; d.dirty = true;
+    draw.sync(d); redrawMarkThumbs(d, old, e.marks); renderTabs(); updateUI(); toast(said);
+    return;
+  }
+  await busy(label, async () => {
+    const e = from.pop();
+    to.push({ bytes:d.bytes, marks:d.marks }); d.bytes = e.bytes; d.marks = e.marks; d.dirty = true;
+    await reload(d); toast(said);
+  });
+}
+async function undo(){ const d=active(); if (d?.history.length) await stepHistory(d, d.history, d.future, 'Undoing…', 'Undone'); }
+async function redo(){ const d=active(); if (d?.future.length) await stepHistory(d, d.future, d.history, 'Redoing…', 'Redone'); }
 
 /* ---------- tabs ---------- */
 const TAB_HOVER_MS = 500;
@@ -1184,7 +1273,7 @@ function fitZoom(d, mode){
 function renderViewer(restore){
   if (io) io.disconnect(); pagesEl.innerHTML = ''; pagesEl.classList.toggle('two', two);
   const d = active(); $('#empty').hidden = !!d;
-  if (!d) { if (app.classList.contains('focus')) toggleFocus(false); return; }
+  if (!d) { if (app.classList.contains('focus')) toggleFocus(false); draw.sync(null); if (draw.isDrawTool(state.tool)) setTool('select'); return; }
   focusFit(d);
   if (d.fit) d.zoom = fitZoom(d, d.fit);
   setFlow(d);
@@ -1196,7 +1285,7 @@ function renderViewer(restore){
     el.innerHTML = `<span class="pg-lbl">${i+1}</span>`;
     pagesEl.appendChild(el); io.observe(el);
   });
-  markViewerSel();
+  markViewerSel(); draw.sync(d);
   if (restore && d.scroll) { viewer.scrollTop = d.scroll.t; viewer.scrollLeft = d.scroll.l; }
   else { viewer.scrollTop = 0; centerH(); }
 }
@@ -1301,6 +1390,7 @@ viewer.addEventListener('pointerdown', e => {
     pan = { x:e.clientX, y:e.clientY, l:viewer.scrollLeft, t:viewer.scrollTop, id:e.pointerId };
     viewer.setPointerCapture(e.pointerId); viewer.classList.add('grabbing'); e.preventDefault(); return;
   }
+  if (draw.pointerDown(e)) return;
   const pg = e.target.closest('.page'); const d = active();
   if (pg && d) { selectPage(+pg.dataset.i, e); }
 });
@@ -1329,11 +1419,14 @@ viewer.addEventListener('wheel', e => {   // maximized with the page fitted: the
   focusFlip(e, stepPage);
 }, { passive:false });
 
+const draw = SastraDraw.init({ active:() => active(), viewer, pages:pagesEl, change:changeMarks, tool:() => state.tool, setTool:t => setTool(t), maxed:() => maxed(), toast:(m, bad) => toast(m, bad) });
 function setTool(t){
+  if (draw.isDrawTool(t) && !draw.canDraw()) return;
   state.tool = t;
+  draw.toolChanged(t);
   $('#tSelect').classList.toggle('on', t==='select'); $('#tHand').classList.toggle('on', t==='hand');
   viewer.classList.toggle('hand', t==='hand' || state.space);
-  $('#stTool').textContent = t==='hand' ? 'Hand tool — drag to move the page' : 'Select tool';
+  $('#stTool').textContent = t==='hand' ? 'Hand tool — drag to move the page' : draw.isDrawTool(t) ? `${SastraDraw.NAMES[t]} — drag on the page · Esc to stop` : 'Select tool';
 }
 
 /* ---------- thumbnails ---------- */
@@ -1408,6 +1501,7 @@ async function drawThumb(d, i, box){
     const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
     const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
     await page.render({ canvasContext:ctx, viewport:vp }).promise;
+    SastraMarks.paint(ctx, marksOn(d, i), vp);
     if (active() !== d || !box.isConnected) return;
     d.thumbCanvas[i] = c; box.appendChild(c);
   } catch {} finally { delete box.dataset.busy; }
@@ -1434,7 +1528,7 @@ async function movePages(ins){
   const order = [...rest.slice(0,pos), ...moving, ...rest.slice(pos)];
   if (order.every((v,k)=>v===k)) return;
   await busy('Reordering pages…', async () => {
-    const src = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
+    const src = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     const out = await PDFDocument.create();
     (await out.copyPages(src, order)).forEach(p => out.addPage(p));
     const sel = moving.map((_,k)=>pos+k);
@@ -1448,7 +1542,7 @@ async function copyPagesTo(from, d, at){
   const pages = from.pages.filter(i => i < s.n); if (!pages.length) return;
   const n = pages.length, what = `${n} page${n>1?'s':''}`;
   await busy('Copying pages…', async () => {
-    const src = await PDFDocument.load(s.bytes, { ignoreEncryption:true }), doc = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
+    const src = await PDFDocument.load(await marksIn(s), { ignoreEncryption:true }), doc = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     let k = at; (await doc.copyPages(src, pages)).forEach(p => doc.insertPage(k++, p));
     await commit(d, await doc.save(), { sel:pages.map((_, j) => at + j), current:at });
     if (active() !== d) activate(d.id);
@@ -1459,7 +1553,7 @@ async function copyPagesTo(from, d, at){
 async function rotate(delta){
   const d = active(); if (!d) return; const tg = targets(d);
   await busy('Rotating…', async () => {
-    const doc = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
+    const doc = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     for (const i of tg) { const p = doc.getPage(i); p.setRotation(degrees(((p.getRotation().angle + delta) % 360 + 360) % 360)); }
     await commit(d, await doc.save(), { sel:[...d.sel], msg:`Rotated ${tg.length} page${tg.length>1?'s':''}` });
   });
@@ -1468,7 +1562,7 @@ async function deletePages(){
   const d = active(); if (!d) return; const tg = targets(d);
   if (tg.length >= d.n) { toast('A PDF needs at least one page. Select fewer pages to delete.', true); return; }
   await busy('Deleting pages…', async () => {
-    const doc = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
+    const doc = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     [...tg].reverse().forEach(i => doc.removePage(i));
     await commit(d, await doc.save(), { sel:[], current:Math.min(tg[0], d.n-tg.length-1), msg:`Deleted ${tg.length} page${tg.length>1?'s':''} · Ctrl+Z to undo` });
   });
@@ -1476,7 +1570,7 @@ async function deletePages(){
 async function extractPages(){
   const d = active(); if (!d) return; const tg = targets(d);
   await busy('Extracting pages…', async () => {
-    const src = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
+    const src = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     const out = await PDFDocument.create(); (await out.copyPages(src, tg)).forEach(p => out.addPage(p));
     await openBytes(await out.save(), `${baseName(d.name)}-pages-${rangeLabel(tg)}.pdf`, { dirty:true });
     toast(`Extracted ${tg.length} page${tg.length>1?'s':''} to a new tab`);
@@ -1491,7 +1585,7 @@ const byName = new Intl.Collator(undefined, { numeric:true, sensitivity:'base' }
 async function insertItems(d, at, items){
   const list = [...items].sort((a,b) => byName(a.name, b.name));
   await busy('Inserting pages…', async () => {
-    const doc = await PDFDocument.load(d.bytes, { ignoreEncryption:true });
+    const doc = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     const skipped = []; let k = at;
     for (const it of list) {
       try {
@@ -1541,7 +1635,7 @@ async function combine(){
   if (picks.length < 2) { toast('Tick at least two files to combine', true); return; }
   await busy('Combining files…', async () => {
     const out = await PDFDocument.create();
-    for (const d of picks) { const src = await PDFDocument.load(d.bytes, { ignoreEncryption:true }); (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p)); }
+    for (const d of picks) { const src = await PDFDocument.load(await marksIn(d), { ignoreEncryption:true }); (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p)); }
     const total = picks.reduce((a,d)=>a+d.n,0);
     await openBytes(await out.save(), 'Combined.pdf', { dirty:true });
     toast(`Combined ${picks.length} files · ${total} pages`);
@@ -1617,7 +1711,7 @@ async function split(){
   const names = groups.map(g => `${baseName(d.name)}-${rangeLabel(g)}.pdf`), label = `Splitting into ${groups.length} files…`;
   let src = null;
   const part = async k => {
-    src ??= await PDFDocument.load(d.bytes, { ignoreEncryption:true });
+    src ??= await PDFDocument.load(await marksIn(d), { ignoreEncryption:true });
     const out = await PDFDocument.create(); (await out.copyPages(src, groups[k])).forEach(p => out.addPage(p));
     return out.save();
   };
@@ -1640,7 +1734,7 @@ async function exportImages(){
   const render = async k => {
     const i = pages[k];
     $('#stBusy').innerHTML = `<span class="busy"><span class="spin"></span>Rendering page ${i+1} (${k+1} of ${pages.length})…</span>`;
-    return (await SastraOps.renderPage(d.pdf, i, dpi, mime)).blob;
+    return (await SastraOps.renderPage(await outPdf(d), i, dpi, mime)).blob;
   };
   if (pages.length === 1) { await busy('Exporting 1 image…', async () => saveFile(names[0], await render(0))); return; }
   await saveMany(names, `${pages.length} images`, `Exporting ${pages.length} images…`, render);
@@ -1650,7 +1744,7 @@ async function exportImages(){
 async function saveActive(){
   const d = active(); if (!d) return;
   if (desk && d.path && !d.sample) {
-    try { await desk.writeFile(d.path, d.bytes.slice().buffer); d.dirty = false; renderTabs(); toast('Saved ' + d.name); }
+    try { await desk.writeFile(d.path, (await marksIn(d)).slice().buffer); d.dirty = false; renderTabs(); toast('Saved ' + d.name); }
     catch(e){ toast(`Couldn't save ${d.name}. The file may be open in another program or read-only. Use Save As.`, true); }
     return;
   }
@@ -1660,13 +1754,13 @@ async function saveAsActive(){
   const d = active(); if (!d) return;
   if (desk) {
     try {
-      const p = await desk.saveDialog(/\.pdf$/i.test(d.name) ? d.name : d.name + '.pdf', d.bytes.slice().buffer, 'save', d.saveDir || null);
+      const p = await desk.saveDialog(/\.pdf$/i.test(d.name) ? d.name : d.name + '.pdf', (await marksIn(d)).slice().buffer, 'save', d.saveDir || null);
       if (!p) return;
       d.path = p; d.name = p.split(/[\\/]/).pop(); d.dirty = false; d.sample = false; renderTabs(); toast('Saved ' + d.name);
     } catch(e){ toast(`Couldn't save ${d.name}: ${e.message}`, true); }
     return;
   }
-  const ok = await saveFile(d.name, new Blob([d.bytes], { type:'application/pdf' }));
+  const ok = await saveFile(d.name, new Blob([await marksIn(d)], { type:'application/pdf' }));
   if (ok) { d.dirty = false; d.sample = false; renderTabs(); }
 }
 // Save as Reduced Size PDF… (Save ▾, ☰ File): a smaller copy of the open file as it is now, as Acrobat's — pictures to
@@ -1676,7 +1770,7 @@ async function saveReducedActive(){
   const d = active(); if (!d) return;
   const step = ({ i, n }) => { $('#stBusy').innerHTML = `<span class="busy"><span class="spin"></span>Reducing file size · picture ${i} of ${n}…</span>`; };
   const r = await busy('Reducing file size…', async () => {
-    try { return await SastraReduce.reduce(d.bytes, { onStep:step }); } catch(e){ return { error:e.reason || 'damaged' }; }
+    try { return await SastraReduce.reduce(await marksIn(d), { onStep:step }); } catch(e){ return { error:e.reason || 'damaged' }; }
   });
   if (!r) return;   // another task was running
   if (r.error) { toast(`Couldn't reduce ${d.name}: ${r.error === 'protected' ? "it's password-protected" : 'it may be damaged'}`, true); return; }
@@ -1719,7 +1813,7 @@ function updateUI(){
     if (!has && !el.disabled) { el.disabled = true; el.dataset.nodoc = ''; }
     else if (has && 'nodoc' in el.dataset) { el.disabled = false; delete el.dataset.nodoc; }
   }
-  ['#bSave','#bSaveMore','#bPrint','#bZoomOut','#bZoomIn','#bFitW','#bFitP','#oRotL','#oRotR','#oDel','#oExtract','#oInsert','#oAll','#sGo','#eGo'].forEach(s => $(s).disabled = !has || b);
+  ['#bSave','#bSaveMore','#bPrint','#bZoomOut','#bZoomIn','#bFitW','#bFitP','#bTwo','#dHighlight','#dPen','#dRect','#dEllipse','#dLine','#dArrow','#oRotL','#oRotR','#oDel','#oExtract','#oInsert','#oAll','#sGo','#eGo'].forEach(s => $(s).disabled = !has || b);
   $('#bUndo').disabled = !d?.history.length || b; $('#bRedo').disabled = !d?.future.length || b;
   updatePageUI(); updateZoomUI(); renderCombine();
   if (!d) { $('#stDoc').textContent = 'No document open'; $('#stSel').textContent=''; $('#eHint').textContent='';
@@ -1804,6 +1898,7 @@ resizer.addEventListener('pointerdown', e => {
 resizer.addEventListener('dblclick', () => { setPagesW(null); savePagesW(null); redrawThumbs(); });
 function toggleFocus(force){
   const on = force ?? !app.classList.contains('focus'); if (on && !active()) return;   // nothing to maximize
+  if (on && draw.isDrawTool(state.tool)) setTool('select');   // the Tools panel is hidden there
   app.classList.toggle('focus', on);
   // Maximized, the tabs sit beside the logo so the tab row's height goes to the page.
   if (on) $('.brand').after(tabsEl); else $('.menubar').after(tabsEl);
@@ -1817,9 +1912,16 @@ function toggleFocus(force){
 }
 $('#bFocus').onclick = () => toggleFocus();
 // Print window (app/print.js): it gets the active document and the few app helpers it needs
-function printCmd(){
+async function printCmd(){
   const d = active(); if (!d || state.busy || $('.modal-bg')) return;
-  closeMenu(); SastraPrint.open({ doc:d, desk, toast, svg, parseRanges, savePdf:(name, bytes) => savePrintPdf(d, name, bytes) });
+  closeMenu();
+  let doc = d;
+  if (d.marks.length) {   // the print screen draws from a pdf.js document: this one has the marks in it
+    const pdf = await busy('Preparing to print…', () => outPdf(d));
+    if (!pdf || $('.modal-bg')) return;
+    doc = { ...d, pdf };
+  }
+  SastraPrint.open({ doc, desk, toast, svg, parseRanges, savePdf:(name, bytes) => savePrintPdf(d, name, bytes) });
 }
 // the print screen's "Save as PDF": the Save dialog in the file's folder (desk), else a download → the saved name or null
 async function savePrintPdf(d, name, bytes){
@@ -2020,6 +2122,7 @@ function showCanvas(i){
       c.style.height = (oneToOne ? c.height / dpr : Math.floor(s.h * fit)) + 'px';
       const ctx = c.getContext('2d', oneToOne ? { alpha:false } : undefined); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
       await page.render({ canvasContext:ctx, viewport:vp }).promise;
+      SastraMarks.paint(ctx, marksOn(d, i), vp);
       return c;
     } catch { return null; }
   })());
@@ -2099,8 +2202,8 @@ document.addEventListener('keydown', e => {
   if (k==='h'||k==='H') setTool('hand');
   else if (k==='v'||k==='V') setTool('select');
   else if (k==='f'||k==='F') toggleFocus();
-  else if (k==='Escape') { if (app.classList.contains('focus')) toggleFocus(false); else { const d=active(); if (d){ d.sel.clear(); updateSel(); } } }
-  else if ((k==='Delete'||k==='Backspace') && active()) { e.preventDefault(); deletePages(); }
+  else if (k==='Escape') { if (draw.cancel() || draw.deselect()) return; if (draw.isDrawTool(state.tool)) { setTool('select'); return; } if (app.classList.contains('focus')) toggleFocus(false); else { const d=active(); if (d){ d.sel.clear(); updateSel(); } } }
+  else if ((k==='Delete'||k==='Backspace') && active()) { e.preventDefault(); if (!draw.removeSelected()) deletePages(); }
   else if (k==='PageDown' || k==='ArrowRight' && state.tool==='hand') { e.preventDefault(); stepPage(1); }
   else if (k==='PageUp' || k==='ArrowLeft' && state.tool==='hand') { e.preventDefault(); stepPage(-1); }
   else if (k==='Home') { e.preventDefault(); goTo(0); }
