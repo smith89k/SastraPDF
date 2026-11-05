@@ -174,11 +174,15 @@ function annotation(context, m) {
 /* ---------- into and out of the file ---------- */
 async function put(bytes, marks) {
   if (!marks.length) return bytes;
+  if (isProtected(bytes)) throw new Error("this PDF is protected, so marks can't be written into it");
   const doc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
   const pages = doc.getPages();
   for (const m of marks) {
     const page = pages[m.page];
-    if (page) page.node.addAnnot(doc.context.register(annotation(doc.context, m)));
+    if (!page) continue;
+    // not node.addAnnot: it normalizes the page, which wraps its content in another q/Q on every save
+    const ref = doc.context.register(annotation(doc.context, m)), annots = page.node.Annots();
+    if (annots) annots.push(ref); else page.node.set(PDFLib.PDFName.of('Annots'), doc.context.obj([ref]));
   }
   return doc.save();
 }
@@ -240,7 +244,7 @@ const newId = () => `m${Date.now().toString(36)}${(counter++).toString(36)}`;
 async function take(bytes) {
   const { PDFName, PDFRef, PDFDict, PDFRawStream } = PDFLib;
   const doc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
-  const marks = [], ctx = doc.context;
+  const marks = [], ctx = doc.context, seen = new Set(), gone = [];
   doc.getPages().forEach((page, p) => {
     const annots = page.node.Annots();
     if (!annots) return;
@@ -249,15 +253,18 @@ async function take(bytes) {
       if (!(dict instanceof PDFDict)) continue;
       const mark = readMark(dict, p);
       if (!mark) continue;
+      if (seen.has(mark.id)) mark.id = newId();   // a page copied twice carries the same /NM
+      seen.add(mark.id);
       marks.unshift(mark);
       const ap = dict.lookup(PDFName.of('AP')), n = ap instanceof PDFDict ? ap.get(PDFName.of('N')) : null;
-      if (n instanceof PDFRef) ctx.delete(n);
+      if (n instanceof PDFRef) gone.push(n);
       const ref = annots.get(i);
-      if (ref instanceof PDFRef) ctx.delete(ref);
+      if (ref instanceof PDFRef) gone.push(ref);
       annots.remove(i);
     }
     if (annots.size() === 0) page.node.delete(PDFName.of('Annots'));
   });
+  for (const ref of gone) ctx.delete(ref);   // only now: two pages may share one annotation
   // Appearances left behind by a deleted page: nothing draws them, and they would make `has` say yes for ever.
   const used = new Set();
   for (const page of doc.getPages()) {

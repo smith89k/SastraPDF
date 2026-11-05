@@ -1070,7 +1070,7 @@ async function loadPdf(d, { onTask, onPage, isCancelled } = {}){
   await pdfReady;
   // Marks of ours are kept apart from the working copy while it is open: they go back in through marksIn
   d.marks ??= [];
-  if (SastraMarks.has(d.bytes)) {
+  if (SastraMarks.has(d.bytes) && !SastraMarks.isProtected(d.bytes) && !SastraMarks.isSigned(d.bytes)) {   // rewriting those would damage or un-sign them: there the marks stay part of the page
     try { const t = await SastraMarks.take(d.bytes); d.bytes = t.bytes; if (t.marks.length) d.marks = t.marks; } catch(e){ console.warn(e); }   // then they just show as part of the page
   }
   const task = pdfjsLib.getDocument({ data: d.bytes.slice(), ...PDFJS_OPTS });
@@ -1119,6 +1119,7 @@ async function openFiles(files){
 function activate(id){
   const prev = active(); if (prev) prev.scroll = { t:viewer.scrollTop, l:viewer.scrollLeft };
   state.activeId = id;
+  if (draw.isDrawTool(state.tool) && !draw.canDraw()) setTool('select');   // a tool left on must not reach a protected file
   renderTabs(); renderThumbs(); renderViewer(true); updateUI();
 }
 async function closeDoc(id){
@@ -1176,6 +1177,7 @@ async function reload(d, sel=[], current){
   if (active() === d) { d.scroll = keep; renderTabs(); renderThumbs(); renderViewer(true); updateUI(); }
 }
 async function stepHistory(d, from, to, label, said){
+  if (state.busy) { toast('Please wait for the current task to finish'); return; }
   if (from.at(-1).bytes === d.bytes) {   // only marks changed: nothing to reopen
     const e = from.pop(), old = d.marks;
     to.push({ bytes:d.bytes, marks:old }); d.marks = e.marks; d.dirty = true;
@@ -1348,6 +1350,8 @@ function goTo(i, instant){
   if (maxed() && !flowing()) {   // maximized: one page at a time, fitted whole
     setCurrent(i);
     if (d.fit === 'page' && Math.abs(fitZoom(d, 'page') - d.zoom) > 0.001) setZoom(0, 'page');   // a page of another size
+    setFlow(d);   // too big to fit at this zoom: the pages flow from here
+    if (flowing()) return goTo(i, instant);
     viewer.scrollTop = 0; centerH();
     for (const j of two ? [i+2, i+3, i-2, i-1] : [i+1, i-1]) if (pagesEl.children[j]) drawPage(d, j, pagesEl.children[j]);   // flips without a blank flash
     return;
@@ -1419,7 +1423,7 @@ viewer.addEventListener('wheel', e => {   // maximized with the page fitted: the
   focusFlip(e, stepPage);
 }, { passive:false });
 
-const draw = SastraDraw.init({ active:() => active(), viewer, pages:pagesEl, change:changeMarks, tool:() => state.tool, setTool:t => setTool(t), maxed:() => maxed(), toast:(m, bad) => toast(m, bad) });
+const draw = SastraDraw.init({ active:() => active(), viewer, pages:pagesEl, busy:() => state.busy, change:changeMarks, tool:() => state.tool, setTool:t => setTool(t), maxed:() => maxed(), toast:(m, bad) => toast(m, bad) });
 function setTool(t){
   if (draw.isDrawTool(t) && !draw.canDraw()) return;
   state.tool = t;
@@ -1744,7 +1748,10 @@ async function exportImages(){
 async function saveActive(){
   const d = active(); if (!d) return;
   if (desk && d.path && !d.sample) {
-    try { await desk.writeFile(d.path, (await marksIn(d)).slice().buffer); d.dirty = false; renderTabs(); toast('Saved ' + d.name); }
+    // Writing the marks in can take a while on a big file: under busy, so nothing changes meanwhile
+    const bytes = d.bytes, marks = d.marks, out = marks.length ? await busy('Saving…', () => marksIn(d)) : bytes;
+    if (!out) return;
+    try { await desk.writeFile(d.path, out.slice().buffer); if (d.bytes === bytes && d.marks === marks) d.dirty = false; renderTabs(); toast('Saved ' + d.name); }
     catch(e){ toast(`Couldn't save ${d.name}. The file may be open in another program or read-only. Use Save As.`, true); }
     return;
   }
@@ -1752,15 +1759,17 @@ async function saveActive(){
 }
 async function saveAsActive(){
   const d = active(); if (!d) return;
+  const bytes = d.bytes, marks = d.marks, out = marks.length ? await busy('Saving…', () => marksIn(d)) : bytes;
+  if (!out) return;
   if (desk) {
     try {
-      const p = await desk.saveDialog(/\.pdf$/i.test(d.name) ? d.name : d.name + '.pdf', (await marksIn(d)).slice().buffer, 'save', d.saveDir || null);
+      const p = await desk.saveDialog(/\.pdf$/i.test(d.name) ? d.name : d.name + '.pdf', out.slice().buffer, 'save', d.saveDir || null);
       if (!p) return;
-      d.path = p; d.name = p.split(/[\\/]/).pop(); d.dirty = false; d.sample = false; renderTabs(); toast('Saved ' + d.name);
+      d.path = p; d.name = p.split(/[\\/]/).pop(); if (d.bytes === bytes && d.marks === marks) d.dirty = false; d.sample = false; renderTabs(); toast('Saved ' + d.name);
     } catch(e){ toast(`Couldn't save ${d.name}: ${e.message}`, true); }
     return;
   }
-  const ok = await saveFile(d.name, new Blob([await marksIn(d)], { type:'application/pdf' }));
+  const ok = await saveFile(d.name, new Blob([out], { type:'application/pdf' }));
   if (ok) { d.dirty = false; d.sample = false; renderTabs(); }
 }
 // Save as Reduced Size PDF… (Save ▾, ☰ File): a smaller copy of the open file as it is now, as Acrobat's — pictures to
@@ -1931,7 +1940,7 @@ async function savePrintPdf(d, name, bytes){
 }
 $('#bPrint').onclick = printCmd;
 $('#bPresent').onclick = () => presentCmd(false);
-let refitT; function refit(){ clearTimeout(refitT); refitT = setTimeout(() => { const d=active(); if (d?.fit) setZoom(0, d.fit, true); }, 60); }
+let refitT; function refit(){ clearTimeout(refitT); refitT = setTimeout(() => { const d=active(); if (d?.fit) setZoom(0, d.fit, true); else if (d && maxed() && !flowing()) setFlow(d); }, 60); }
 window.addEventListener('resize', refit);
 
 /* ---------- theme: System / Light / Dark, remembered on this computer ---------- */
@@ -2172,6 +2181,7 @@ window.addEventListener('resize', () => {
 
 /* keyboard */
 document.addEventListener('keydown', e => {
+  if (draw.dragging() && e.key !== 'Escape') { e.preventDefault(); return; }   // mid-stroke, the page and file under the mouse must stay put
   if (e.ctrlKey && !e.altKey && ['Tab','PageDown','PageUp'].includes(e.key) && !$('.modal-bg')) {   // switch tabs, as in a browser
     e.preventDefault(); switchTab(e.key === 'PageUp' || (e.key === 'Tab' && e.shiftKey) ? -1 : 1); return;
   }
@@ -2203,7 +2213,7 @@ document.addEventListener('keydown', e => {
   else if (k==='v'||k==='V') setTool('select');
   else if (k==='f'||k==='F') toggleFocus();
   else if (k==='Escape') { if (draw.cancel() || draw.deselect()) return; if (draw.isDrawTool(state.tool)) { setTool('select'); return; } if (app.classList.contains('focus')) toggleFocus(false); else { const d=active(); if (d){ d.sel.clear(); updateSel(); } } }
-  else if ((k==='Delete'||k==='Backspace') && active()) { e.preventDefault(); if (!draw.removeSelected()) deletePages(); }
+  else if ((k==='Delete'||k==='Backspace') && active()) { e.preventDefault(); if (!draw.removeSelected() && !draw.isDrawTool(state.tool)) deletePages(); }   // a drawing tool on: Delete never takes a page
   else if (k==='PageDown' || k==='ArrowRight' && state.tool==='hand') { e.preventDefault(); stepPage(1); }
   else if (k==='PageUp' || k==='ArrowLeft' && state.tool==='hand') { e.preventDefault(); stepPage(-1); }
   else if (k==='Home') { e.preventDefault(); goTo(0); }

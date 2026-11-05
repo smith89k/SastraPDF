@@ -117,6 +117,7 @@ Draw options then show and change that mark; Delete removes it. Clicking anywher
   shows a toast saying that saving changes will break the signature. Keeping signatures valid would need a separate way of writing files.
 - **Protected PDFs (encrypted, open with no password):** the Draw tools refuse with a message, before anything is drawn, as Reduce
   does. pdf-lib can't write them safely.
+- **Files with marks of ours that are protected or signed:** never taken apart on open: their bytes stay as they are, and those marks stay part of the page.
 - **A mark changed in Acrobat:** it stays ours while its private tag survives. The standard keys (`/Rect`, `/InkList`, `/L`, `/C`, `/IC`, `/BS`)
   are the truth; the tag only says which kind it is. Its text (`/Contents`, `/T`, `/Subj`, dates) is kept. If Acrobat drops the tag or the marker,
   the mark is treated like any other app's. A highlight recoloured in Acrobat may lose its see-through look; that is Acrobat's redraw, and accepted.

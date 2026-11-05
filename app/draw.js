@@ -82,8 +82,11 @@ function pointerDown(e) {
   const d = o.active();
   if (!d || e.button !== 0 || o.maxed()) return false;
   const tool = o.tool();
+  // A running job (a rotate, a save) holds the marks as they were: a change now would be lost when it ends.
+  if (o.busy() && (isDrawTool(tool) || e.target.closest('.mk-h, [data-m]'))) { o.toast('Please wait for the current task to finish'); return true; }
   if (isDrawTool(tool)) {
     const pg = e.target.closest('.page'); if (!pg) return false;
+    if (protectedFile(d)) { canDraw(); o.setTool('select'); return true; }
     const i = +pg.dataset.i, a = toPdf(d, i, e), st = styles[GROUP[tool]];
     drag = { type: 'draw', d, i, a, raw: [a], at: [e.clientX, e.clientY], far: 0, mark: { id: M.newId(), page: i, kind: tool, pts: [a, a], color: st.color, fill: M.isBox(tool) ? st.fill : null, width: st.width } };
     if (tool === 'pen' || tool === 'highlight') drag.mark.pts = [a];
@@ -153,11 +156,17 @@ function warnSigned(d) {
   d.signWarned = true;
   if (M.isSigned(d.bytes)) o.toast('This PDF has a digital signature. Saving your changes will break it.');
 }
-// A protected PDF can't be written safely (as Reduce file size): say so before anything is drawn.
+// A protected PDF can't be written safely (as Reduce file size): say so before anything is drawn. Remembered per copy of
+// the file, since a stroke must start at once.
+const known = new WeakMap();
+function protectedFile(d) {
+  if (!known.has(d.bytes)) known.set(d.bytes, M.isProtected(d.bytes));
+  return known.get(d.bytes);
+}
 function canDraw() {
   const d = o.active();
   if (!d) return false;
-  if (!M.isProtected(d.bytes)) return true;
+  if (!protectedFile(d)) return true;
   o.toast("This PDF is protected, so marks can't be added to it.", true);
   return false;
 }
@@ -172,6 +181,7 @@ function deselect() {
 function removeSelected() {
   const d = o.active(), m = selected(d);
   if (!m) return false;
+  if (o.busy()) { o.toast('Please wait for the current task to finish'); return true; }
   sel = null;
   o.change(d, d.marks.filter(x => x.id !== m.id));
   syncPage(d, m.page); showSelection(d, null); renderOptions();
@@ -181,6 +191,7 @@ function removeSelected() {
 /* ---------- the options in the Tools panel ---------- */
 function setOption(key, value) {
   const d = o.active(), m = selected(d);
+  if (m && o.busy()) { o.toast('Please wait for the current task to finish'); renderOptions(); return; }
   const group = GROUP[m ? m.kind : o.tool()];
   if (group) { styles[group] = { ...styles[group], [key]: value }; remember(); }
   if (m) {
@@ -240,7 +251,7 @@ function init(options) {
   o.viewer.addEventListener('pointermove', pointerMove);
   o.viewer.addEventListener('pointerup', pointerUp);
   o.viewer.addEventListener('pointercancel', () => cancel());
-  return { sync, pointerDown, removeSelected, cancel, deselect, toolChanged, canDraw, isDrawTool };
+  return { sync, pointerDown, removeSelected, cancel, deselect, toolChanged, canDraw, isDrawTool, dragging: () => !!drag };
 }
 window.SastraDraw = { init, NAMES };
 })();
