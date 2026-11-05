@@ -1280,7 +1280,8 @@ function renderViewer(restore){
   if (d.fit) d.zoom = fitZoom(d, d.fit);
   setFlow(d);
   d.viewGen++;
-  io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) drawPage(d, +e.target.dataset.i, e.target); }, { root:viewer, rootMargin:'800px 400px' });
+  stopDraws();
+  io = new IntersectionObserver(es => { for (const e of es) wantPage(d, +e.target.dataset.i, e.isIntersecting); }, { root:viewer, rootMargin:'800px 400px' });
   d.sizes.forEach((s,i) => {
     const el = document.createElement('div'); el.className = 'page' + (i === d.current ? ' current' : '') + (i === partner(d, d.current) ? ' pair' : ''); el.dataset.i = i;
     el.style.width = s.w*d.zoom+'px'; el.style.height = s.h*d.zoom+'px';
@@ -1307,11 +1308,53 @@ function focusFit(d){   // maximized shows one page fitted whole; restoring brin
   else if (d.preFocus) { d.fit = d.preFocus.fit; d.zoom = d.preFocus.zoom; delete d.preFocus; }
 }
 function centerH(){ viewer.scrollLeft = Math.max(0,(viewer.scrollWidth - viewer.clientWidth)/2); }
+/* Drawing pages, as Acrobat does when you spin the wheel (the user's MX Master free-spins through hundreds of pages): only
+   what is near the view, nearest first, and a page the view has left stops being drawn. Pages far from the view let go of
+   their picture (a page is about 4 MB per megapixel) and are drawn again when the view comes back. */
+const MAX_DRAWS = 2;
+const draws = { want:new Set(), running:new Map(), live:new Set() };
+function stopDraws(){
+  draws.want.clear(); draws.live.clear();
+  for (const r of draws.running.values()) { r.cancelled = true; r.task?.cancel(); }
+  draws.running.clear();
+}
+function wantPage(d, i, near){
+  if (near) { draws.want.add(i); pumpDraws(d); return; }
+  draws.want.delete(i);
+  const r = draws.running.get(i);
+  if (r) { r.cancelled = true; r.task?.cancel(); draws.running.delete(i); delete pagesEl.children[i]?.dataset.drawn; pumpDraws(d); }
+}
+function pumpDraws(d){
+  while (draws.running.size < MAX_DRAWS && draws.want.size && active() === d) {
+    const mid = viewer.scrollTop + viewer.clientHeight / 2;
+    let best = -1, far = Infinity;
+    for (const i of draws.want) { const el = pagesEl.children[i], gap = el ? Math.abs(el.offsetTop + el.offsetHeight / 2 - mid) : Infinity; if (gap < far) { far = gap; best = i; } }
+    draws.want.delete(best);
+    const el = pagesEl.children[best];
+    if (el) drawPage(d, best, el);
+  }
+  if (!draws.running.size && !draws.want.size) pumpThumbs(d);   // the page in view always goes first
+}
+function trimPages(d){
+  const one = maxed() && !flowing(), reach = viewer.clientHeight * 3, mid = viewer.scrollTop + viewer.clientHeight / 2;
+  for (const el of draws.live) {
+    const i = +el.dataset.i;
+    if (!el.isConnected) { draws.live.delete(el); continue; }
+    const keep = one ? Math.abs(i - d.current) <= (two ? 5 : 2) : Math.abs(el.offsetTop + el.offsetHeight / 2 - mid) <= reach;
+    if (keep || draws.running.has(i)) continue;
+    const c = el.querySelector(':scope > canvas');
+    if (c) { c.width = c.height = 0; c.remove(); }
+    delete el.dataset.drawn; draws.live.delete(el);
+    d.pdf.getPage(i + 1).then(p => p.cleanup()).catch(() => {});
+  }
+}
 async function drawPage(d, i, el){
   const gen = d.viewGen; if (el.dataset.drawn == gen) return; el.dataset.drawn = gen;
+  const job = { cancelled:false, task:null };
+  draws.running.set(i, job);
   try {
     const page = await d.pdf.getPage(i+1);
-    if (gen !== d.viewGen || active() !== d) return;
+    if (job.cancelled || gen !== d.viewGen || active() !== d) return;
     const dpr = window.devicePixelRatio||1, s = d.sizes[i], MAX = 4800, want = d.zoom * dpr;
     const scale = Math.min(want, MAX / s.w, MAX / s.h);
     const vp = page.getViewport({ scale });
@@ -1319,10 +1362,16 @@ async function drawPage(d, i, el){
     // Shown 1:1, the canvas is opaque, so Chromium draws the text with ClearType as Acrobat does. A canvas held to the
     // 4800 px limit is stretched: it stays transparent (grey edges), since stretched colour fringes look worse.
     const ctx = c.getContext('2d', scale < want ? undefined : { alpha:false }); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
-    await page.render({ canvasContext:ctx, viewport:vp }).promise;
-    if (gen !== d.viewGen) return;
-    const old = el.querySelector('canvas'); if (old) old.replaceWith(c); else el.prepend(c);
+    job.task = page.render({ canvasContext:ctx, viewport:vp });
+    await job.task.promise;
+    if (job.cancelled || gen !== d.viewGen) return;
+    const old = el.querySelector(':scope > canvas'); if (old) { old.width = old.height = 0; old.replaceWith(c); } else el.prepend(c);
+    draws.live.add(el);
   } catch(e){ /* page render cancelled or failed; leave it blank */ }
+  finally {
+    if (draws.running.get(i) === job) draws.running.delete(i);
+    if (active() === d) { pumpDraws(d); trimPages(d); }
+  }
 }
 function setZoom(z, fit=null, keepTop=false){
   const d = active(); if (!d) return;
@@ -1331,7 +1380,8 @@ function setZoom(z, fit=null, keepTop=false){
   const cy = (viewer.scrollTop + ay) / Math.max(1, viewer.scrollHeight);
   const cx = (viewer.scrollLeft + viewer.clientWidth/2) / Math.max(1, viewer.scrollWidth);
   const anchor = maxed() ? viewAnchor(d) : null;
-  d.zoom = nz; d.viewGen++; setFlow(d);
+  d.zoom = nz; d.viewGen++; setFlow(d); stopDraws();
+  for (const el of pagesEl.children) if (el.querySelector(':scope > canvas')) draws.live.add(el);
   [...pagesEl.children].forEach((el,i) => { const s=d.sizes[i]; el.style.width=s.w*nz+'px'; el.style.height=s.h*nz+'px'; io.unobserve(el); io.observe(el); });
   if (fit === 'page') goTo(d.current, true);
   else if (anchor) { viewer.scrollTop = anchor.el.offsetTop + anchor.at * anchor.el.offsetHeight - viewer.clientHeight/2; viewer.scrollLeft = cx*viewer.scrollWidth - viewer.clientWidth/2; }
@@ -1353,7 +1403,8 @@ function goTo(i, instant){
     setFlow(d);   // too big to fit at this zoom: the pages flow from here
     if (flowing()) return goTo(i, instant);
     viewer.scrollTop = 0; centerH();
-    for (const j of two ? [i+2, i+3, i-2, i-1] : [i+1, i-1]) if (pagesEl.children[j]) drawPage(d, j, pagesEl.children[j]);   // flips without a blank flash
+    for (const j of two ? [i+2, i+3, i-2, i-1] : [i+1, i-1]) if (pagesEl.children[j]) wantPage(d, j, true);   // flips without a blank flash
+    trimPages(d);
     return;
   }
   const other = pagesEl.children[partner(d, i)];
@@ -1373,6 +1424,7 @@ viewer.addEventListener('scroll', () => {
   if (scrollRaf) return;
   scrollRaf = requestAnimationFrame(() => {
     scrollRaf = 0; const d = active(); if (!d || (maxed() && !flowing())) return;   // one page at a time: page keys set it
+    trimPages(d);
     const mid = viewer.scrollTop + viewer.clientHeight * 0.35; let best = 0;
     for (const el of pagesEl.children) { if (el.offsetTop <= mid) best = +el.dataset.i; else break; }
     if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 2) best = d.n - 1;   // the very end: a short last page never reaches the line
@@ -1446,7 +1498,8 @@ function renderThumbs(){
   }
   const head = document.createElement('div'); head.className='thumbs-head';
   head.innerHTML = `<span>Pages</span><span>${d.n}</span>`; thumbsEl.appendChild(head);
-  tio = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) drawThumb(d, +e.target.dataset.i, e.target.querySelector('.tbox')); }, { root:thumbsEl, rootMargin:'400px 0px' });
+  thumbJobs.want.clear(); thumbJobs.task?.cancel();
+  tio = new IntersectionObserver(es => { for (const e of es) wantThumb(d, +e.target.dataset.i, e.isIntersecting); }, { root:thumbsEl, rootMargin:'400px 0px' });
   d.sizes.forEach((s,i) => {
     const t = document.createElement('div'); t.className='thumb'; t.dataset.i=i; t.draggable = true; t.tabIndex = 0;
     t.setAttribute('aria-label', 'Page ' + (i+1));
@@ -1497,6 +1550,26 @@ thumbsEl.addEventListener('drop', e => {
   else if (from.docId === d.id && !e.ctrlKey) movePages(spot.at);
   else copyPagesTo(from, d, spot.at);
 });
+/* Thumbnails wait until the pages in view are drawn: the current page moves the panel through every page you scroll past,
+   and each one would otherwise queue up ahead of the page you stopped on. Far ones let go of their picture. */
+const THUMBS_KEPT = 60;
+const thumbJobs = { want:new Set(), running:null, task:null, near:0 };
+function wantThumb(d, i, near){
+  if (near) { thumbJobs.want.add(i); thumbJobs.near = i; pumpThumbs(d); return; }
+  thumbJobs.want.delete(i);
+  if (thumbJobs.running === i) thumbJobs.task?.cancel();
+}
+async function pumpThumbs(d){
+  if (thumbJobs.running !== null || draws.running.size || draws.want.size || !thumbJobs.want.size || active() !== d) return;
+  let best = -1, far = Infinity;
+  for (const i of thumbJobs.want) { const gap = Math.abs(i - thumbJobs.near); if (gap < far) { far = gap; best = i; } }
+  thumbJobs.want.delete(best);
+  const box = thumbsEl.querySelector(`.thumb[data-i="${best}"] .tbox`);
+  thumbJobs.running = best;
+  try { if (box) await drawThumb(d, best, box); } finally { thumbJobs.running = null; thumbJobs.task = null; }
+  d.thumbCanvas.forEach((c, i) => { if (c && Math.abs(i - thumbJobs.near) > THUMBS_KEPT) { c.remove(); c.width = c.height = 0; d.thumbCanvas[i] = null; } });
+  pumpThumbs(d);
+}
 async function drawThumb(d, i, box){
   if (d.thumbCanvas[i] || box.dataset.busy) return; box.dataset.busy = '1';
   try {
@@ -1504,7 +1577,8 @@ async function drawThumb(d, i, box){
     const scale = ((box.clientWidth || 128) * 2) / s.w; const vp = page.getViewport({scale});
     const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
     const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
-    await page.render({ canvasContext:ctx, viewport:vp }).promise;
+    const task = page.render({ canvasContext:ctx, viewport:vp }); if (thumbJobs.running === i) thumbJobs.task = task;
+    await task.promise;
     SastraMarks.paint(ctx, marksOn(d, i), vp);
     if (active() !== d || !box.isConnected) return;
     d.thumbCanvas[i] = c; box.appendChild(c);

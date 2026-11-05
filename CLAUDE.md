@@ -169,8 +169,7 @@ The full history of how this project was planned and built is in `docs/HISTORY.m
 - Every page edit goes through pdf-lib → `commit(d, newBytes)` → pushes old bytes on `history`
   (undo, max 40) → `reload()` re-opens with pdf.js and re-renders tabs/thumbs/viewer.
 - Actions apply to selected pages, or the current page if nothing is selected (`targets(d)`).
-- Viewer: pages are placeholders sized from page dimensions; IntersectionObserver renders
-  canvases lazily. Thumbnails render lazily too.
+- Viewer: pages are placeholders sized from page dimensions; IntersectionObserver asks for canvases near the view, `pumpDraws` draws at most 2 at once, nearest first, a page the view has left is cancelled, and `trimPages` frees canvases over 3 view heights away (since 2026-11-05, the user's MX Master free-spin wheel locked it up: every page crossed was drawn and kept, as Acrobat doesn't). Thumbnails wait until the pages in view are done (`pumpThumbs`); only 60 either side are kept.
 - Sharp text (since 2026-10-20, the user: "acrobat look sharper"; spec 2026-10-20-sharper-pages-design.md): a page
   canvas shown 1:1 (viewer, maximized slideshow, Present) is opaque — `getContext('2d', { alpha:false })` — so Chromium
   draws pdf.js's glyphs with ClearType like Acrobat (it follows Windows' ClearType setting). Measured first: the canvas
