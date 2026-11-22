@@ -135,3 +135,6 @@ The full list of open-source parts and their licences is on the app's About scre
 
 Sastra PDF is released under the [MIT Licence](LICENSE).
 Copyright © 2026 Sunnguon Taing ([smith89k](https://github.com/smith89k)).
+
+The open-source parts it ships keep their own licences, all permissive or font licences: PDF.js (Apache-2.0),
+pdf-lib (MIT), pako (MIT and Zlib), Electron (MIT), electron-updater (MIT), IBM Plex and Noto Sans Khmer (SIL OFL 1.1).
