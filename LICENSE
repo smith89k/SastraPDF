@@ -23,5 +23,6 @@ SOFTWARE.
 ---
 
 Third-party components shipped with Sastra PDF keep their own licences (all permissive or
-font licences): pdf.js (Apache-2.0), pdf-lib (MIT), JSZip (MIT), pako (MIT/Zlib), Electron (MIT),
-IBM Plex and Noto Sans Khmer (SIL OFL 1.1). The full list is on the app's About screen.
+font licences): PDF.js (Apache-2.0), pdf-lib (MIT), pako (MIT and Zlib), Electron (MIT),
+electron-updater (MIT), IBM Plex and Noto Sans Khmer (SIL Open Font License 1.1).
+The full list, including the parts bundled inside them, is on the app's About screen.

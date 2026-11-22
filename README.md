@@ -1,98 +1,137 @@
-# Sastra PDF (សាស្ត្រា PDF)
+<div align="center">
 
-A Windows desktop PDF workbench in the style of Acrobat Pro, built with Electron.
+<img src="build/logo.png" alt="Sastra PDF logo" width="112">
+
+# Sastra PDF <sup>សាស្ត្រា</sup>
+
+**A fast, private PDF workbench for Windows.**
+Organize, combine, split, crop, mark up, print and export PDF pages, all on your own computer.
+
+<a href="https://apps.microsoft.com/detail/9P768LL4RTVP?mode=direct">
+  <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get it from Microsoft" width="200">
+</a>
+
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-cc2229.svg)](LICENSE)
+![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4.svg)
+![Works offline](https://img.shields.io/badge/works-offline-2ea44f.svg)
+
+</div>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-dark.png">
+  <img src="docs/images/screenshot-light.png" alt="Sastra PDF with a PDF open: page thumbnails on the left, the page in the middle, and the Tools panel on the right">
+</picture>
+
+## About
+
+Sastra PDF brings the everyday page tools of a professional PDF editor to a clean, native Windows app.
+Open several PDFs as tabs, drag pages between them, and save — nothing is uploaded anywhere.
+
+The name comes from **សាស្ត្រា** (*sastra*), the traditional Khmer palm-leaf manuscripts, where every leaf is a page.
 
 ## Features
-- Several PDFs open at once, each in its own tab
-- Hand tool (H, or hold Space), zoom (Ctrl + mouse wheel), Fit page / Fit width
-- Opens maximized; Maximize page area (F) and Full screen (F11)
-- Page thumbnails: click to select, Ctrl/Shift-click for more, drag to reorder
-- Rotate, delete, extract and insert pages, with Undo/Redo (Ctrl+Z / Ctrl+Y)
-- Crop pages as in Acrobat: drag a box or type margins, on one page or many, or remove white margins. What is cut is only hidden, so it can be brought back
-- Combine files; Split every N pages, by ranges, or one file per page, into new tabs or a folder
-- Export pages as PNG or JPG at 72 / 150 / 300 dpi (several pages: one file each, in a folder)
-- Print (Ctrl+P) on a full-window print screen (big dropdowns, zoomable preview, Save as PDF of exactly what
-  prints): printer and its Properties, copies, grayscale,
-  page ranges, odd/even, Fit / Actual size / Shrink / Custom scale, Poster, pages per sheet, Booklet,
-  both sides, paper size, and a preview of every sheet
-- Ctrl+S saves back to the original file; Ctrl+Shift+S is Save As
-- "Open with Sastra PDF" for .pdf files in File Explorer; asks before closing with unsaved changes
-- Right-click PDFs or pictures (JPG, PNG, BMP, GIF, WebP) in File Explorer → **Sastra PDF**: Make PDF from
-  one picture, Combine the selected files (PDFs and pictures together, in name order), Split (one file per
-  page, here or into a folder named after the PDF), Images (JPG, 300 dpi, here or into a folder).
-  On Windows 11 the installer asks once for permission to put it in the first right-click menu;
-  without it, the same items are under "Show more options". On Windows 10 they show right away.
-- Works fully offline; files never leave the computer (only updates need the internet)
-- Mark up pages: highlight, pen, rectangle, circle, line and arrow, with colours, fill and border. Marks stay changeable after
-  saving, and show in Acrobat and other PDF readers
-- Two-page view (pairs 1-2, 3-4); zoomed in while maximized, the hand tool moves smoothly across pages
-- Updates: when a new version is found, a small badge appears in the top bar. Click it to see the download go from
-  version to version, then click Install. ☰ › Help › Check for Updates checks by hand
+
+**Organize pages**
+- Open many PDFs at once, each in its own tab
+- Page thumbnails: select, reorder by dragging, or drag pages into another file to copy them
+- Rotate, delete, extract and insert pages, with full Undo / Redo
+- Drop PDFs or pictures straight into the page list to insert them where you let go
+
+**Combine and split**
+- Combine PDFs and pictures (JPG, PNG, BMP, GIF, WebP) into one file
+- Split every N pages, by page ranges, or one file per page — into new tabs or a folder
+
+**Crop and mark up**
+- Crop pages by dragging a box or typing margins, on one page or many; remove white margins in one click
+- Highlight, pen, rectangle, circle, line and arrow, with colour, fill and border
+- Marks are saved as standard PDF annotations, so they show in Acrobat and other readers and stay editable
+
+**Print, export and shrink**
+- Full print screen with live preview: page ranges, scaling, poster, several pages per sheet, booklet, both sides
+- Export pages as PNG or JPG at 72, 150 or 300 dpi
+- Save as Reduced Size PDF to make large, picture-heavy files much smaller
+
+**Feels at home on Windows**
+- Hand tool, zoom, fit width / fit page, two-page view, Present mode and a distraction-free Maximize view
+- Light and dark themes that follow Windows
+- File Explorer right-click menu: Make PDF, Combine, Split, Images and Reduce file size without opening the app
+- Sharp, ClearType text on screen and high-resolution printing
+- Khmer file names and text fully supported
 
 ## Download
-Sastra PDF is in the Microsoft Store (Windows 10 or 11, 64-bit), signed by Microsoft: open the Microsoft Store app and
-search for **Sastra PDF**. The Store keeps it up to date. Version 1.2.0 was the last one given out as an installer;
-those copies keep working but update no further — install the Store version, then uninstall the old one.
-Releasing: [docs/updates-setup.md](docs/updates-setup.md).
 
-## Signing and privacy
-The Microsoft Store version is signed by Microsoft. Installers up to 1.2.0 are unsigned, so Windows SmartScreen may
-warn about them: "More info" > "Run anyway".
+Sastra PDF is available free from the **[Microsoft Store](https://apps.microsoft.com/detail/9P768LL4RTVP)**
+for Windows 10 and Windows 11 (64-bit). The Store version is signed by Microsoft and updates itself.
 
-**Privacy policy:** Sastra PDF sends nothing about you or your files anywhere. Your PDFs stay on your computer; the app
-has no telemetry and no online fonts. The Store version asks the Microsoft Store, through Windows, whether a newer version exists, when it starts and every 6 hours; the app adds nothing about you or your files.
-Copies installed from an installer up to 1.2.0 check https://sastra-update.smith89k.com/ for a newer version when they
-start and every 6 hours; those requests carry nothing about you or your files.
+> Copies installed from an installer (version 1.2.0 and earlier) keep working but no longer update.
+> Install the Store version, then uninstall the old one.
+
+## Privacy
+
+Sastra PDF sends nothing about you or your files anywhere. Your PDFs stay on your computer, there is no telemetry,
+and every font ships inside the app. The only network request is the update check: the Store version asks the
+Microsoft Store, through Windows, whether a newer version exists (at start and every 6 hours).
+
+## Build from source
+
+**Requirements**
+- Windows 10 or 11
+- [Node.js](https://nodejs.org) 22.13 or newer
+- [pnpm](https://pnpm.io) — `npm install -g pnpm`
+- For the File Explorer menu: Visual Studio Build Tools with *Desktop development with C++* (x64) and the Windows SDK
+
+**Run it**
+
+```bat
+pnpm install
+pnpm start
+```
+
+Or double-click `run.bat`.
+
+**Build an installer**
+
+```bat
+pnpm run dist
+```
+
+The installer is written to `dist\`. For a single portable `.exe`, run `pnpm run dist:portable`;
+for the Microsoft Store package, `pnpm run dist:store`. Double-clicking `build.bat` does the install and build in one step.
+
+<details>
+<summary><b>Project layout</b></summary>
+
+| Path | What it is |
+| --- | --- |
+| `main.js`, `preload.js` | Electron main process (window, menus, file dialogs, printing) and the safe bridge to the page |
+| `app/index.html` | The app interface and PDF tools |
+| `app/print.js`, `app/crop.js`, `app/draw.js`, `app/marks.js`, `app/reduce.js` | Printing, cropping, drawing, PDF annotations, file-size reduction |
+| `app/task.html`, `app/task.js` | The small progress window for File Explorer menu jobs |
+| `explorer-menu/` | The File Explorer right-click menu (C++) and its Windows 11 package |
+| `store-update/` | Helpers the Store version uses to check for and install updates |
+| `build/` | Icons, installer steps and the Store package configuration |
+| `scripts/` | Install and build helpers |
+
+</details>
+
+<details>
+<summary><b>Troubleshooting</b></summary>
+
+- **"Cannot create symbolic link" during `pnpm run dist`** — run `build.bat` once as Administrator, or turn on
+  *Settings › System › For developers › Developer Mode*.
+- **SmartScreen warns about a self-built installer** — it isn't code-signed. Choose *More info › Run anyway*.
+- **Behind a proxy** — run `pnpm config set --global https-proxy http://host:port` before building.
+
+</details>
+
+## Built with
+
+[Electron](https://www.electronjs.org) · [PDF.js](https://mozilla.github.io/pdf.js/) · [pdf-lib](https://pdf-lib.js.org) ·
+[IBM Plex](https://www.ibm.com/plex/) · [Noto Sans Khmer](https://fonts.google.com/noto/specimen/Noto+Sans+Khmer)
+
+The full list of open-source parts and their licences is on the app's About screen.
 
 ## Licence
-MIT — see [LICENSE](LICENSE). The libraries and fonts it ships keep their own licences (listed on
-the app's About screen).
 
-## Requirements (to build it yourself)
-- Node.js 22.13 or newer (LTS) from https://nodejs.org — Electron 44 and pdf.js 6 need it
-- pnpm (`npm install -g pnpm`) — the project uses pnpm, not npm
-- For the File Explorer menu (built by `pnpm run dist`): Visual Studio Build Tools with
-  "Desktop development with C++" (x64) and the Windows 10/11 SDK
-
-## Build the installer
-Double-click **build.bat**, or in a terminal in this folder:
-
-    pnpm install
-    pnpm run dist
-
-The installer is written to `dist\Sastra PDF Setup <version>.exe` (the version comes from package.json).
-For a single .exe without installing, run `pnpm run dist:portable`.
-
-## Run without installing (for development)
-Double-click **run.bat**, or run `pnpm start`.
-
-## Project layout
-    main.js            Window, menus, file dialogs, "Open with" handling
-    preload.js         Safe bridge between the page and Windows (open/save files)
-    app/index.html     The app itself (UI and all PDF tools)
-    app/print.js       Printing: the print screen, sheet layouts, the print run and Save as PDF
-    app/pdfops.js      PDF helpers shared by the app and the Explorer-menu window
-    app/images.js      Turns pictures into PDF pages (Make PDF / Combine from the Explorer menu)
-    app/task.html/.js  The small window that runs Split / Images from the Explorer menu
-    app/vendor/        pdf.js and pdf-lib (copied automatically by pnpm install)
-    explorer-menu/     The File Explorer right-click menu: C++ source (menu.cpp) and its
-                       Windows 11 package manifest; built into explorer-menu/out/
-    explorer-menu.js   Adds/removes that menu (run by the installer) and reads what it asked for
-    updater.js         Automatic updates of installer copies: when to check, what to tell the app (uses electron-updater)
-    store-update.js    The Store copy's update state, behind the badge and panel (app/update-panel.js)
-    store-update/      The small programs the Store copy uses to talk to the Store and to reopen after an update
-    build/installer.nsh  Installer steps for the Explorer menu
-    build/icon.ico     App and installer icon (made from build/logo.png)
-    build/logo.png     The Sastra logo, 1024 px master
-    scripts/           Run by pnpm install: fetch Electron, copy the libraries into app/vendor,
-                       check the About screen's library versions; build-explorer-menu.js (pnpm run dist);
-                       release-notes.js (the release workflow)
-    pnpm-workspace.yaml  pnpm settings: a pinned build-tool version, which packages may run install scripts
-
-## Troubleshooting
-- **"Cannot create symbolic link" during `pnpm run dist`**: run build.bat once as Administrator,
-  or turn on Windows Settings > System > For developers > Developer Mode, then build again.
-- **Windows SmartScreen warns about the installer**: the app is not code-signed. Click
-  "More info" > "Run anyway". Signing needs a code-signing certificate.
-- **Behind a proxy**: run `pnpm config set --global https-proxy http://host:port` (and `http-proxy`)
-  before building.
+Sastra PDF is released under the [MIT Licence](LICENSE).
+Copyright © 2026 Sunnguon Taing ([smith89k](https://github.com/smith89k)).
