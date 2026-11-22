@@ -657,13 +657,21 @@ menu kept. The same copy's checks after the history rewrite and force-push (12:4
 - **Open source tried and undone, 2026-10-19**: the user asked "go open source like bohpum to get code-signing" (GPL 3.0,
   About's license line, a five-job release with SignPath, 1.1.3; commits c16588a…655e43b), the repository was made
   public, then private again the same day ("undo to private"), and every file went back to the 2026-10-18 state ("back
-  to before we plan to go public"; done with `git revert`, so the work is still in git history). Stays private; no
+  to before we plan to go public"; done with `git revert`, so the work is still in git history). Stayed private then (public since 2026-11-22, below); no
   SignPath. What stays from it: the history clean-up — the work-document names and the Gmail address were rewritten in
   every commit and tag and force-pushed (backup bundle `E:\_httdocs\SastraPDF-old-history.bundle` on this PC only;
   this repo's `user.email` is GitHub's private `7828470+smith89k@users.noreply.github.com`). The six merged pull
   requests on GitHub still hold the OLD commits (PR #5's diff shows the work-document names, all show Gmail); only
   GitHub Support can remove them. The README still has MIT; its 2026-10-15 "Code signing policy (applied for)" section
   became "Signing and privacy" with the Microsoft Store work (below).
+- **Public on GitHub since 2026-11-22** (the user: "make github public. write read me and licence"): MIT LICENSE (plain text, so
+  GitHub shows MIT), README rewritten for visitors (logo, Microsoft Store badge → apps.microsoft.com/detail/9P768LL4RTVP,
+  light/dark screenshots in docs/images/ made from a neutral sample PDF, never the user's files), homepage = the Store page,
+  topics. Before going public: 22 commits since 2026-10-19 carried the Gmail address (this PC's git config); they and tags
+  v1.2.0 / v1.3.0 were rewritten to the noreply address and force-pushed, the merged branch claude/ms-store-release-notes-r9jaux
+  deleted; backup bundle `C:\_httdocs\SastraPDF-before-email-fix.bundle` (this PC only). This repo's `user.email` is now the
+  noreply address. The 6 old merged pull requests still show the Gmail address (PR #5 also the work-document names) until
+  GitHub Support removes them.
 - **Microsoft Store work (2026-10-19 →)**: plan docs/superpowers/plans/2026-10-19-microsoft-store.md. menu.cpp starts the
   app directly when its DLL runs inside the Store package (`InStorePackage`), so the app runs in that package too.
   Tasks 1–9 done on 2026-10-19 in a Linux cloud session (Claude Code on the web), not on the user's PC. Commits on main:
