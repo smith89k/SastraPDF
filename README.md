@@ -1,25 +1,21 @@
 <div align="center">
 
-<img src="build/logo.png" alt="Sastra PDF logo" width="112">
+<img src="art/logo.svg" width="112" height="112" alt="Sastra PDF logo">
 
-# Sastra PDF <sup>សាស្ត្រា</sup>
+# Sastra PDF
 
-**A fast, private PDF workbench for Windows.**
-Organize, combine, split, crop, mark up, print and export PDF pages, all on your own computer.
+**A fast, private PDF workbench for Windows: organise, combine, split, mark up, print and export pages, all on your own computer.**
 
-<a href="https://apps.microsoft.com/detail/9P768LL4RTVP?mode=direct">
-  <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get it from Microsoft" width="200">
-</a>
-
-[![Licence: MIT](https://img.shields.io/badge/licence-MIT-cc2229.svg)](LICENSE)
-![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4.svg)
-![Works offline](https://img.shields.io/badge/works-offline-2ea44f.svg)
+<a href="https://github.com/smith89k/SastraPDF/blob/main/LICENSE"><img src="https://img.shields.io/badge/licence-MIT-cc2229" alt="MIT licence"></a>
+<img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4" alt="Windows 10 or 11">
+<img src="https://img.shields.io/badge/works-offline-2ea44f" alt="Works offline">
+<a href="https://apps.microsoft.com/detail/9P768LL4RTVP"><img src="https://img.shields.io/badge/Microsoft%20Store-Sastra%20PDF-0078d4" alt="In the Microsoft Store"></a>
 
 </div>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-dark.png">
-  <img src="docs/images/screenshot-light.png" alt="Sastra PDF with a PDF open: page thumbnails on the left, the page in the middle, and the Tools panel on the right">
+  <source media="(prefers-color-scheme: dark)" srcset="art/banner-dark.png">
+  <img src="art/banner-light.png" alt="Sastra PDF: page thumbnails, a highlighted page and the print panel of the Windows app." width="100%">
 </picture>
 
 ## About
