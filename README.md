@@ -2,7 +2,7 @@
 
 <img src="build/logo.png" width="112" height="112" alt="Sastra PDF logo">
 
-# Sastra PDF
+# Sastra PDF (សាស្ត្រា)
 
 **A fast, private PDF workbench for Windows: organise, combine, split, mark up, print and export pages, all on your own computer.**
 
