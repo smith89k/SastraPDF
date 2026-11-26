@@ -21,17 +21,17 @@
   <img src="art/banner-light.png" alt="Sastra PDF: page thumbnails, a highlighted page and the print panel of the Windows app." width="100%">
 </picture>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-dark.png">
-  <img src="docs/images/screenshot-light.png" alt="Sastra PDF with a PDF open: page thumbnails on the left, the page in the middle, and the Tools panel on the right" width="100%">
-</picture>
-
 ## About
 
 Sastra PDF brings the everyday page tools of a professional PDF editor to a clean, native Windows app.
 Open several PDFs as tabs, drag pages between them, and save — nothing is uploaded anywhere.
 
 The name comes from **សាស្ត្រា** (*sastra*), the traditional Khmer palm-leaf manuscripts, where every leaf is a page.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-dark.png">
+  <img src="docs/images/screenshot-light.png" alt="Sastra PDF with a PDF open: page thumbnails on the left, the page in the middle, and the Tools panel on the right" width="100%">
+</picture>
 
 ## Features
 
