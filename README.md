@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="art/logo.svg" width="112" height="112" alt="Sastra PDF logo">
+<img src="build/logo.png" width="112" height="112" alt="Sastra PDF logo">
 
 # Sastra PDF
 
